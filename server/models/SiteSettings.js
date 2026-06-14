@@ -26,6 +26,14 @@ const siteSettingsSchema = new mongoose.Schema({
   // Login page — right panel
   loginTitle:   { type: String, default: 'Selamat datang' },
   loginSubtitle:{ type: String, default: 'Masuk ke akun Intrack Anda' },
+
+  // SMTP
+  smtpHost:   { type: String, default: '' },
+  smtpPort:   { type: Number, default: 587 },
+  smtpSecure: { type: Boolean, default: false },
+  smtpUser:   { type: String, default: '' },
+  smtpPass:   { type: String, default: '' },
+  smtpFrom:   { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('SiteSettings', siteSettingsSchema);

@@ -183,6 +183,66 @@
           </div>
         </div>
 
+        <!-- ── Konfigurasi SMTP ── -->
+        <div class="card">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Konfigurasi Email (SMTP)</span>
+            <span id="smtp-status" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;background:var(--surface-2);color:var(--text-3)">Belum dikonfigurasi</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="row-2">
+              <div class="field">
+                <label>SMTP Host</label>
+                <input type="text" id="s-smtp-host" placeholder="smtp.gmail.com">
+                <div class="hint">Contoh: smtp.gmail.com · smtp.office365.com · mail.yourdomain.com</div>
+              </div>
+              <div class="field">
+                <label>SMTP Port</label>
+                <input type="number" id="s-smtp-port" placeholder="587" min="1" max="65535">
+                <div class="hint">587 (TLS/STARTTLS) · 465 (SSL) · 25 (tanpa enkripsi)</div>
+              </div>
+            </div>
+            <div class="row-2">
+              <div class="field">
+                <label>Username / Email Pengirim</label>
+                <input type="email" id="s-smtp-user" placeholder="noreply@perusahaan.com">
+              </div>
+              <div class="field">
+                <label>Password / App Password</label>
+                <div style="position:relative">
+                  <input type="password" id="s-smtp-pass" placeholder="••••••••" style="padding-right:40px">
+                  <button onclick="toggleSmtpPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px" title="Tampilkan password">
+                    <i class="ti ti-eye" id="smtp-pass-eye"></i>
+                  </button>
+                </div>
+                <div class="hint">Untuk Gmail gunakan <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--accent)">App Password</a>, bukan password utama</div>
+              </div>
+            </div>
+            <div class="row-2">
+              <div class="field">
+                <label>Nama &amp; Alamat Pengirim (From)</label>
+                <input type="text" id="s-smtp-from" placeholder='"Intrack" <noreply@perusahaan.com>'>
+                <div class="hint">Format: "Nama" &lt;email&gt; atau hanya email</div>
+              </div>
+              <div class="field">
+                <label style="display:flex;align-items:center;gap:8px">
+                  <input type="checkbox" id="s-smtp-secure" style="width:auto;margin:0">
+                  Gunakan SSL (port 465)
+                </label>
+                <div class="hint" style="margin-top:8px">Centang jika port 465. Biarkan kosong untuk port 587 (STARTTLS)</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="saveSmtp()"><i class="ti ti-device-floppy"></i> Simpan SMTP</button>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="email" id="smtp-test-email" class="input" placeholder="Email tujuan test..." style="width:220px">
+                <button class="btn" onclick="testSmtp()"><i class="ti ti-send"></i> Kirim Test</button>
+              </div>
+              <span id="smtp-test-result" style="font-size:12px;color:var(--text-3)"></span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -216,6 +276,25 @@ async function loadSettings() {
   features = (s.loginFeatures || []).map(f => ({ icon: f.icon, text: f.text }));
   renderFeatures();
   updatePreview();
+
+  // SMTP
+  document.getElementById('s-smtp-host').value   = s.smtpHost || '';
+  document.getElementById('s-smtp-port').value   = s.smtpPort || 587;
+  document.getElementById('s-smtp-user').value   = s.smtpUser || '';
+  document.getElementById('s-smtp-pass').value   = s.smtpPass || '';
+  document.getElementById('s-smtp-from').value   = s.smtpFrom || '';
+  document.getElementById('s-smtp-secure').checked = !!s.smtpSecure;
+
+  const badge = document.getElementById('smtp-status');
+  if (s.smtpHost && s.smtpUser && s.smtpPass) {
+    badge.textContent = '✓ Terkonfigurasi';
+    badge.style.background = 'rgba(16,185,129,.15)';
+    badge.style.color = '#34D399';
+  } else {
+    badge.textContent = 'Belum dikonfigurasi';
+    badge.style.background = 'var(--surface-2)';
+    badge.style.color = 'var(--text-3)';
+  }
 }
 
 function syncColorHex() {
@@ -307,6 +386,48 @@ async function saveAll() {
     document.documentElement.style.setProperty('--accent', accentColor);
     showToast('Pengaturan berhasil disimpan');
   } catch (e) { showToast(e.message, 'error'); }
+}
+
+function toggleSmtpPass() {
+  const inp = document.getElementById('s-smtp-pass');
+  const eye = document.getElementById('smtp-pass-eye');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  eye.className = show ? 'ti ti-eye-off' : 'ti ti-eye';
+}
+
+async function saveSmtp() {
+  const payload = {
+    smtpHost:   document.getElementById('s-smtp-host').value.trim(),
+    smtpPort:   parseInt(document.getElementById('s-smtp-port').value) || 587,
+    smtpUser:   document.getElementById('s-smtp-user').value.trim(),
+    smtpPass:   document.getElementById('s-smtp-pass').value,
+    smtpFrom:   document.getElementById('s-smtp-from').value.trim(),
+    smtpSecure: document.getElementById('s-smtp-secure').checked,
+  };
+  try {
+    await SiteSettings.update(payload);
+    showToast('Konfigurasi SMTP disimpan');
+    loadSettings();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function testSmtp() {
+  const to = document.getElementById('smtp-test-email').value.trim();
+  if (!to) { showToast('Masukkan email tujuan test', 'error'); return; }
+  const result = document.getElementById('smtp-test-result');
+  result.textContent = 'Mengirim...';
+  result.style.color = 'var(--text-3)';
+  try {
+    const data = await apiFetch('/site-settings/smtp-test', {
+      method: 'POST', body: JSON.stringify({ to }),
+    });
+    result.textContent = '✓ ' + data.message;
+    result.style.color = '#34D399';
+  } catch (e) {
+    result.textContent = '✗ ' + e.message;
+    result.style.color = '#F87171';
+  }
 }
 
 loadSettings();

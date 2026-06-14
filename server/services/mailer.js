@@ -1,37 +1,59 @@
 const nodemailer = require('nodemailer');
 
-let transporter;
+let transporter = null;
 
-function getTransporter() {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
+function resetTransporter() {
+  transporter = null;
+}
+
+async function getSmtpConfig() {
+  try {
+    const SiteSettings = require('../models/SiteSettings');
+    const s = await SiteSettings.findOne().lean();
+    if (s && s.smtpHost && s.smtpUser && s.smtpPass) {
+      return {
+        host:   s.smtpHost,
+        port:   s.smtpPort || 587,
+        secure: s.smtpSecure || false,
+        user:   s.smtpUser,
+        pass:   s.smtpPass,
+        from:   s.smtpFrom || `"Intrack" <${s.smtpUser}>`,
+      };
+    }
+  } catch {}
+  // Fallback ke .env
+  if (process.env.MAIL_USER && process.env.MAIL_PASS) {
+    return {
       host:   process.env.MAIL_HOST || 'smtp.gmail.com',
       port:   parseInt(process.env.MAIL_PORT) || 587,
       secure: false,
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
+      user:   process.env.MAIL_USER,
+      pass:   process.env.MAIL_PASS,
+      from:   process.env.MAIL_FROM || `"Intrack" <${process.env.MAIL_USER}>`,
+    };
   }
-  return transporter;
+  return null;
 }
 
 async function sendMail({ to, subject, html, text }) {
-  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    console.log('[Mailer] Email tidak dikonfigurasi, skip:', subject);
+  const cfg = await getSmtpConfig();
+  if (!cfg) {
+    console.log('[Mailer] SMTP tidak dikonfigurasi, skip:', subject);
     return;
   }
   try {
-    await getTransporter().sendMail({
-      from: process.env.MAIL_FROM || `"Intrack" <${process.env.MAIL_USER}>`,
-      to,
-      subject,
-      html,
-      text,
-    });
+    // Buat transporter baru jika belum ada (di-cache hingga resetTransporter dipanggil)
+    if (!transporter) {
+      transporter = nodemailer.createTransport({
+        host: cfg.host, port: cfg.port, secure: cfg.secure,
+        auth: { user: cfg.user, pass: cfg.pass },
+      });
+    }
+    await transporter.sendMail({ from: cfg.from, to, subject, html, text });
   } catch (err) {
+    transporter = null; // reset supaya next call buat ulang
     console.error('[Mailer] Gagal kirim email:', err.message);
+    throw err;
   }
 }
 
@@ -174,6 +196,7 @@ async function mailDailyDigest(user, stats) {
 
 module.exports = {
   sendMail,
+  resetTransporter,
   mailTaskApproved,
   mailTaskRejected,
   mailTaskRevisi,

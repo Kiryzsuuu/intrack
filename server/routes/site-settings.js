@@ -44,6 +44,7 @@ router.put('/', auth, requireSuperadmin, async (req, res) => {
     appName, accentColor,
     heroLine1, heroLine2, heroSub, loginFeatures,
     loginTitle, loginSubtitle,
+    smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFrom,
   } = req.body;
 
   const s = await getSettings();
@@ -55,9 +56,38 @@ router.put('/', auth, requireSuperadmin, async (req, res) => {
   if (loginTitle   !== undefined) s.loginTitle   = loginTitle;
   if (loginSubtitle!== undefined) s.loginSubtitle= loginSubtitle;
   if (Array.isArray(loginFeatures)) s.loginFeatures = loginFeatures;
+  if (smtpHost   !== undefined) s.smtpHost   = smtpHost;
+  if (smtpPort   !== undefined) s.smtpPort   = Number(smtpPort) || 587;
+  if (smtpSecure !== undefined) s.smtpSecure = Boolean(smtpSecure);
+  if (smtpUser   !== undefined) s.smtpUser   = smtpUser;
+  if (smtpPass   !== undefined) s.smtpPass   = smtpPass;
+  if (smtpFrom   !== undefined) s.smtpFrom   = smtpFrom;
 
   await s.save();
+
+  // Reset cached transporter agar config baru langsung berlaku
+  const mailer = require('../services/mailer');
+  if (mailer.resetTransporter) mailer.resetTransporter();
+
   res.json({ message: 'Pengaturan disimpan', settings: s });
+});
+
+// POST /api/site-settings/smtp-test — kirim email test
+router.post('/smtp-test', auth, requireSuperadmin, async (req, res) => {
+  const { to } = req.body;
+  if (!to) return res.status(400).json({ message: 'Email tujuan diperlukan' });
+  const mailer = require('../services/mailer');
+  try {
+    await mailer.sendMail({
+      to,
+      subject: '[Intrack] Test SMTP Berhasil',
+      html: `<div style="font-family:Arial;padding:20px"><h2 style="color:#5B4FE8">✓ SMTP Berfungsi</h2><p>Konfigurasi SMTP Intrack Anda berjalan dengan baik.</p><p style="color:#71717A;font-size:12px">Dikirim: ${new Date().toLocaleString('id-ID')}</p></div>`,
+      text: 'Test SMTP Intrack berhasil.',
+    });
+    res.json({ message: 'Email test berhasil dikirim ke ' + to });
+  } catch (err) {
+    res.status(500).json({ message: 'Gagal: ' + err.message });
+  }
 });
 
 // POST /api/site-settings/logo — upload logo
