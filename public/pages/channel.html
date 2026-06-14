@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Channel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .ch-layout { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+
+    /* Sidebar channel list */
+    .ch-list-panel {
+      width: 260px; flex-shrink: 0; border-right: 0.5px solid var(--border);
+      display: flex; flex-direction: column; background: var(--surface);
+    }
+    .ch-list-head {
+      padding: 16px 14px 10px; display: flex; align-items: center;
+      justify-content: space-between; border-bottom: 0.5px solid var(--border);
+    }
+    .ch-list-head h3 { font-size: 13px; font-weight: 700; color: var(--text); margin: 0; }
+    .ch-items { flex: 1; overflow-y: auto; padding: 8px 6px; }
+    .ch-item {
+      display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+      border-radius: var(--r-sm); cursor: pointer; transition: var(--transition);
+      margin-bottom: 2px;
+    }
+    .ch-item:hover { background: var(--surface-2); }
+    .ch-item.active { background: var(--accent-dim); }
+    .ch-item-icon {
+      width: 32px; height: 32px; border-radius: 8px; background: var(--surface-2);
+      border: 0.5px solid var(--border); display: flex; align-items: center;
+      justify-content: center; font-size: 15px; color: var(--accent); flex-shrink: 0;
+    }
+    .ch-item.active .ch-item-icon { background: var(--accent-dim); }
+    .ch-item-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ch-item-priv { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+
+    /* Main chat area */
+    .ch-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .ch-topbar {
+      padding: 12px 20px; border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; gap: 12px; background: var(--surface);
+    }
+    .ch-topbar-name { font-size: 15px; font-weight: 700; color: var(--text); }
+    .ch-topbar-desc { font-size: 12px; color: var(--text-3); flex: 1; }
+
+    /* Messages */
+    .ch-messages {
+      flex: 1; overflow-y: auto; padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .ch-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 14px; }
+
+    .msg-group { margin-bottom: 14px; }
+    .msg-row { display: flex; gap: 10px; align-items: flex-start; padding: 2px 0; }
+    .msg-row:hover .msg-actions { opacity: 1; }
+    .msg-av {
+      width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; overflow: hidden;
+    }
+    .msg-av img { width: 100%; height: 100%; object-fit: cover; }
+    .msg-content { flex: 1; min-width: 0; }
+    .msg-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+    .msg-name { font-size: 13px; font-weight: 700; color: var(--text); }
+    .msg-time { font-size: 11px; color: var(--text-3); }
+    .msg-text { font-size: 14px; color: var(--text); line-height: 1.55; word-break: break-word; }
+    .msg-actions {
+      opacity: 0; transition: opacity .15s; margin-left: auto;
+      display: flex; gap: 4px; flex-shrink: 0; padding-top: 2px;
+    }
+    .msg-del-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-3); font-size: 14px; padding: 2px 4px; border-radius: 4px;
+    }
+    .msg-del-btn:hover { color: var(--red-text); background: rgba(239,68,68,.1); }
+
+    .date-divider {
+      display: flex; align-items: center; gap: 10px; margin: 14px 0 10px;
+      color: var(--text-3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .date-divider::before, .date-divider::after { content: ''; flex: 1; height: 0.5px; background: var(--border); }
+
+    /* Input */
+    .ch-input-wrap {
+      padding: 12px 20px 16px; border-top: 0.5px solid var(--border); background: var(--surface);
+    }
+    .ch-input-box {
+      display: flex; gap: 8px; align-items: flex-end;
+      background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r-lg); padding: 10px 14px;
+    }
+    .ch-input-box textarea {
+      flex: 1; background: none; border: none; outline: none; resize: none;
+      font-size: 14px; color: var(--text); font-family: inherit; line-height: 1.5;
+      max-height: 120px; overflow-y: auto;
+    }
+    .ch-send-btn {
+      background: var(--accent); border: none; border-radius: 8px; color: #fff;
+      width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 16px; flex-shrink: 0; transition: var(--transition);
+    }
+    .ch-send-btn:hover { opacity: .85; }
+    .ch-send-btn:disabled { opacity: .4; cursor: default; }
+
+    /* Empty state */
+    .ch-placeholder {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 10px; color: var(--text-3);
+    }
+    .ch-placeholder i { font-size: 48px; opacity: .3; }
+
+    /* Modal */
+    .modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center; }
+    .modal-box { background:var(--surface);border-radius:var(--r-lg);padding:24px;width:420px;max-width:94vw;display:flex;flex-direction:column;gap:14px; }
+    .modal-title { font-size:16px;font-weight:700;color:var(--text);margin:0; }
+    .field { display:flex;flex-direction:column;gap:5px; }
+    .field label { font-size:12px;font-weight:600;color:var(--text-2); }
+    .field input,.field textarea { background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:14px;color:var(--text);outline:none;width:100%;font-family:inherit; }
+    .field input:focus,.field textarea:focus { border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim); }
+    .toggle-row { display:flex;align-items:center;gap:10px; }
+    .toggle-row input[type=checkbox] { width:auto;accent-color:var(--accent); }
+
+    @media(max-width:640px) {
+      .ch-list-panel { width: 200px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="channel"></aside>
+  <div class="main" style="padding:0;overflow:hidden">
+
+    <div class="ch-layout">
+      <!-- Panel kiri: daftar channel -->
+      <div class="ch-list-panel">
+        <div class="ch-list-head">
+          <h3><i class="ti ti-messages" style="margin-right:6px"></i>Channel</h3>
+          <button class="btn-icon" title="Buat Channel Baru" onclick="openCreateModal()" style="width:28px;height:28px">
+            <i class="ti ti-plus"></i>
+          </button>
+        </div>
+        <div class="ch-items" id="channel-list">
+          <div style="padding:20px;text-align:center;color:var(--text-3);font-size:13px">Memuat...</div>
+        </div>
+      </div>
+
+      <!-- Area chat -->
+      <div class="ch-main" id="ch-main">
+        <div class="ch-placeholder">
+          <i class="ti ti-messages"></i>
+          <div>Pilih channel untuk mulai chat</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal Buat Channel -->
+<div id="modal-create" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeCreateModal()">
+  <div class="modal-box">
+    <h3 class="modal-title">Buat Channel Baru</h3>
+    <div class="field">
+      <label>Nama Channel *</label>
+      <input type="text" id="new-ch-name" placeholder="contoh: general, marketing..." maxlength="80">
+    </div>
+    <div class="field">
+      <label>Deskripsi</label>
+      <textarea id="new-ch-desc" rows="2" placeholder="Deskripsi singkat channel..." maxlength="300" style="resize:none"></textarea>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="new-ch-private">
+      <label for="new-ch-private" style="font-size:13px;cursor:pointer">
+        <i class="ti ti-lock" style="font-size:12px;margin-right:4px"></i>Channel Privat
+        <span style="color:var(--text-3);font-size:11px;display:block">Hanya member yang diundang bisa masuk</span>
+      </label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeCreateModal()">Batal</button>
+      <button class="btn btn-primary" onclick="createChannel()"><i class="ti ti-plus"></i> Buat</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const me = getUser();
+
+let activeChannelId = null;
+let channels        = [];
+let msgBefore       = null;
+let loadingMore     = false;
+
+// ── Load list channel ──────────────────────────────────────────────────────────
+async function loadChannels() {
+  try {
+    channels = await Channels.list();
+    renderChannelList();
+    // Auto-open dari URL
+    const params = new URLSearchParams(location.search);
+    if (params.get('id')) openChannel(params.get('id'));
+  } catch (e) {
+    document.getElementById('channel-list').innerHTML =
+      `<div style="padding:16px;color:var(--red-text);font-size:13px">${e.message}</div>`;
+  }
+}
+
+function renderChannelList() {
+  const el = document.getElementById('channel-list');
+  if (!channels.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3);font-size:13px">Belum ada channel.<br>Buat yang pertama!</div>';
+    return;
+  }
+  el.innerHTML = channels.map(ch => `
+    <div class="ch-item${ch._id === activeChannelId ? ' active' : ''}" onclick="openChannel('${ch._id}')" id="chitem-${ch._id}">
+      <div class="ch-item-icon"><i class="ti ${ch.isPrivate ? 'ti-lock' : 'ti-hash'}"></i></div>
+      <div style="flex:1;min-width:0">
+        <div class="ch-item-name">${escHtml(ch.nama)}</div>
+        ${ch.isPrivate ? '<div class="ch-item-priv">Privat</div>' : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ── Buka channel ───────────────────────────────────────────────────────────────
+async function openChannel(id) {
+  activeChannelId = id;
+  msgBefore       = null;
+
+  document.querySelectorAll('.ch-item').forEach(el => el.classList.remove('active'));
+  const item = document.getElementById('chitem-' + id);
+  if (item) item.classList.add('active');
+
+  const main = document.getElementById('ch-main');
+  main.innerHTML = `
+    <div class="ch-topbar" id="ch-topbar">
+      <i class="ti ti-hash" style="color:var(--accent);font-size:18px"></i>
+      <div>
+        <div class="ch-topbar-name" id="ch-topbar-name">Memuat...</div>
+        <div class="ch-topbar-desc" id="ch-topbar-desc"></div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:6px" id="ch-topbar-actions"></div>
+    </div>
+    <div class="ch-messages" id="ch-messages">
+      <div style="text-align:center;color:var(--text-3);font-size:13px;padding:20px">Memuat pesan...</div>
+    </div>
+    <div class="ch-input-wrap" id="ch-input-wrap">
+      <div class="ch-input-box">
+        <textarea id="ch-msg-input" placeholder="Tulis pesan..." rows="1"
+          onkeydown="onMsgKeydown(event)" oninput="autoResize(this)"></textarea>
+        <button class="ch-send-btn" onclick="sendMessage()" id="ch-send-btn">
+          <i class="ti ti-send"></i>
+        </button>
+      </div>
+    </div>`;
+
+  try {
+    const ch = await Channels.get(id);
+    document.getElementById('ch-topbar-name').textContent = (ch.isPrivate ? '🔒 ' : '#') + ch.nama;
+    document.getElementById('ch-topbar-desc').textContent = ch.deskripsi || '';
+
+    const isMember  = ch.members.some(m => m._id === me._id || m._id?.toString() === me._id);
+    const isCreator = ch.createdBy._id === me._id || ch.createdBy._id?.toString() === me._id;
+
+    const actions = document.getElementById('ch-topbar-actions');
+    if (isCreator) {
+      actions.innerHTML = `
+        <button class="btn" style="font-size:12px" onclick="deleteChannel('${ch._id}','${escHtml(ch.nama)}')">
+          <i class="ti ti-trash" style="color:var(--red-text)"></i>
+        </button>`;
+    } else if (isMember) {
+      actions.innerHTML = `
+        <button class="btn" style="font-size:12px" onclick="leaveChannel('${ch._id}')">
+          <i class="ti ti-door-exit"></i> Keluar
+        </button>`;
+    } else if (!ch.isPrivate) {
+      const wrap = document.getElementById('ch-input-wrap');
+      wrap.innerHTML = `
+        <div style="padding:14px 20px;text-align:center">
+          <button class="btn btn-primary" onclick="joinChannel('${ch._id}')">
+            <i class="ti ti-door-enter"></i> Join Channel
+          </button>
+        </div>`;
+    }
+
+    await loadMessages(id);
+  } catch(e) {
+    document.getElementById('ch-messages').innerHTML =
+      `<div style="padding:20px;color:var(--red-text);font-size:13px">${e.message}</div>`;
+  }
+}
+
+// ── Load pesan ─────────────────────────────────────────────────────────────────
+async function loadMessages(id, prepend = false) {
+  if (loadingMore) return;
+  loadingMore = true;
+  const el = document.getElementById('ch-messages');
+  try {
+    const params = { limit: 50 };
+    if (msgBefore) params.before = msgBefore;
+
+    const msgs = await Channels.messages(id, params);
+    if (!msgs.length && !prepend) {
+      el.innerHTML = '<div class="ch-empty">Belum ada pesan. Mulailah percakapan!</div>';
+      loadingMore = false;
+      return;
+    }
+
+    if (prepend) {
+      const prevScroll = el.scrollHeight - el.scrollTop;
+      const html = renderMessages(msgs);
+      el.insertAdjacentHTML('afterbegin', html);
+      el.scrollTop = el.scrollHeight - prevScroll;
+    } else {
+      el.innerHTML = renderMessages(msgs);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    if (msgs.length === 50) {
+      msgBefore = msgs[0].createdAt;
+      if (!prepend) addLoadMoreBtn();
+    }
+  } catch(e) {
+    if (!prepend) el.innerHTML = `<div style="color:var(--red-text);font-size:13px">${e.message}</div>`;
+  }
+  loadingMore = false;
+}
+
+function addLoadMoreBtn() {
+  const el = document.getElementById('ch-messages');
+  const btn = document.createElement('div');
+  btn.id = 'load-more-btn';
+  btn.style.cssText = 'text-align:center;padding:8px';
+  btn.innerHTML = `<button class="btn" style="font-size:12px" onclick="loadMoreMessages()">
+    <i class="ti ti-arrow-up"></i> Muat pesan lebih lama
+  </button>`;
+  el.insertBefore(btn, el.firstChild);
+}
+
+async function loadMoreMessages() {
+  const btn = document.getElementById('load-more-btn');
+  if (btn) btn.remove();
+  await loadMessages(activeChannelId, true);
+}
+
+function renderMessages(msgs) {
+  if (!msgs.length) return '';
+  let html = '';
+  let lastDate = '';
+  let lastUserId = '';
+
+  msgs.forEach(m => {
+    const d = new Date(m.createdAt);
+    const dateStr = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    if (dateStr !== lastDate) {
+      html += `<div class="date-divider">${dateStr}</div>`;
+      lastDate = dateStr;
+      lastUserId = '';
+    }
+
+    const u    = m.userId || {};
+    const uid  = u._id || '';
+    const name = u.namaLengkap || 'Unknown';
+    const time = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const inits = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
+    const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
+    const avHtml   = u.fotoProfil
+      ? `<img src="${u.fotoProfil}" alt="">`
+      : `<span style="font-size:12px;font-weight:700;color:#fff">${inits}</span>`;
+
+    const isOwner = uid === me._id || uid?.toString() === me._id;
+    const showHeader = uid !== lastUserId;
+    lastUserId = uid;
+
+    html += `
+      <div class="msg-row" id="msg-${m._id}">
+        <div class="msg-av" style="background:${avColor};visibility:${showHeader ? 'visible' : 'hidden'}">${avHtml}</div>
+        <div class="msg-content">
+          ${showHeader ? `<div class="msg-meta"><span class="msg-name">${escHtml(name)}</span><span class="msg-time">${time}</span></div>` : ''}
+          <div class="msg-text">${escHtml(m.isi).replace(/\n/g, '<br>')}</div>
+        </div>
+        ${isOwner ? `
+          <div class="msg-actions">
+            <button class="msg-del-btn" title="Hapus" onclick="deleteMessage('${m._id}')"><i class="ti ti-trash"></i></button>
+          </div>` : ''}
+      </div>`;
+  });
+  return html;
+}
+
+// ── Kirim pesan ────────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById('ch-msg-input');
+  const isi   = input.value.trim();
+  if (!isi || !activeChannelId) return;
+
+  input.value = '';
+  input.style.height = '';
+  document.getElementById('ch-send-btn').disabled = true;
+
+  try {
+    const msg = await Channels.sendMessage(activeChannelId, isi);
+    const el  = document.getElementById('ch-messages');
+    const empty = el.querySelector('.ch-empty');
+    if (empty) empty.remove();
+
+    const u    = msg.userId || {};
+    const name = u.namaLengkap || 'Unknown';
+    const time = new Date(msg.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const inits = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
+    const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
+    const avHtml   = u.fotoProfil ? `<img src="${u.fotoProfil}" alt="">` : `<span style="font-size:12px;font-weight:700;color:#fff">${inits}</span>`;
+
+    el.insertAdjacentHTML('beforeend', `
+      <div class="msg-row" id="msg-${msg._id}">
+        <div class="msg-av" style="background:${avColor}">${avHtml}</div>
+        <div class="msg-content">
+          <div class="msg-meta"><span class="msg-name">${escHtml(name)}</span><span class="msg-time">${time}</span></div>
+          <div class="msg-text">${escHtml(msg.isi).replace(/\n/g, '<br>')}</div>
+        </div>
+        <div class="msg-actions">
+          <button class="msg-del-btn" title="Hapus" onclick="deleteMessage('${msg._id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`);
+    el.scrollTop = el.scrollHeight;
+  } catch (e) { showToast(e.message, 'error'); }
+
+  document.getElementById('ch-send-btn').disabled = false;
+  input.focus();
+}
+
+function onMsgKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResize(el) {
+  el.style.height = '';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ── Hapus pesan ────────────────────────────────────────────────────────────────
+async function deleteMessage(msgId) {
+  if (!await showConfirm('Hapus pesan ini?')) return;
+  try {
+    await Channels.deleteMessage(activeChannelId, msgId);
+    const el = document.getElementById('msg-' + msgId);
+    if (el) el.remove();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── Join / Leave / Delete channel ─────────────────────────────────────────────
+async function joinChannel(id) {
+  try {
+    await Channels.join(id);
+    showToast('Berhasil join channel');
+    await loadChannels();
+    openChannel(id);
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function leaveChannel(id) {
+  if (!await showConfirm('Keluar dari channel ini?')) return;
+  try {
+    await Channels.leave(id);
+    showToast('Berhasil keluar dari channel');
+    await loadChannels();
+    activeChannelId = null;
+    document.getElementById('ch-main').innerHTML = `
+      <div class="ch-placeholder">
+        <i class="ti ti-messages"></i>
+        <div>Pilih channel untuk mulai chat</div>
+      </div>`;
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function deleteChannel(id, nama) {
+  if (!await showConfirm(`Hapus channel "${nama}"? Semua pesan akan hilang.`)) return;
+  try {
+    await Channels.delete(id);
+    showToast('Channel dihapus');
+    await loadChannels();
+    activeChannelId = null;
+    document.getElementById('ch-main').innerHTML = `
+      <div class="ch-placeholder">
+        <i class="ti ti-messages"></i>
+        <div>Pilih channel untuk mulai chat</div>
+      </div>`;
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── Buat channel ───────────────────────────────────────────────────────────────
+function openCreateModal()  { document.getElementById('modal-create').style.display = 'flex'; document.getElementById('new-ch-name').focus(); }
+function closeCreateModal() { document.getElementById('modal-create').style.display = 'none'; document.getElementById('new-ch-name').value = ''; document.getElementById('new-ch-desc').value = ''; document.getElementById('new-ch-private').checked = false; }
+
+async function createChannel() {
+  const nama      = document.getElementById('new-ch-name').value.trim();
+  const deskripsi = document.getElementById('new-ch-desc').value.trim();
+  const isPrivate = document.getElementById('new-ch-private').checked;
+  if (!nama) { showToast('Nama channel wajib diisi', 'error'); return; }
+  try {
+    const ch = await Channels.create({ nama, deskripsi, isPrivate });
+    showToast('Channel berhasil dibuat');
+    closeCreateModal();
+    await loadChannels();
+    openChannel(ch._id);
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadChannels();
+</script>
+</body>
+</html>

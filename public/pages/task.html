@@ -25,11 +25,18 @@
     .badge-revisi{background:#FEF2F2;color:#991B1B;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
     .badge-done{background:#DCFCE7;color:#166534;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
     .badge-rejected{background:#F4F4F5;color:#71717A;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
-    .subtask-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)}
+    .subtask-item{display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:0.5px solid var(--border)}
     .subtask-item:last-child{border-bottom:none}
+    .subtask-row1{display:flex;align-items:center;gap:8px}
+    .subtask-row2{display:flex;align-items:center;gap:8px;padding-left:24px;flex-wrap:wrap}
     .subtask-cb{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
-    .subtask-txt{font-size:12px;flex:1}
+    .subtask-txt{font-size:13px;flex:1;font-weight:500}
     .subtask-txt.done{text-decoration:line-through;color:var(--text-3)}
+    .sub-meta{font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:4px}
+    .sub-priority{font-size:10px;font-weight:600;padding:1px 7px;border-radius:100px}
+    .sub-priority.low{background:#F0FDF4;color:#166534}
+    .sub-priority.medium{background:#FFF7ED;color:#9A3412}
+    .sub-priority.high{background:#FEF2F2;color:#991B1B}
     .ev-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)}
     .ev-item:last-child{border-bottom:none}
     .ev-icon{width:32px;height:32px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -149,9 +156,23 @@
             <div class="prog-track" style="margin-bottom:12px"><div class="prog-fill" id="subtask-bar" style="width:0%"></div></div>
             <div id="subtask-list"></div>
             <div id="add-subtask-form" style="display:none;margin-top:10px">
-              <div style="display:flex;gap:6px">
-                <input type="text" id="new-subtask" class="input" placeholder="Judul subtask..." maxlength="100" style="flex:1">
-                <button class="btn btn-primary" onclick="addSubtask()"><i class="ti ti-plus"></i></button>
+              <div style="display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:10px">
+                <input type="text" id="new-subtask" class="input" placeholder="Judul subtask..." maxlength="100">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+                  <select id="new-sub-priority" class="input" style="font-size:12px">
+                    <option value="low">🟢 Low</option>
+                    <option value="medium" selected>🟡 Medium</option>
+                    <option value="high">🔴 High</option>
+                  </select>
+                  <input type="date" id="new-sub-duedate" class="input" style="font-size:12px" title="Due date">
+                  <select id="new-sub-assignee" class="input" style="font-size:12px">
+                    <option value="">— Assign ke —</option>
+                  </select>
+                </div>
+                <div style="display:flex;gap:6px;justify-content:flex-end">
+                  <button class="btn" style="font-size:12px" onclick="document.getElementById('add-subtask-form').style.display='none'">Batal</button>
+                  <button class="btn btn-primary" style="font-size:12px" onclick="addSubtask()"><i class="ti ti-plus"></i> Tambah</button>
+                </div>
               </div>
             </div>
           </div>
@@ -415,25 +436,59 @@ function renderStatusActions(t) {
   if ((isPIC || isDireksi) && t.status !== 'done') {
     document.getElementById('add-subtask-form').style.display = '';
     document.getElementById('upload-ev-btn').style.display    = '';
+    populateSubtaskAssignee(t);
   }
 }
 
+async function populateSubtaskAssignee(task) {
+  try {
+    const users = await Users.list();
+    const sel   = document.getElementById('new-sub-assignee');
+    if (!sel) return;
+    const collabs = [
+      task.picUserId?._id || task.picUserId,
+      task.dibuatOleh?._id || task.dibuatOleh,
+      ...(task.collaborators || []).map(c => c._id || c),
+    ].filter(Boolean).map(String);
+    const relevant = users.filter(u => collabs.includes(String(u._id)));
+    sel.innerHTML = '<option value="">— Assign ke —</option>' +
+      relevant.map(u => `<option value="${u._id}">${u.namaLengkap}</option>`).join('');
+  } catch {}
+}
+
 function renderSubtasks(subtasks) {
-  const el     = document.getElementById('subtask-list');
-  const done   = subtasks.filter(s => s.isDone).length;
-  const total  = subtasks.length;
-  const pct    = total > 0 ? Math.round(done / total * 100) : 0;
+  const el    = document.getElementById('subtask-list');
+  const done  = subtasks.filter(s => s.isDone).length;
+  const total = subtasks.length;
+  const pct   = total > 0 ? Math.round(done / total * 100) : 0;
 
   document.getElementById('subtask-progress').textContent = total ? `${done}/${total} (${pct}%)` : '';
   document.getElementById('subtask-bar').style.width      = pct + '%';
 
   if (!total) { el.innerHTML = '<div style="color:var(--text-3);font-size:12px">Belum ada subtask</div>'; return; }
-  el.innerHTML = subtasks.map(s => `
+
+  const prioLabel = { low: '🟢 Low', medium: '🟡 Medium', high: '🔴 High' };
+
+  el.innerHTML = subtasks.map(s => {
+    const assignee  = s.assignedTo ? s.assignedTo.namaLengkap : null;
+    const dueDateTx = s.dueDate ? new Date(s.dueDate).toLocaleDateString('id-ID', { day:'numeric', month:'short' }) : null;
+    const isOverdue = s.dueDate && !s.isDone && new Date(s.dueDate) < new Date();
+    const prio      = s.priority || 'medium';
+
+    return `
     <div class="subtask-item" id="sub-${s._id}">
-      <input type="checkbox" class="subtask-cb" ${s.isDone?'checked':''} onchange="toggleSubtask('${s._id}',this.checked)">
-      <span class="subtask-txt ${s.isDone?'done':''}">${s.judul}</span>
-      <button class="btn-icon" style="width:24px;height:24px;border:none" onclick="deleteSubtask('${s._id}')"><i class="ti ti-x" style="font-size:12px"></i></button>
-    </div>`).join('');
+      <div class="subtask-row1">
+        <input type="checkbox" class="subtask-cb" ${s.isDone ? 'checked' : ''} onchange="toggleSubtask('${s._id}',this.checked)">
+        <span class="subtask-txt ${s.isDone ? 'done' : ''}">${s.judul}</span>
+        <button class="btn-icon" style="width:22px;height:22px;border:none;flex-shrink:0" onclick="deleteSubtask('${s._id}')"><i class="ti ti-x" style="font-size:11px"></i></button>
+      </div>
+      <div class="subtask-row2">
+        <span class="sub-priority ${prio}">${prioLabel[prio]}</span>
+        ${assignee ? `<span class="sub-meta"><i class="ti ti-user" style="font-size:11px"></i>${assignee}</span>` : ''}
+        ${dueDateTx ? `<span class="sub-meta" style="${isOverdue ? 'color:var(--red-text)' : ''}"><i class="ti ti-calendar" style="font-size:11px"></i>${dueDateTx}${isOverdue ? ' ⚠️' : ''}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderEvidence(evidences) {
@@ -526,11 +581,17 @@ async function promptReject(statusBaru) {
 }
 
 async function addSubtask() {
-  const judul = document.getElementById('new-subtask').value.trim();
+  const judul      = document.getElementById('new-subtask').value.trim();
+  const priority   = document.getElementById('new-sub-priority').value;
+  const dueDate    = document.getElementById('new-sub-duedate').value || null;
+  const assignedTo = document.getElementById('new-sub-assignee').value || null;
   if (!judul) return;
   try {
-    await Subtasks.create(taskId, judul);
-    document.getElementById('new-subtask').value = '';
+    await Subtasks.create(taskId, { judul, priority, dueDate, assignedTo });
+    document.getElementById('new-subtask').value      = '';
+    document.getElementById('new-sub-duedate').value  = '';
+    document.getElementById('new-sub-assignee').value = '';
+    document.getElementById('new-sub-priority').value = 'medium';
     loadTask();
   } catch (e) { showToast(e.message, 'error'); }
 }

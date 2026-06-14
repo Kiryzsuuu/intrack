@@ -18,6 +18,7 @@ function buildSidebar(user, activePage) {
     { id: 'gantt',      href: '/pages/gantt.html',       icon: 'ti-chart-gantt',      label: 'Gantt Chart',   section: 'plan' },
     { id: 'milestones', href: '/pages/milestones.html',  icon: 'ti-flag',             label: 'Milestones',    section: 'plan' },
     { id: 'workload',   href: '/pages/workload.html',    icon: 'ti-users-group',      label: 'Workload',      section: 'plan' },
+    { id: 'channel',   href: '/pages/channel.html',     icon: 'ti-messages',         label: 'Channel',       section: 'main' },
     { id: 'inbox',     href: '/pages/inbox.html',       icon: 'ti-bell',             label: 'Notifikasi',    section: 'main', badge: true },
     { id: 'kpi',       href: '/pages/stats.html',       icon: 'ti-chart-bar',        label: 'KPI',           section: 'main' },
     ...(isDireksi || isSuperadmin ? [

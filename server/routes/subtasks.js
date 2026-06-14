@@ -11,13 +11,15 @@ function isPIC(user, task) {
 router.get('/', auth, async (req, res) => {
   const { taskId } = req.query;
   if (!taskId) return res.status(400).json({ message: 'taskId wajib' });
-  const subtasks = await Subtask.find({ taskId }).sort({ urutan: 1 });
+  const subtasks = await Subtask.find({ taskId })
+    .populate('assignedTo', 'namaLengkap fotoProfil')
+    .sort({ urutan: 1 });
   res.json(subtasks);
 });
 
 // POST /api/subtasks
 router.post('/', auth, async (req, res) => {
-  const { taskId, judul } = req.body;
+  const { taskId, judul, assignedTo, dueDate, priority } = req.body;
   if (!taskId || !judul) return res.status(400).json({ message: 'taskId dan judul wajib' });
 
   const task = await Task.findById(taskId);
@@ -29,7 +31,13 @@ router.post('/', auth, async (req, res) => {
   const last = await Subtask.findOne({ taskId }).sort({ urutan: -1 });
   const urutan = last ? last.urutan + 1 : 0;
 
-  const sub = await Subtask.create({ taskId, judul, urutan });
+  const sub = await Subtask.create({
+    taskId, judul, urutan,
+    assignedTo: assignedTo || null,
+    dueDate: dueDate || null,
+    priority: priority || 'medium',
+  });
+  await sub.populate('assignedTo', 'namaLengkap fotoProfil');
   res.status(201).json(sub);
 });
 
@@ -42,10 +50,14 @@ router.put('/:id', auth, async (req, res) => {
   if (!isPIC(req.user, task) && req.user.role !== 'direksi')
     return res.status(403).json({ message: 'Hanya PIC yang dapat mengubah subtask' });
 
-  if (req.body.judul  !== undefined) sub.judul  = req.body.judul;
-  if (req.body.isDone !== undefined) sub.isDone = req.body.isDone;
-  if (req.body.urutan !== undefined) sub.urutan = req.body.urutan;
+  if (req.body.judul      !== undefined) sub.judul      = req.body.judul;
+  if (req.body.isDone     !== undefined) sub.isDone     = req.body.isDone;
+  if (req.body.urutan     !== undefined) sub.urutan     = req.body.urutan;
+  if (req.body.assignedTo !== undefined) sub.assignedTo = req.body.assignedTo || null;
+  if (req.body.dueDate    !== undefined) sub.dueDate    = req.body.dueDate || null;
+  if (req.body.priority   !== undefined) sub.priority   = req.body.priority;
   await sub.save();
+  await sub.populate('assignedTo', 'namaLengkap fotoProfil');
   res.json(sub);
 });
 

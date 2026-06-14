@@ -198,11 +198,29 @@ const Tasks = {
   },
 };
 
+// ── Channels ──────────────────────────────────────────────────────────────────
+const Channels = {
+  async list()                    { return apiFetch('/channels'); },
+  async get(id)                   { return apiFetch(`/channels/${id}`); },
+  async create(data)              { return apiFetch('/channels', { method: 'POST', body: JSON.stringify(data) }); },
+  async update(id, data)          { return apiFetch(`/channels/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
+  async delete(id)                { return apiFetch(`/channels/${id}`, { method: 'DELETE' }); },
+  async join(id)                  { return apiFetch(`/channels/${id}/join`, { method: 'POST' }); },
+  async leave(id)                 { return apiFetch(`/channels/${id}/leave`, { method: 'POST' }); },
+  async invite(id, userId)        { return apiFetch(`/channels/${id}/invite`, { method: 'POST', body: JSON.stringify({ userId }) }); },
+  async messages(id, params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return apiFetch(`/channels/${id}/messages` + (qs ? '?' + qs : ''));
+  },
+  async sendMessage(id, isi)      { return apiFetch(`/channels/${id}/messages`, { method: 'POST', body: JSON.stringify({ isi }) }); },
+  async deleteMessage(id, msgId)  { return apiFetch(`/channels/${id}/messages/${msgId}`, { method: 'DELETE' }); },
+};
+
 // ── Subtasks ──────────────────────────────────────────────────────────────────
 const Subtasks = {
   async list(taskId) { return apiFetch(`/subtasks?taskId=${taskId}`); },
-  async create(taskId, judul) {
-    return apiFetch('/subtasks', { method: 'POST', body: JSON.stringify({ taskId, judul }) });
+  async create(taskId, data) {
+    return apiFetch('/subtasks', { method: 'POST', body: JSON.stringify({ taskId, ...data }) });
   },
   async update(id, data) {
     return apiFetch(`/subtasks/${id}`, { method: 'PUT', body: JSON.stringify(data) });
