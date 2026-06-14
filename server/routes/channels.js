@@ -78,7 +78,8 @@ router.post('/:id/join', auth, async (req, res) => {
   if (!ch) return res.status(404).json({ message: 'Channel tidak ditemukan' });
   if (ch.isPrivate) return res.status(403).json({ message: 'Channel ini privat' });
 
-  if (!ch.members.includes(req.user._id)) {
+  const alreadyMember = ch.members.some(m => m.toString() === req.user._id.toString());
+  if (!alreadyMember) {
     ch.members.push(req.user._id);
     await ch.save();
   }
@@ -105,7 +106,8 @@ router.post('/:id/invite', auth, async (req, res) => {
   if (ch.createdBy.toString() !== req.user._id.toString())
     return res.status(403).json({ message: 'Hanya pembuat yang dapat mengundang member' });
 
-  if (!ch.members.includes(userId)) {
+  const alreadyInvited = ch.members.some(m => m.toString() === userId.toString());
+  if (!alreadyInvited) {
     ch.members.push(userId);
     await ch.save();
   }

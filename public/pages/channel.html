@@ -366,6 +366,9 @@ function renderChannelList() {
 
 // ── Buka channel ───────────────────────────────────────────────────────────────
 async function openChannel(id) {
+  // Tinggalkan voice jika pindah channel
+  if (inVoice && activeChannelId && activeChannelId !== id) leaveVoice();
+
   activeChannelId = id;
   msgBefore       = null;
 
@@ -689,7 +692,7 @@ async function createChannel() {
 }
 
 function escHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 loadChannels();
@@ -706,17 +709,18 @@ let voiceParticipants = {}; // { userId: { name, photo, socketId, muted, deafene
 
 function getSocket() {
   if (socket && socket.connected) return socket;
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const token = localStorage.getItem('wt_token');
   socket = io({ auth: { token } });
 
-  socket.on('voice:participants', (list) => {
+  socket.on('voice:participants', async (list) => {
     voiceParticipants = {};
     list.forEach(p => { voiceParticipants[p.userId] = p; });
     renderVoiceParticipants();
-    // Buat offer ke semua peserta yang sudah ada
-    list.forEach(p => {
-      if (p.userId !== me._id) createOffer(p.socketId);
-    });
+    // Pastikan localStream sudah siap sebelum buat offer
+    if (!localStream) return;
+    for (const p of list) {
+      if (p.userId !== me._id) await createOffer(p.socketId);
+    }
   });
 
   socket.on('voice:user-joined', (p) => {
@@ -834,8 +838,13 @@ async function toggleVideo() {
       const vidStream = await navigator.mediaDevices.getUserMedia({ video: true });
       const vidTrack  = vidStream.getVideoTracks()[0];
       localStream.addTrack(vidTrack);
-      // Add ke semua peer connections
-      Object.values(peerConns).forEach(pc => pc.addTrack(vidTrack, localStream));
+      // Add ke semua peer connections + renegotiate
+      for (const [sid, pc] of Object.entries(peerConns)) {
+        pc.addTrack(vidTrack, localStream);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('voice:offer', { targetSocketId: sid, offer });
+      }
       updateMyVideoTile(true);
       document.getElementById('video-grid').classList.add('active');
     } catch(e) { isVideoOn = false; showToast('Tidak dapat mengakses kamera: ' + e.message, 'error'); }

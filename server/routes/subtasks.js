@@ -41,6 +41,14 @@ router.post('/', auth, async (req, res) => {
   res.status(201).json(sub);
 });
 
+// PUT /api/subtasks/reorder/batch — harus di atas /:id agar tidak tertimpa
+router.put('/reorder/batch', auth, async (req, res) => {
+  const { items } = req.body; // [{ _id, urutan }]
+  if (!Array.isArray(items)) return res.status(400).json({ message: 'items harus array' });
+  await Promise.all(items.map(i => Subtask.findByIdAndUpdate(i._id, { urutan: i.urutan })));
+  res.json({ message: 'Urutan diupdate' });
+});
+
 // PUT /api/subtasks/:id
 router.put('/:id', auth, async (req, res) => {
   const sub = await Subtask.findById(req.params.id);
@@ -72,14 +80,6 @@ router.delete('/:id', auth, async (req, res) => {
 
   await sub.deleteOne();
   res.json({ message: 'Subtask dihapus' });
-});
-
-// PUT /api/subtasks/reorder — drag-and-drop reorder
-router.put('/reorder/batch', auth, async (req, res) => {
-  const { items } = req.body; // [{ _id, urutan }]
-  if (!Array.isArray(items)) return res.status(400).json({ message: 'items harus array' });
-  await Promise.all(items.map(i => Subtask.findByIdAndUpdate(i._id, { urutan: i.urutan })));
-  res.json({ message: 'Urutan diupdate' });
 });
 
 module.exports = router;
