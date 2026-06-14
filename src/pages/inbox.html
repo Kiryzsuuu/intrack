@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Intrack — Inbox</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <style>
+    .inbox-layout { display: flex; flex: 1; overflow: hidden; }
+    .notif-list { width: 320px; flex-shrink: 0; border-right: 0.5px solid var(--border); overflow-y: auto; }
+    .notif-list::-webkit-scrollbar { width: 3px; }
+    .notif-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .nl-head { padding: 12px 16px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .nl-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .notif-item { display: flex; gap: 10px; padding: 12px 16px; border-bottom: 0.5px solid var(--border); cursor: pointer; transition: var(--transition); position: relative; }
+    .notif-item:hover { background: var(--surface-2); }
+    .notif-item.active { background: var(--accent-light); }
+    .notif-item.unread::before { content: ''; position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .ni-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+    .ni-body { flex: 1; min-width: 0; }
+    .ni-text { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+    .ni-text strong { color: var(--text); font-weight: 600; }
+    .ni-time { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+    .ni-issue { font-size: 11px; color: var(--accent); font-weight: 600; margin-top: 3px; }
+
+    .notif-detail { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-3); padding: 40px; }
+    .nd-content { max-width: 400px; }
+    .nd-head { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .nd-meta { font-size: 12px; color: var(--text-3); margin-bottom: 16px; }
+    .nd-body { font-size: 13px; color: var(--text-2); line-height: 1.7; background: var(--surface-2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 14px; margin-bottom: 14px; }
+    .nd-actions { display: flex; gap: 8px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="inbox" data-project="backend"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Inbox</span></div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost" onclick="markAllRead()"><i class="ti ti-checks" aria-hidden="true"></i> Tandai semua dibaca</button>
+      </div>
+    </div>
+
+    <div class="inbox-layout">
+      <div class="notif-list">
+        <div class="nl-head">
+          <span class="nl-title">Notifikasi</span>
+          <span style="font-size:11px;font-weight:600;background:var(--accent);color:white;padding:1px 7px;border-radius:var(--r-pill)">2</span>
+        </div>
+
+        <div class="notif-item unread active" onclick="showDetail(this, 0)">
+          <div class="ni-icon" style="background:var(--purple-bg)"><i class="ti ti-at" style="color:var(--purple-text)" aria-hidden="true"></i></div>
+          <div class="ni-body">
+            <div class="ni-text"><strong>Dika Santoso</strong> menyebut kamu di komentar</div>
+            <div class="ni-issue">TEST-05 — Unit test for auth middleware</div>
+            <div class="ni-time">32 menit lalu</div>
+          </div>
+        </div>
+
+        <div class="notif-item unread" onclick="showDetail(this, 1)">
+          <div class="ni-icon" style="background:var(--orange-bg)"><i class="ti ti-user-plus" style="color:var(--orange-text)" aria-hidden="true"></i></div>
+          <div class="ni-body">
+            <div class="ni-text"><strong>Nina Rahayu</strong> mengassign issue ke kamu</div>
+            <div class="ni-issue">NOTIF-01 — Email notification system</div>
+            <div class="ni-time">2 jam lalu</div>
+          </div>
+        </div>
+
+        <div class="notif-item" onclick="showDetail(this, 2)">
+          <div class="ni-icon" style="background:var(--green-bg)"><i class="ti ti-circle-check" style="color:var(--green-text)" aria-hidden="true"></i></div>
+          <div class="ni-body">
+            <div class="ni-text"><strong>Budi Wijaya</strong> menyelesaikan issue terkait</div>
+            <div class="ni-issue">CI-01 — Setup GitHub Actions CI pipeline</div>
+            <div class="ni-time">5 jam lalu</div>
+          </div>
+        </div>
+
+        <div class="notif-item" onclick="showDetail(this, 3)">
+          <div class="ni-icon" style="background:var(--blue-bg)"><i class="ti ti-eye" style="color:var(--blue-text)" aria-hidden="true"></i></div>
+          <div class="ni-body">
+            <div class="ni-text"><strong>API-12</strong> dipindahkan ke In review</div>
+            <div class="ni-issue">API-12 — REST endpoint for project CRUD</div>
+            <div class="ni-time">Kemarin, 16:30</div>
+          </div>
+        </div>
+
+        <div class="notif-item" onclick="showDetail(this, 4)">
+          <div class="ni-icon" style="background:var(--red-bg)"><i class="ti ti-alert-triangle" style="color:var(--red-text)" aria-hidden="true"></i></div>
+          <div class="ni-body">
+            <div class="ni-text"><strong>BUG-09</strong> melewati due date</div>
+            <div class="ni-issue">BUG-09 — token expiry causes 500</div>
+            <div class="ni-time">Kemarin, 00:00</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="notif-detail">
+        <div class="nd-content" id="notif-detail">
+          <div class="nd-head" id="nd-head">
+            <div class="av av-md av-a">DS</div>
+            Dika Santoso menyebut kamu
+          </div>
+          <div class="nd-meta" id="nd-meta">32 menit lalu · TEST-05 — Unit test for auth middleware</div>
+          <div class="nd-body" id="nd-body">
+            <strong>@Andi</strong> untuk test expired token, kamu perlu mock <code style="font-family:monospace;background:var(--surface);padding:1px 5px;border-radius:4px;border:0.5px solid var(--border);font-size:11px">jsonwebtoken.verify</code> supaya throw <code style="font-family:monospace;background:var(--surface);padding:1px 5px;border-radius:4px;border:0.5px solid var(--border);font-size:11px">TokenExpiredError</code>. Jangan pakai token expired beneran, flaky di CI.
+          </div>
+          <div class="nd-actions">
+            <a href="issue-detail.html" class="btn btn-primary"><i class="ti ti-arrow-right" aria-hidden="true"></i> Buka issue</a>
+            <button class="btn btn-ghost" onclick="markRead()"><i class="ti ti-check" aria-hidden="true"></i> Tandai dibaca</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../js/sidebar.js"></script>
+<script>
+const details = [
+  { avatar:'DS', avClass:'av-a', head:'Dika Santoso menyebut kamu', meta:'32 menit lalu · TEST-05', body:'<strong>@Andi</strong> untuk test expired token, kamu perlu mock <code style="font-family:monospace;background:var(--surface);padding:1px 5px;border-radius:4px;border:0.5px solid var(--border);font-size:11px">jsonwebtoken.verify</code> supaya throw <code style="font-family:monospace;font-size:11px">TokenExpiredError</code>. Jangan pakai token expired beneran, flaky di CI.' },
+  { avatar:'NR', avClass:'av-n', head:'Nina Rahayu mengassign issue', meta:'2 jam lalu · NOTIF-01', body:'Nina mengassign issue <strong>NOTIF-01 — Email notification on mention & assign</strong> ke kamu. Sprint 4 · 5 story points · Due Jun 15.' },
+  { avatar:'BW', avClass:'av-b', head:'Budi Wijaya menyelesaikan issue', meta:'5 jam lalu · CI-01', body:'<strong>CI-01 — Setup GitHub Actions CI pipeline</strong> telah selesai. Pipeline berjalan dengan baik, semua test passed.' },
+  { avatar:'AR', avClass:'av-v', head:'Issue dipindahkan ke In review', meta:'Kemarin, 16:30 · API-12', body:'<strong>API-12 — REST endpoint for project CRUD operations</strong> telah dipindahkan ke kolom <strong>In review</strong>. Silakan review pull request yang terkait.' },
+  { avatar:'!', avClass:'', head:'Issue melewati due date', meta:'Kemarin · BUG-09', body:'<strong>BUG-09 — token expiry causes 500 on /me endpoint</strong> telah melewati due date (Jun 10). Segera selesaikan atau update due date.' },
+];
+let current = null;
+function showDetail(row, idx) {
+  document.querySelectorAll('.notif-item').forEach(n => n.classList.remove('active'));
+  row.classList.add('active');
+  row.classList.remove('unread');
+  current = row;
+  const d = details[idx];
+  document.getElementById('nd-head').innerHTML = `<div class="av av-md ${d.avClass}">${d.avatar}</div>${d.head}`;
+  document.getElementById('nd-meta').textContent = d.meta;
+  document.getElementById('nd-body').innerHTML = d.body;
+  updateBadge();
+}
+function markRead() { if (current) { current.classList.remove('unread'); updateBadge(); } }
+function markAllRead() { document.querySelectorAll('.notif-item.unread').forEach(n => n.classList.remove('unread')); updateBadge(); }
+function updateBadge() {
+  const count = document.querySelectorAll('.notif-item.unread').length;
+  const badge = document.querySelector('.nl-head span');
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+</script>
+</body>
+</html>

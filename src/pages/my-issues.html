@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — My Issues</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <style>
+    .mi-body { padding: 20px; flex: 1; overflow-y: auto; }
+    .mi-body::-webkit-scrollbar { width: 4px; }
+    .mi-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .tabs { display: flex; gap: 0; border-bottom: 0.5px solid var(--border); margin-bottom: 16px; }
+    .tab { padding: 8px 14px; font-size: 13px; font-weight: 500; color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -0.5px; transition: var(--transition); }
+    .tab:hover { color: var(--text-2); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab .tab-badge { font-size: 10px; font-weight: 700; background: var(--accent-light); color: var(--accent); padding: 0 5px; border-radius: var(--r-pill); margin-left: 5px; }
+
+    .issue-row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: var(--r); margin-bottom: 2px; cursor: pointer; transition: var(--transition);
+      border: 0.5px solid transparent;
+    }
+    .issue-row:hover { background: var(--surface); border-color: var(--border); }
+    .ir-id { font-size: 11px; font-weight: 600; color: var(--text-3); width: 64px; flex-shrink: 0; }
+    .ir-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ir-project { font-size: 11px; color: var(--text-3); flex-shrink: 0; }
+    .ir-due { font-size: 11px; color: var(--text-3); width: 64px; text-align: right; flex-shrink: 0; }
+    .ir-due.overdue { color: var(--red); font-weight: 600; }
+
+    .group-head { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .6px; padding: 8px 12px 4px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="my-issues" data-project="backend"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">My Issues</span></div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost"><i class="ti ti-filter" aria-hidden="true"></i> Filter</button>
+        <a href="create-issue.html" class="btn btn-primary"><i class="ti ti-plus" aria-hidden="true"></i> New issue</a>
+      </div>
+    </div>
+
+    <div class="mi-body">
+      <div class="tabs">
+        <div class="tab active" onclick="showTab('active',this)">Aktif <span class="tab-badge">4</span></div>
+        <div class="tab" onclick="showTab('review',this)">In review <span class="tab-badge">2</span></div>
+        <div class="tab" onclick="showTab('done',this)">Selesai bulan ini</div>
+      </div>
+
+      <div id="tab-active">
+        <div class="group-head">In progress</div>
+        <a href="issue-detail.html" class="issue-row">
+          <div class="prio-dot p-h"></div>
+          <span class="ir-id">AUTH-04</span>
+          <span class="ir-title">Setup JWT authentication &amp; refresh token</span>
+          <span class="badge badge-progress" style="font-size:10px">In progress</span>
+          <span class="badge lbl-be" style="font-size:10px">Backend</span>
+          <span class="ir-project">Intrack Backend</span>
+          <span class="ir-due">Jun 15</span>
+        </a>
+
+        <div class="group-head" style="margin-top:8px">To do</div>
+        <a href="issue-detail.html" class="issue-row">
+          <div class="prio-dot p-h"></div>
+          <span class="ir-id">BUG-09</span>
+          <span class="ir-title">Fix: token expiry causes 500 on /me endpoint</span>
+          <span class="badge badge-review" style="font-size:10px">In review</span>
+          <span class="badge lbl-bug" style="font-size:10px">Bug</span>
+          <span class="ir-project">Intrack Backend</span>
+          <span class="ir-due overdue">Jun 10 !</span>
+        </a>
+        <a href="issue-detail.html" class="issue-row">
+          <div class="prio-dot p-l"></div>
+          <span class="ir-id">TEST-05</span>
+          <span class="ir-title">Unit test for auth middleware</span>
+          <span class="badge badge-todo" style="font-size:10px">To do</span>
+          <span class="badge lbl-test" style="font-size:10px">Testing</span>
+          <span class="ir-project">Intrack Backend</span>
+          <span class="ir-due">Jun 15</span>
+        </a>
+        <a href="issue-detail.html" class="issue-row">
+          <div class="prio-dot p-m"></div>
+          <span class="ir-id">API-12</span>
+          <span class="ir-title">REST endpoint for project CRUD operations</span>
+          <span class="badge badge-review" style="font-size:10px">In review</span>
+          <span class="badge lbl-be" style="font-size:10px">Backend</span>
+          <span class="ir-project">Intrack Backend</span>
+          <span class="ir-due overdue">Jun 11 !</span>
+        </a>
+      </div>
+
+      <div id="tab-review" style="display:none">
+        <div class="group-head">Menunggu review</div>
+        <a href="issue-detail.html" class="issue-row">
+          <div class="prio-dot p-h"></div>
+          <span class="ir-id">BUG-09</span>
+          <span class="ir-title">Fix: token expiry causes 500 on /me endpoint</span>
+          <span class="badge badge-review" style="font-size:10px">In review</span>
+          <span class="badge lbl-bug" style="font-size:10px">Bug</span>
+          <span class="ir-project">Intrack Backend</span>
+          <span class="ir-due overdue">Jun 10 !</span>
+        </a>
+        <a href="issue-detail.html" class="issue-row">
+          <div class="prio-dot p-m"></div>
+          <span class="ir-id">API-12</span>
+          <span class="ir-title">REST endpoint for project CRUD</span>
+          <span class="badge badge-review" style="font-size:10px">In review</span>
+          <span class="badge lbl-be" style="font-size:10px">Backend</span>
+          <span class="ir-project">Intrack Backend</span>
+          <span class="ir-due overdue">Jun 11 !</span>
+        </a>
+      </div>
+
+      <div id="tab-done" style="display:none">
+        <div class="group-head">Selesai Juni 2026</div>
+        <a href="issue-detail.html" class="issue-row" style="opacity:.65">
+          <div class="prio-dot p-l"></div>
+          <span class="ir-id">SETUP-01</span>
+          <span class="ir-title" style="text-decoration:line-through">Project scaffolding &amp; folder structure</span>
+          <span class="badge badge-done" style="font-size:10px">Done</span>
+          <span class="badge lbl-be" style="font-size:10px">Backend</span>
+          <span class="ir-project">Intrack Backend</span>
+          <span class="ir-due">Jun 5</span>
+        </a>
+        <a href="issue-detail.html" class="issue-row" style="opacity:.65">
+          <div class="prio-dot p-m"></div>
+          <span class="ir-id">USER-03</span>
+          <span class="ir-title" style="text-decoration:line-through">User registration &amp; login endpoint</span>
+          <span class="badge badge-done" style="font-size:10px">Done</span>
+          <span class="badge lbl-be" style="font-size:10px">Backend</span>
+          <span class="ir-project">Intrack Backend</span>
+          <span class="ir-due">Jun 8</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script src="../js/sidebar.js"></script>
+<script>
+function showTab(name, el) {
+  ['active','review','done'].forEach(n => {
+    document.getElementById('tab-'+n).style.display = n===name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

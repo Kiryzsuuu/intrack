@@ -3,6 +3,9 @@ const jwt = require('jsonwebtoken');
 
 let io;
 
+// Track voice rooms: { channelId: { userId: { socketId, muted, deafened, videoOn, name, photo } } }
+const voiceRooms = {};
+
 function initSocket(server) {
   io = new Server(server, {
     cors: { origin: '*', methods: ['GET', 'POST'] },
@@ -14,6 +17,8 @@ function initSocket(server) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.id;
+      socket.userName = decoded.namaLengkap || '';
+      socket.userPhoto = decoded.fotoProfil || null;
       next();
     } catch {
       next(new Error('Token tidak valid'));
@@ -22,10 +27,104 @@ function initSocket(server) {
 
   io.on('connection', (socket) => {
     socket.join(`user:${socket.userId}`);
-    socket.on('disconnect', () => {});
+
+    // ── Voice: join room ──────────────────────────────────────────────────────
+    socket.on('voice:join', ({ channelId, name, photo }) => {
+      if (!channelId) return;
+
+      // Tinggalkan voice room sebelumnya jika ada
+      leaveAllVoiceRooms(socket);
+
+      socket.voiceChannel = channelId;
+      socket.join(`voice:${channelId}`);
+
+      if (!voiceRooms[channelId]) voiceRooms[channelId] = {};
+      voiceRooms[channelId][socket.userId] = {
+        socketId: socket.id,
+        muted: false, deafened: false, videoOn: false,
+        name: name || socket.userName,
+        photo: photo || socket.userPhoto,
+        userId: socket.userId,
+      };
+
+      // Kirim daftar peserta yang sudah ada ke user baru
+      socket.emit('voice:participants', getParticipants(channelId));
+
+      // Beritahu peserta lain ada yang join
+      socket.to(`voice:${channelId}`).emit('voice:user-joined', {
+        userId: socket.userId, socketId: socket.id,
+        name: name || socket.userName, photo: photo || socket.userPhoto,
+        muted: false, deafened: false, videoOn: false,
+      });
+    });
+
+    // ── Voice: leave room ────────────────────────────────────────────────────
+    socket.on('voice:leave', () => leaveAllVoiceRooms(socket));
+
+    // ── Voice: WebRTC signaling ───────────────────────────────────────────────
+    socket.on('voice:offer', ({ targetSocketId, offer }) => {
+      io.to(targetSocketId).emit('voice:offer', {
+        fromSocketId: socket.id,
+        fromUserId: socket.userId,
+        offer,
+      });
+    });
+
+    socket.on('voice:answer', ({ targetSocketId, answer }) => {
+      io.to(targetSocketId).emit('voice:answer', {
+        fromSocketId: socket.id,
+        answer,
+      });
+    });
+
+    socket.on('voice:ice', ({ targetSocketId, candidate }) => {
+      io.to(targetSocketId).emit('voice:ice', {
+        fromSocketId: socket.id,
+        candidate,
+      });
+    });
+
+    // ── Voice: status update (mute/deafen/video) ──────────────────────────────
+    socket.on('voice:status', ({ muted, deafened, videoOn }) => {
+      const channelId = socket.voiceChannel;
+      if (!channelId || !voiceRooms[channelId]?.[socket.userId]) return;
+
+      const p = voiceRooms[channelId][socket.userId];
+      if (muted     !== undefined) p.muted     = muted;
+      if (deafened  !== undefined) p.deafened  = deafened;
+      if (videoOn   !== undefined) p.videoOn   = videoOn;
+
+      io.to(`voice:${channelId}`).emit('voice:user-status', {
+        userId: socket.userId, muted: p.muted, deafened: p.deafened, videoOn: p.videoOn,
+      });
+    });
+
+    socket.on('disconnect', () => {
+      leaveAllVoiceRooms(socket);
+    });
   });
 
   return io;
+}
+
+function leaveAllVoiceRooms(socket) {
+  const channelId = socket.voiceChannel;
+  if (!channelId) return;
+
+  socket.leave(`voice:${channelId}`);
+  if (voiceRooms[channelId]) {
+    delete voiceRooms[channelId][socket.userId];
+    if (!Object.keys(voiceRooms[channelId]).length) delete voiceRooms[channelId];
+  }
+
+  socket.to(`voice:${channelId}`).emit('voice:user-left', {
+    userId: socket.userId, socketId: socket.id,
+  });
+  socket.voiceChannel = null;
+}
+
+function getParticipants(channelId) {
+  return Object.values(voiceRooms[channelId] || {});
 }
 
 function emitToUser(userId, event, data) {

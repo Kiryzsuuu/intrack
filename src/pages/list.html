@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — List</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <style>
+    .list-toolbar {
+      background: var(--surface); border-bottom: 0.5px solid var(--border);
+      padding: 8px 20px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+    .search-box {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r-sm); padding: 6px 10px; flex: 1; max-width: 280px;
+    }
+    .search-box i { font-size: 14px; color: var(--text-3); flex-shrink: 0; }
+    .search-box input { background: none; border: none; outline: none; font-size: 12px; color: var(--text); flex: 1; }
+    .search-box input::placeholder { color: var(--text-3); }
+
+    .list-wrap { padding: 16px 20px; flex: 1; overflow-y: auto; }
+    .list-wrap::-webkit-scrollbar { width: 4px; }
+    .list-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .list-group { margin-bottom: 16px; }
+    .list-group-head {
+      display: flex; align-items: center; gap: 8px; padding: 6px 0;
+      border-bottom: 0.5px solid var(--border); margin-bottom: 2px;
+      cursor: pointer; user-select: none;
+    }
+    .list-group-head:hover .lg-title { color: var(--text); }
+    .lg-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .lg-title { font-size: 12px; font-weight: 600; color: var(--text-2); flex: 1; }
+    .lg-count { font-size: 11px; color: var(--text-3); background: var(--surface-2); padding: 1px 7px; border-radius: var(--r-pill); }
+
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    thead th {
+      font-size: 10px; font-weight: 600; color: var(--text-3);
+      text-align: left; padding: 0 10px 6px; letter-spacing: .5px;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    tbody tr { cursor: pointer; transition: var(--transition); }
+    tbody tr:hover td { background: var(--accent-light); }
+    tbody tr:hover td:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+    tbody tr:hover td:last-child  { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+    td {
+      padding: 8px 10px; border-bottom: 0.5px solid var(--border);
+      font-size: 12px; vertical-align: middle; overflow: hidden; text-overflow: ellipsis;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .td-id    { width: 80px; }
+    .td-title { /* flex */ }
+    .td-status { width: 110px; }
+    .td-prio  { width: 80px; }
+    .td-label { width: 90px; }
+    .td-pts   { width: 52px; text-align: center; }
+    .td-assign{ width: 100px; }
+    .td-due   { width: 80px; }
+
+    .td-id-val { font-size: 11px; font-weight: 600; color: var(--text-3); }
+    .td-title-val { font-weight: 500; color: var(--text); }
+    .td-due-val { font-size: 11px; color: var(--text-3); }
+    .td-due-val.overdue { color: var(--red); font-weight: 600; }
+    .td-pts-val { font-size: 11px; font-weight: 600; color: var(--text-3); }
+
+    .prio-row { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+    .assign-row { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-2); }
+
+    .add-issue-row td {
+      padding: 7px 10px;
+      font-size: 12px; color: var(--text-3); cursor: pointer;
+    }
+    .add-issue-row:hover td { color: var(--accent); background: var(--accent-light); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="board" data-project="backend"></aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <a href="dashboard.html">Projects</a>
+        <span class="bc-sep"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        <a href="board.html">Intrack Backend</a>
+        <span class="bc-sep"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        <span class="cur">List</span>
+      </div>
+      <div class="topbar-right">
+        <div class="view-sw">
+          <a href="board.html"><i class="ti ti-layout-kanban" aria-hidden="true"></i> Board</a>
+          <a href="list.html" class="active"><i class="ti ti-list" aria-hidden="true"></i> List</a>
+          <a href="stats.html"><i class="ti ti-chart-bar" aria-hidden="true"></i> Stats</a>
+        </div>
+        <a href="create-issue.html" class="btn btn-primary">
+          <i class="ti ti-plus" aria-hidden="true"></i> New issue
+        </a>
+      </div>
+    </div>
+
+    <div class="list-toolbar">
+      <div class="search-box">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input type="text" placeholder="Cari issue...">
+      </div>
+      <button class="btn"><i class="ti ti-filter" aria-hidden="true"></i> Filter</button>
+      <button class="btn"><i class="ti ti-arrows-sort" aria-hidden="true"></i> Sort</button>
+      <button class="btn"><i class="ti ti-layout-rows" aria-hidden="true"></i> Group by</button>
+      <div style="margin-left:auto;font-size:11px;color:var(--text-3)">14 issues · Sprint 4</div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="list-wrap">
+
+        <!-- In progress -->
+        <div class="list-group">
+          <div class="list-group-head">
+            <div class="lg-dot" style="background:#7C3AED"></div>
+            <span class="lg-title">In progress</span>
+            <span class="lg-count">3</span>
+            <i class="ti ti-chevron-down" style="font-size:12px;color:var(--text-3)" aria-hidden="true"></i>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="td-id">ID</th>
+                <th class="td-title">Title</th>
+                <th class="td-status">Status</th>
+                <th class="td-prio">Prioritas</th>
+                <th class="td-label">Label</th>
+                <th class="td-pts">Pts</th>
+                <th class="td-assign">Assignee</th>
+                <th class="td-due">Due</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">AUTH-04</span></td>
+                <td class="td-title"><span class="td-title-val">Setup JWT authentication &amp; refresh token</span></td>
+                <td><span class="badge badge-progress" style="font-size:10px"><i class="ti ti-loader-2"></i> In progress</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-h"></div> High</div></td>
+                <td><span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span></td>
+                <td class="td-pts"><span class="td-pts-val">8</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-v">AR</div> Andi</div></td>
+                <td><span class="td-due-val">Jun 15</span></td>
+              </tr>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">ROLE-06</span></td>
+                <td class="td-title"><span class="td-title-val">Role &amp; permission middleware</span></td>
+                <td><span class="badge badge-progress" style="font-size:10px"><i class="ti ti-loader-2"></i> In progress</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-h"></div> High</div></td>
+                <td><span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span></td>
+                <td class="td-pts"><span class="td-pts-val">5</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-a">DS</div> Dika</div></td>
+                <td><span class="td-due-val">Jun 14</span></td>
+              </tr>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">UI-07</span></td>
+                <td class="td-title"><span class="td-title-val">Kanban drag &amp; drop with dnd-kit</span></td>
+                <td><span class="badge badge-progress" style="font-size:10px"><i class="ti ti-loader-2"></i> In progress</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-m"></div> Medium</div></td>
+                <td><span class="badge lbl-fe" style="font-size:10px;padding:2px 7px">Frontend</span></td>
+                <td class="td-pts"><span class="td-pts-val">5</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-d">RN</div> Rani</div></td>
+                <td><span class="td-due-val">Jun 15</span></td>
+              </tr>
+              <tr class="add-issue-row" onclick="window.location='create-issue.html'">
+                <td colspan="8"><i class="ti ti-plus" style="font-size:12px;margin-right:5px" aria-hidden="true"></i> Tambah issue</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- In review -->
+        <div class="list-group">
+          <div class="list-group-head">
+            <div class="lg-dot" style="background:#EA580C"></div>
+            <span class="lg-title">In review</span>
+            <span class="lg-count">2</span>
+            <i class="ti ti-chevron-down" style="font-size:12px;color:var(--text-3)" aria-hidden="true"></i>
+          </div>
+          <table>
+            <tbody>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">API-12</span></td>
+                <td class="td-title"><span class="td-title-val">REST endpoint for project CRUD operations</span></td>
+                <td><span class="badge badge-review" style="font-size:10px"><i class="ti ti-eye"></i> In review</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-m"></div> Medium</div></td>
+                <td><span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span></td>
+                <td class="td-pts"><span class="td-pts-val">5</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-b">BW</div> Budi</div></td>
+                <td><span class="td-due-val overdue">Jun 10!</span></td>
+              </tr>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">BUG-09</span></td>
+                <td class="td-title"><span class="td-title-val">Fix: token expiry causes 500 on /me endpoint</span></td>
+                <td><span class="badge badge-review" style="font-size:10px"><i class="ti ti-eye"></i> In review</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-h"></div> High</div></td>
+                <td><span class="badge lbl-bug" style="font-size:10px;padding:2px 7px">Bug</span></td>
+                <td class="td-pts"><span class="td-pts-val">3</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-v">AR</div> Andi</div></td>
+                <td><span class="td-due-val overdue">Jun 11!</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- To do -->
+        <div class="list-group">
+          <div class="list-group-head">
+            <div class="lg-dot" style="background:#A1A1AA"></div>
+            <span class="lg-title">To do</span>
+            <span class="lg-count">4</span>
+            <i class="ti ti-chevron-down" style="font-size:12px;color:var(--text-3)" aria-hidden="true"></i>
+          </div>
+          <table>
+            <tbody>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">NOTIF-01</span></td>
+                <td class="td-title"><span class="td-title-val">Email notification on mention &amp; assign</span></td>
+                <td><span class="badge badge-todo" style="font-size:10px">To do</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-h"></div> High</div></td>
+                <td><span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span></td>
+                <td class="td-pts"><span class="td-pts-val">5</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-n">NR</div> Nina</div></td>
+                <td><span class="td-due-val">Jun 15</span></td>
+              </tr>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">DB-03</span></td>
+                <td class="td-title"><span class="td-title-val">Database schema migration with Prisma</span></td>
+                <td><span class="badge badge-todo" style="font-size:10px">To do</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-l"></div> Low</div></td>
+                <td><span class="badge lbl-db" style="font-size:10px;padding:2px 7px">Database</span></td>
+                <td class="td-pts"><span class="td-pts-val">3</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-a">DS</div> Dika</div></td>
+                <td><span class="td-due-val">Jun 15</span></td>
+              </tr>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">WS-02</span></td>
+                <td class="td-title"><span class="td-title-val">Socket.io realtime board update</span></td>
+                <td><span class="badge badge-todo" style="font-size:10px">To do</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-m"></div> Medium</div></td>
+                <td><span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span></td>
+                <td class="td-pts"><span class="td-pts-val">8</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-b">BW</div> Budi</div></td>
+                <td><span class="td-due-val">Jun 15</span></td>
+              </tr>
+              <tr onclick="window.location='issue-detail.html'">
+                <td class="td-id"><span class="td-id-val">TEST-05</span></td>
+                <td class="td-title"><span class="td-title-val">Unit test for auth middleware</span></td>
+                <td><span class="badge badge-todo" style="font-size:10px">To do</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-l"></div> Low</div></td>
+                <td><span class="badge lbl-test" style="font-size:10px;padding:2px 7px">Testing</span></td>
+                <td class="td-pts"><span class="td-pts-val">2</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-v">AR</div> Andi</div></td>
+                <td><span class="td-due-val">Jun 15</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Done (collapsed) -->
+        <div class="list-group">
+          <div class="list-group-head" onclick="toggleDone(this)">
+            <div class="lg-dot" style="background:#16A34A"></div>
+            <span class="lg-title">Done</span>
+            <span class="lg-count">5</span>
+            <i class="ti ti-chevron-right" style="font-size:12px;color:var(--text-3)" aria-hidden="true"></i>
+          </div>
+          <table id="done-table" style="display:none">
+            <tbody>
+              <tr onclick="window.location='issue-detail.html'" style="opacity:.6">
+                <td class="td-id"><span class="td-id-val">SETUP-01</span></td>
+                <td class="td-title"><span class="td-title-val" style="text-decoration:line-through">Project scaffolding &amp; folder structure</span></td>
+                <td><span class="badge badge-done" style="font-size:10px"><i class="ti ti-check"></i> Done</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-l"></div> Low</div></td>
+                <td><span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span></td>
+                <td class="td-pts"><span class="td-pts-val">2</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-v">AR</div> Andi</div></td>
+                <td><span class="td-due-val">Jun 5</span></td>
+              </tr>
+              <tr onclick="window.location='issue-detail.html'" style="opacity:.6">
+                <td class="td-id"><span class="td-id-val">ENV-02</span></td>
+                <td class="td-title"><span class="td-title-val" style="text-decoration:line-through">Environment config &amp; Docker compose</span></td>
+                <td><span class="badge badge-done" style="font-size:10px"><i class="ti ti-check"></i> Done</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-l"></div> Low</div></td>
+                <td><span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span></td>
+                <td class="td-pts"><span class="td-pts-val">2</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-a">DS</div> Dika</div></td>
+                <td><span class="td-due-val">Jun 6</span></td>
+              </tr>
+              <tr onclick="window.location='issue-detail.html'" style="opacity:.6">
+                <td class="td-id"><span class="td-id-val">USER-03</span></td>
+                <td class="td-title"><span class="td-title-val" style="text-decoration:line-through">User registration &amp; login endpoint</span></td>
+                <td><span class="badge badge-done" style="font-size:10px"><i class="ti ti-check"></i> Done</span></td>
+                <td><div class="prio-row"><div class="prio-dot p-m"></div> Medium</div></td>
+                <td><span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span></td>
+                <td class="td-pts"><span class="td-pts-val">5</span></td>
+                <td><div class="assign-row"><div class="av av-sm av-v">AR</div> Andi</div></td>
+                <td><span class="td-due-val">Jun 8</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../js/sidebar.js"></script>
+<script>
+function toggleDone(head) {
+  const t = document.getElementById('done-table');
+  const icon = head.querySelector('i.ti');
+  if (t.style.display === 'none') {
+    t.style.display = 'table';
+    icon.className = 'ti ti-chevron-down';
+  } else {
+    t.style.display = 'none';
+    icon.className = 'ti ti-chevron-right';
+  }
+}
+</script>
+</body>
+</html>

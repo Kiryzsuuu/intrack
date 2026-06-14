@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" href="/img/logo.png">
   <link rel="manifest" href="/manifest.json">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Intrack — Channel</title>
@@ -123,6 +124,83 @@
     .toggle-row { display:flex;align-items:center;gap:10px; }
     .toggle-row input[type=checkbox] { width:auto;accent-color:var(--accent); }
 
+    /* Voice panel */
+    .voice-panel {
+      border-top: 0.5px solid var(--border); background: var(--surface);
+      padding: 10px 14px; display: none; flex-direction: column; gap: 8px;
+    }
+    .voice-panel.active { display: flex; }
+    .voice-header {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .5px;
+    }
+    .voice-participants { display: flex; flex-wrap: wrap; gap: 6px; }
+    .voice-participant {
+      display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+      background: var(--surface-2); border-radius: 100px; font-size: 12px;
+      border: 0.5px solid var(--border);
+    }
+    .voice-participant .vp-av {
+      width: 20px; height: 20px; border-radius: 50%; background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700; color: #fff; overflow: hidden; flex-shrink: 0;
+    }
+    .voice-participant .vp-av img { width: 100%; height: 100%; object-fit: cover; }
+    .voice-participant .vp-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .voice-participant .vp-icons { display: flex; gap: 2px; color: var(--text-3); font-size: 11px; }
+    .voice-participant.muted .vp-icons .ic-mic { color: var(--red-text); }
+
+    /* Voice controls bar */
+    .voice-controls {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 900;
+      background: var(--surface); border-top: 0.5px solid var(--border);
+      padding: 10px 20px; display: none; align-items: center; justify-content: center; gap: 10px;
+    }
+    .voice-controls.active { display: flex; }
+    .vc-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+      transition: var(--transition); flex-shrink: 0;
+    }
+    .vc-btn.normal { background: var(--surface-2); color: var(--text); border: 0.5px solid var(--border); }
+    .vc-btn.normal:hover { background: var(--surface-3, var(--border)); }
+    .vc-btn.active-state { background: var(--accent); color: #fff; }
+    .vc-btn.danger { background: #EF4444; color: #fff; }
+    .vc-btn.danger:hover { background: #DC2626; }
+    .vc-btn.off { background: #EF444420; color: #EF4444; border: 0.5px solid #EF444440; }
+    .vc-label { font-size: 10px; font-weight: 600; color: var(--text-3); margin-top: 3px; }
+    .vc-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+    /* Video grid overlay */
+    #video-grid {
+      position: fixed; inset: 56px 0 66px 0; z-index: 800;
+      background: #111; display: none; flex-wrap: wrap; align-content: flex-start;
+      padding: 8px; gap: 8px; overflow-y: auto;
+    }
+    #video-grid.active { display: flex; }
+    .video-tile {
+      background: #1e1e1e; border-radius: 12px; overflow: hidden;
+      position: relative; display: flex; align-items: center; justify-content: center;
+      min-height: 180px;
+    }
+    .video-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .video-tile .vt-name {
+      position: absolute; bottom: 8px; left: 10px;
+      background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600;
+      padding: 2px 8px; border-radius: 100px;
+    }
+    .video-tile .vt-muted {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(239,68,68,.8); color: #fff; border-radius: 50%;
+      width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+    .video-tile .vt-no-video {
+      width: 60px; height: 60px; border-radius: 50%; background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800; color: #fff;
+    }
+
     @media(max-width:640px) {
       .ch-list-panel { width: 200px; }
     }
@@ -159,6 +237,37 @@
   </div>
 </div>
 
+<!-- Video Grid Overlay -->
+<div id="video-grid"></div>
+
+<!-- Voice Controls Bar -->
+<div class="voice-controls" id="voice-controls">
+  <div class="vc-item">
+    <button class="vc-btn normal" id="vc-mute" onclick="toggleMute()" title="Mute/Unmute">
+      <i class="ti ti-microphone"></i>
+    </button>
+    <span class="vc-label" id="vc-mute-label">Mute</span>
+  </div>
+  <div class="vc-item">
+    <button class="vc-btn normal" id="vc-deafen" onclick="toggleDeafen()" title="Deafen">
+      <i class="ti ti-headphones"></i>
+    </button>
+    <span class="vc-label">Deafen</span>
+  </div>
+  <div class="vc-item">
+    <button class="vc-btn normal" id="vc-video" onclick="toggleVideo()" title="Video On/Off">
+      <i class="ti ti-video"></i>
+    </button>
+    <span class="vc-label" id="vc-video-label">Video</span>
+  </div>
+  <div class="vc-item">
+    <button class="vc-btn danger" onclick="leaveVoice()" title="Keluar voice">
+      <i class="ti ti-phone-off"></i>
+    </button>
+    <span class="vc-label">Keluar</span>
+  </div>
+</div>
+
 <!-- Modal Buat Channel -->
 <div id="modal-create" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeCreateModal()">
   <div class="modal-box">
@@ -181,6 +290,32 @@
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn" onclick="closeCreateModal()">Batal</button>
       <button class="btn btn-primary" onclick="createChannel()"><i class="ti ti-plus"></i> Buat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Edit Channel -->
+<div id="modal-edit" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal-box">
+    <h3 class="modal-title">Edit Channel</h3>
+    <input type="hidden" id="edit-ch-id">
+    <div class="field">
+      <label>Nama Channel *</label>
+      <input type="text" id="edit-ch-name" maxlength="80">
+    </div>
+    <div class="field">
+      <label>Deskripsi</label>
+      <textarea id="edit-ch-desc" rows="2" maxlength="300" style="resize:none"></textarea>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="edit-ch-private">
+      <label for="edit-ch-private" style="font-size:13px;cursor:pointer">
+        <i class="ti ti-lock" style="font-size:12px;margin-right:4px"></i>Channel Privat
+      </label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeEditModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveEditChannel()"><i class="ti ti-check"></i> Simpan</button>
     </div>
   </div>
 </div>
@@ -246,7 +381,18 @@ async function openChannel(id) {
         <div class="ch-topbar-name" id="ch-topbar-name">Memuat...</div>
         <div class="ch-topbar-desc" id="ch-topbar-desc"></div>
       </div>
-      <div style="margin-left:auto;display:flex;gap:6px" id="ch-topbar-actions"></div>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center" id="ch-topbar-actions">
+        <button class="btn" id="btn-join-voice" style="font-size:12px;gap:6px" onclick="joinVoice()">
+          <i class="ti ti-phone" style="color:var(--accent)"></i> Gabung Voice
+        </button>
+      </div>
+    </div>
+    <div class="voice-panel" id="voice-panel">
+      <div class="voice-header">
+        <span><i class="ti ti-volume" style="margin-right:4px"></i>Voice — aktif</span>
+        <span id="voice-count" style="color:var(--text-3);font-size:11px;font-weight:400">0 peserta</span>
+      </div>
+      <div class="voice-participants" id="voice-participants"></div>
     </div>
     <div class="ch-messages" id="ch-messages">
       <div style="text-align:center;color:var(--text-3);font-size:13px;padding:20px">Memuat pesan...</div>
@@ -272,7 +418,10 @@ async function openChannel(id) {
     const actions = document.getElementById('ch-topbar-actions');
     if (isCreator) {
       actions.innerHTML = `
-        <button class="btn" style="font-size:12px" onclick="deleteChannel('${ch._id}','${escHtml(ch.nama)}')">
+        <button class="btn" style="font-size:12px" onclick="openEditModal('${ch._id}','${escHtml(ch.nama)}','${escHtml(ch.deskripsi||'')}',${ch.isPrivate})" title="Edit Channel">
+          <i class="ti ti-pencil"></i>
+        </button>
+        <button class="btn" style="font-size:12px" onclick="deleteChannel('${ch._id}','${escHtml(ch.nama)}')" title="Hapus Channel">
           <i class="ti ti-trash" style="color:var(--red-text)"></i>
         </button>`;
     } else if (isMember) {
@@ -500,6 +649,31 @@ async function deleteChannel(id, nama) {
 function openCreateModal()  { document.getElementById('modal-create').style.display = 'flex'; document.getElementById('new-ch-name').focus(); }
 function closeCreateModal() { document.getElementById('modal-create').style.display = 'none'; document.getElementById('new-ch-name').value = ''; document.getElementById('new-ch-desc').value = ''; document.getElementById('new-ch-private').checked = false; }
 
+function openEditModal(id, nama, deskripsi, isPrivate) {
+  document.getElementById('edit-ch-id').value      = id;
+  document.getElementById('edit-ch-name').value    = nama;
+  document.getElementById('edit-ch-desc').value    = deskripsi;
+  document.getElementById('edit-ch-private').checked = isPrivate;
+  document.getElementById('modal-edit').style.display = 'flex';
+  document.getElementById('edit-ch-name').focus();
+}
+function closeEditModal() { document.getElementById('modal-edit').style.display = 'none'; }
+
+async function saveEditChannel() {
+  const id        = document.getElementById('edit-ch-id').value;
+  const nama      = document.getElementById('edit-ch-name').value.trim();
+  const deskripsi = document.getElementById('edit-ch-desc').value.trim();
+  const isPrivate = document.getElementById('edit-ch-private').checked;
+  if (!nama) { showToast('Nama channel wajib diisi', 'error'); return; }
+  try {
+    await Channels.update(id, { nama, deskripsi, isPrivate });
+    showToast('Channel diperbarui');
+    closeEditModal();
+    await loadChannels();
+    openChannel(id);
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
 async function createChannel() {
   const nama      = document.getElementById('new-ch-name').value.trim();
   const deskripsi = document.getElementById('new-ch-desc').value.trim();
@@ -519,6 +693,317 @@ function escHtml(s) {
 }
 
 loadChannels();
+
+// ── Socket.io + WebRTC Voice ───────────────────────────────────────────────────
+let socket       = null;
+let peerConns    = {};   // { socketId: RTCPeerConnection }
+let localStream  = null;
+let isMuted      = false;
+let isDeafened   = false;
+let isVideoOn    = false;
+let inVoice      = false;
+let voiceParticipants = {}; // { userId: { name, photo, socketId, muted, deafened, videoOn } }
+
+function getSocket() {
+  if (socket && socket.connected) return socket;
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  socket = io({ auth: { token } });
+
+  socket.on('voice:participants', (list) => {
+    voiceParticipants = {};
+    list.forEach(p => { voiceParticipants[p.userId] = p; });
+    renderVoiceParticipants();
+    // Buat offer ke semua peserta yang sudah ada
+    list.forEach(p => {
+      if (p.userId !== me._id) createOffer(p.socketId);
+    });
+  });
+
+  socket.on('voice:user-joined', (p) => {
+    voiceParticipants[p.userId] = p;
+    renderVoiceParticipants();
+    createOffer(p.socketId);
+  });
+
+  socket.on('voice:user-left', ({ userId, socketId }) => {
+    delete voiceParticipants[userId];
+    closePeer(socketId);
+    renderVoiceParticipants();
+    removeVideoTile(socketId);
+  });
+
+  socket.on('voice:user-status', ({ userId, muted, deafened, videoOn }) => {
+    if (voiceParticipants[userId]) {
+      Object.assign(voiceParticipants[userId], { muted, deafened, videoOn });
+      renderVoiceParticipants();
+    }
+  });
+
+  socket.on('voice:offer', async ({ fromSocketId, fromUserId, offer }) => {
+    const pc = getOrCreatePeer(fromSocketId, fromUserId);
+    await pc.setRemoteDescription(offer);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('voice:answer', { targetSocketId: fromSocketId, answer });
+  });
+
+  socket.on('voice:answer', async ({ fromSocketId, answer }) => {
+    const pc = peerConns[fromSocketId];
+    if (pc) await pc.setRemoteDescription(answer);
+  });
+
+  socket.on('voice:ice', async ({ fromSocketId, candidate }) => {
+    const pc = peerConns[fromSocketId];
+    if (pc && candidate) await pc.addIceCandidate(candidate);
+  });
+
+  return socket;
+}
+
+async function joinVoice() {
+  if (inVoice) return;
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch(e) {
+    showToast('Tidak dapat mengakses mikrofon: ' + e.message, 'error'); return;
+  }
+
+  inVoice = true;
+  isMuted = false; isDeafened = false; isVideoOn = false;
+
+  document.getElementById('voice-panel').classList.add('active');
+  document.getElementById('voice-controls').classList.add('active');
+
+  voiceParticipants = {};
+  addMyVideoTile();
+
+  const s = getSocket();
+  s.emit('voice:join', {
+    channelId: activeChannelId,
+    name: me.namaLengkap,
+    photo: me.fotoProfil || null,
+  });
+
+  updateVoiceUI();
+}
+
+function leaveVoice() {
+  if (!inVoice) return;
+
+  if (socket) socket.emit('voice:leave');
+
+  Object.keys(peerConns).forEach(sid => closePeer(sid));
+  peerConns = {};
+
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+
+  inVoice = false; isMuted = false; isDeafened = false; isVideoOn = false;
+  voiceParticipants = {};
+
+  document.getElementById('voice-panel').classList.remove('active');
+  document.getElementById('voice-controls').classList.remove('active');
+  document.getElementById('video-grid').classList.remove('active');
+  document.getElementById('video-grid').innerHTML = '';
+  renderVoiceParticipants();
+}
+
+function toggleMute() {
+  isMuted = !isMuted;
+  if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+  updateVoiceUI();
+  if (socket) socket.emit('voice:status', { muted: isMuted });
+}
+
+function toggleDeafen() {
+  isDeafened = !isDeafened;
+  // Mute semua remote audio
+  Object.values(peerConns).forEach(pc => {
+    pc.getReceivers().forEach(r => { if (r.track.kind === 'audio') r.track.enabled = !isDeafened; });
+  });
+  if (isDeafened && !isMuted) { isMuted = true; if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false); }
+  updateVoiceUI();
+  if (socket) socket.emit('voice:status', { deafened: isDeafened, muted: isMuted });
+}
+
+async function toggleVideo() {
+  if (!inVoice) return;
+  isVideoOn = !isVideoOn;
+
+  if (isVideoOn) {
+    try {
+      const vidStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const vidTrack  = vidStream.getVideoTracks()[0];
+      localStream.addTrack(vidTrack);
+      // Add ke semua peer connections
+      Object.values(peerConns).forEach(pc => pc.addTrack(vidTrack, localStream));
+      updateMyVideoTile(true);
+      document.getElementById('video-grid').classList.add('active');
+    } catch(e) { isVideoOn = false; showToast('Tidak dapat mengakses kamera: ' + e.message, 'error'); }
+  } else {
+    const vidTracks = localStream.getVideoTracks();
+    vidTracks.forEach(t => { t.stop(); localStream.removeTrack(t); });
+    updateMyVideoTile(false);
+    // Sembunyikan grid jika tidak ada yang video on
+    const hasOtherVideo = Object.values(voiceParticipants).some(p => p.userId !== me._id && p.videoOn);
+    if (!hasOtherVideo) document.getElementById('video-grid').classList.remove('active');
+  }
+
+  updateVoiceUI();
+  if (socket) socket.emit('voice:status', { videoOn: isVideoOn });
+}
+
+function updateVoiceUI() {
+  // Mute button
+  const muteBtn   = document.getElementById('vc-mute');
+  const muteLabel = document.getElementById('vc-mute-label');
+  if (muteBtn) {
+    muteBtn.className = 'vc-btn ' + (isMuted ? 'off' : 'normal');
+    muteBtn.innerHTML = `<i class="ti ${isMuted ? 'ti-microphone-off' : 'ti-microphone'}"></i>`;
+    muteLabel.textContent = isMuted ? 'Unmute' : 'Mute';
+  }
+  // Deafen button
+  const deafBtn = document.getElementById('vc-deafen');
+  if (deafBtn) deafBtn.className = 'vc-btn ' + (isDeafened ? 'off' : 'normal');
+  // Video button
+  const vidBtn   = document.getElementById('vc-video');
+  const vidLabel = document.getElementById('vc-video-label');
+  if (vidBtn) {
+    vidBtn.className = 'vc-btn ' + (isVideoOn ? 'active-state' : 'normal');
+    vidBtn.innerHTML = `<i class="ti ${isVideoOn ? 'ti-video' : 'ti-video-off'}"></i>`;
+    vidLabel.textContent = isVideoOn ? 'Stop Video' : 'Video';
+  }
+}
+
+// ── WebRTC Peer ────────────────────────────────────────────────────────────────
+const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+function getOrCreatePeer(socketId, userId) {
+  if (peerConns[socketId]) return peerConns[socketId];
+  return createPeer(socketId, userId);
+}
+
+function createPeer(socketId, userId) {
+  const pc = new RTCPeerConnection(ICE_SERVERS);
+  peerConns[socketId] = pc;
+
+  if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) socket.emit('voice:ice', { targetSocketId: socketId, candidate });
+  };
+
+  pc.ontrack = ({ streams, track }) => {
+    if (track.kind === 'audio') {
+      const audio = document.getElementById('audio-' + socketId) || document.createElement('audio');
+      audio.id  = 'audio-' + socketId;
+      audio.srcObject = streams[0];
+      audio.autoplay  = true;
+      if (isDeafened) audio.muted = true;
+      document.body.appendChild(audio);
+    }
+    if (track.kind === 'video') {
+      addRemoteVideoTile(socketId, userId, streams[0]);
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (['disconnected','failed','closed'].includes(pc.connectionState)) closePeer(socketId);
+  };
+
+  return pc;
+}
+
+async function createOffer(targetSocketId) {
+  const pc    = getOrCreatePeer(targetSocketId, null);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('voice:offer', { targetSocketId, offer });
+}
+
+function closePeer(socketId) {
+  const pc = peerConns[socketId];
+  if (pc) { pc.close(); delete peerConns[socketId]; }
+  const audio = document.getElementById('audio-' + socketId);
+  if (audio) audio.remove();
+}
+
+// ── Video tiles ────────────────────────────────────────────────────────────────
+function addMyVideoTile() {
+  const grid = document.getElementById('video-grid');
+  const tile = document.createElement('div');
+  tile.className = 'video-tile';
+  tile.id = 'vtile-me';
+  tile.style.flex = '1 1 300px';
+  tile.innerHTML = `
+    <video id="local-video" autoplay muted playsinline style="transform:scaleX(-1)"></video>
+    <div class="vt-name">${escHtml(me.namaLengkap)} (Anda)</div>`;
+  grid.appendChild(tile);
+}
+
+function updateMyVideoTile(show) {
+  const vid = document.getElementById('local-video');
+  if (!vid) return;
+  if (show) {
+    const vidTrack = localStream?.getVideoTracks()[0];
+    if (vidTrack) {
+      const stream = new MediaStream([vidTrack]);
+      vid.srcObject = stream;
+    }
+  } else {
+    vid.srcObject = null;
+  }
+}
+
+function addRemoteVideoTile(socketId, userId, stream) {
+  const grid = document.getElementById('video-grid');
+  if (document.getElementById('vtile-' + socketId)) return;
+  const p    = Object.values(voiceParticipants).find(x => x.socketId === socketId || x.userId === userId) || {};
+  const name = p.name || 'User';
+  const tile = document.createElement('div');
+  tile.className = 'video-tile';
+  tile.id = 'vtile-' + socketId;
+  tile.style.flex = '1 1 300px';
+  tile.innerHTML = `<video autoplay playsinline></video><div class="vt-name">${escHtml(name)}</div>`;
+  tile.querySelector('video').srcObject = stream;
+  grid.appendChild(tile);
+  grid.classList.add('active');
+}
+
+function removeVideoTile(socketId) {
+  const tile = document.getElementById('vtile-' + socketId);
+  if (tile) tile.remove();
+}
+
+// ── Render voice participants ──────────────────────────────────────────────────
+function renderVoiceParticipants() {
+  const el    = document.getElementById('voice-participants');
+  const count = document.getElementById('voice-count');
+  if (!el) return;
+
+  const list = Object.values(voiceParticipants);
+  // Tambahkan diri sendiri jika sedang di voice
+  const allParts = inVoice
+    ? [{ userId: me._id, name: me.namaLengkap, photo: me.fotoProfil, muted: isMuted, deafened: isDeafened, videoOn: isVideoOn, isSelf: true }, ...list.filter(p => p.userId !== me._id)]
+    : list;
+
+  if (count) count.textContent = allParts.length + ' peserta';
+
+  el.innerHTML = allParts.map(p => {
+    const inits   = (p.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
+    const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
+    const avHtml   = p.photo ? `<img src="${p.photo}" alt="">` : inits;
+
+    return `<div class="voice-participant${p.muted ? ' muted' : ''}">
+      <div class="vp-av" style="background:${avColor}">${avHtml}</div>
+      <span class="vp-name">${escHtml(p.name)}${p.isSelf ? ' (Anda)' : ''}</span>
+      <div class="vp-icons">
+        <i class="ti ${p.muted ? 'ti-microphone-off ic-mic' : 'ti-microphone ic-mic'}"></i>
+        ${p.videoOn ? '<i class="ti ti-video"></i>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
 </script>
 </body>
 </html>

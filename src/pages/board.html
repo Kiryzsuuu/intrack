@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Board</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <style>
+    .sprint-bar {
+      height: var(--sprint-h); background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 20px; flex-shrink: 0;
+    }
+    .sprint-name  { font-size: 13px; font-weight: 600; color: var(--text); }
+    .sprint-meta  { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+    .sprint-prog  { width: 140px; }
+    .sprint-pct   { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-bottom: 3px; }
+
+    .board-wrap { display: flex; gap: 12px; padding: 16px 20px; overflow-x: auto; flex: 1; align-items: flex-start; }
+    .board-wrap::-webkit-scrollbar { height: 5px; }
+    .board-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .col {
+      width: 244px; flex-shrink: 0;
+      background: var(--surface-2);
+      border-radius: var(--r-lg);
+      border: 0.5px solid var(--border);
+      display: flex; flex-direction: column;
+      max-height: calc(100vh - var(--topbar-h) - var(--sprint-h) - 32px);
+    }
+    .col-head {
+      display: flex; align-items: center; gap: 8px;
+      padding: 11px 12px; flex-shrink: 0;
+    }
+    .col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .col-title { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; }
+    .col-count {
+      font-size: 10px; font-weight: 600; color: var(--text-3);
+      background: var(--border); padding: 1px 7px; border-radius: var(--r-pill);
+    }
+    .col-add-btn {
+      width: 22px; height: 22px; border-radius: 5px;
+      border: none; background: none; color: var(--text-3); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .col-add-btn:hover { background: var(--border); color: var(--text); }
+
+    .col-body { overflow-y: auto; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .col-body::-webkit-scrollbar { width: 3px; }
+    .col-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .issue-card {
+      background: var(--surface); border-radius: var(--r);
+      border: 0.5px solid var(--border); padding: 10px 11px;
+      cursor: pointer; transition: var(--transition); display: block;
+    }
+    .issue-card:hover { border-color: var(--accent); }
+    .issue-card.done { opacity: .55; }
+    .issue-card.done:hover { opacity: 1; }
+    .ic-tag   { font-size: 10px; font-weight: 600; color: var(--text-3); margin-bottom: 4px; }
+    .ic-title { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 8px; }
+    .ic-foot  { display: flex; align-items: center; gap: 5px; }
+    .ic-pts   { font-size: 10px; font-weight: 600; color: var(--text-3); background: var(--surface-2); padding: 1px 6px; border-radius: var(--r-pill); margin-left: auto; }
+
+    .col-ghost {
+      margin: 0 8px 8px;
+      padding: 7px 10px; border-radius: var(--r-sm);
+      border: 0.5px dashed var(--border); color: var(--text-3);
+      font-size: 12px; display: flex; align-items: center; gap: 6px;
+      cursor: pointer; transition: var(--transition);
+    }
+    .col-ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+    .col-ghost i { font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="board" data-project="backend"></aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <a href="dashboard.html">Projects</a>
+        <span class="bc-sep"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        <a href="board.html">Intrack Backend</a>
+        <span class="bc-sep"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        <span class="cur">Board</span>
+      </div>
+      <div class="topbar-right">
+        <div class="view-sw">
+          <a href="board.html" class="active"><i class="ti ti-layout-kanban" aria-hidden="true"></i> Board</a>
+          <a href="list.html"><i class="ti ti-list" aria-hidden="true"></i> List</a>
+          <a href="stats.html"><i class="ti ti-chart-bar" aria-hidden="true"></i> Stats</a>
+        </div>
+        <button class="btn-icon" title="Filter"><i class="ti ti-filter" aria-hidden="true"></i></button>
+        <button class="btn-icon" title="Group by"><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i></button>
+        <div style="width:0.5px;height:20px;background:var(--border)"></div>
+        <a href="create-issue.html" class="btn btn-primary">
+          <i class="ti ti-plus" aria-hidden="true"></i> New issue
+        </a>
+      </div>
+    </div>
+
+    <div class="sprint-bar">
+      <div>
+        <div class="sprint-name">Sprint 4 — Backend Auth &amp; API</div>
+        <div class="sprint-meta">Jun 2 – Jun 15, 2026 · 5 hari tersisa</div>
+      </div>
+      <div class="sprint-prog">
+        <div class="sprint-pct"><span>Progress</span><span style="font-weight:600;color:var(--text)">62%</span></div>
+        <div class="prog-track"><div class="prog-fill" style="width:62%"></div></div>
+      </div>
+      <div class="av-stack" style="margin-left:8px">
+        <div class="av av-sm av-v">AR</div>
+        <div class="av av-sm av-a">DS</div>
+        <div class="av av-sm av-n">NR</div>
+        <div class="av av-sm av-b">BW</div>
+        <div class="av av-sm av-d">RN</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn btn-ghost" style="font-size:12px">
+          <i class="ti ti-calendar" aria-hidden="true"></i> Sprint settings
+        </button>
+        <button class="btn btn-primary" style="font-size:12px">
+          <i class="ti ti-check" aria-hidden="true"></i> Complete sprint
+        </button>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+
+      <!-- TO DO -->
+      <div class="col">
+        <div class="col-head">
+          <div class="col-dot" style="background:#A1A1AA"></div>
+          <div class="col-title">To do</div>
+          <div class="col-count">4</div>
+          <button class="col-add-btn" aria-label="tambah issue"><i class="ti ti-plus" aria-hidden="true"></i></button>
+        </div>
+        <div class="col-body">
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">NOTIF-01</div>
+            <div class="ic-title">Email notification on mention &amp; assign</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-h"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">5pt</span>
+              <div class="av av-sm av-n" style="margin-left:4px">NR</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">DB-03</div>
+            <div class="ic-title">Database schema migration with Prisma</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-l"></div>
+              <span class="badge lbl-db" style="font-size:10px;padding:2px 7px">Database</span>
+              <span class="ic-pts">3pt</span>
+              <div class="av av-sm av-a" style="margin-left:4px">DS</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">WS-02</div>
+            <div class="ic-title">Socket.io realtime board update</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-m"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">8pt</span>
+              <div class="av av-sm av-b" style="margin-left:4px">BW</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">TEST-05</div>
+            <div class="ic-title">Unit test for auth middleware</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-l"></div>
+              <span class="badge lbl-test" style="font-size:10px;padding:2px 7px">Testing</span>
+              <span class="ic-pts">2pt</span>
+              <div class="av av-sm av-v" style="margin-left:4px">AR</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-ghost"><i class="ti ti-plus" aria-hidden="true"></i> Add issue</div>
+      </div>
+
+      <!-- IN PROGRESS -->
+      <div class="col">
+        <div class="col-head">
+          <div class="col-dot" style="background:#7C3AED"></div>
+          <div class="col-title">In progress</div>
+          <div class="col-count">3</div>
+          <button class="col-add-btn" aria-label="tambah issue"><i class="ti ti-plus" aria-hidden="true"></i></button>
+        </div>
+        <div class="col-body">
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">AUTH-04</div>
+            <div class="ic-title">Setup JWT authentication &amp; refresh token</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-h"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">8pt</span>
+              <div class="av av-sm av-v" style="margin-left:4px">AR</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">UI-07</div>
+            <div class="ic-title">Kanban drag &amp; drop with dnd-kit</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-m"></div>
+              <span class="badge lbl-fe" style="font-size:10px;padding:2px 7px">Frontend</span>
+              <span class="ic-pts">5pt</span>
+              <div class="av av-sm av-d" style="margin-left:4px">RN</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">ROLE-06</div>
+            <div class="ic-title">Role &amp; permission middleware (admin/member/viewer)</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-h"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">5pt</span>
+              <div class="av av-sm av-a" style="margin-left:4px">DS</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-ghost"><i class="ti ti-plus" aria-hidden="true"></i> Add issue</div>
+      </div>
+
+      <!-- IN REVIEW -->
+      <div class="col">
+        <div class="col-head">
+          <div class="col-dot" style="background:#EA580C"></div>
+          <div class="col-title">In review</div>
+          <div class="col-count">2</div>
+          <button class="col-add-btn" aria-label="tambah issue"><i class="ti ti-plus" aria-hidden="true"></i></button>
+        </div>
+        <div class="col-body">
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">API-12</div>
+            <div class="ic-title">REST endpoint for project CRUD operations</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-m"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">5pt</span>
+              <div class="av av-sm av-b" style="margin-left:4px">BW</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card">
+            <div class="ic-tag">BUG-09</div>
+            <div class="ic-title">Fix: token expiry causes 500 on /me endpoint</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-h"></div>
+              <span class="badge lbl-bug" style="font-size:10px;padding:2px 7px">Bug</span>
+              <span class="ic-pts">3pt</span>
+              <div class="av av-sm av-v" style="margin-left:4px">AR</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-ghost"><i class="ti ti-plus" aria-hidden="true"></i> Add issue</div>
+      </div>
+
+      <!-- DONE -->
+      <div class="col">
+        <div class="col-head">
+          <div class="col-dot" style="background:#16A34A"></div>
+          <div class="col-title">Done</div>
+          <div class="col-count">5</div>
+          <button class="col-add-btn" aria-label="tambah issue"><i class="ti ti-plus" aria-hidden="true"></i></button>
+        </div>
+        <div class="col-body">
+          <a href="issue-detail.html" class="issue-card done">
+            <div class="ic-tag">SETUP-01</div>
+            <div class="ic-title">Project scaffolding &amp; folder structure</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-l"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">2pt</span>
+              <div class="av av-sm av-v" style="margin-left:4px">AR</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card done">
+            <div class="ic-tag">ENV-02</div>
+            <div class="ic-title">Environment config &amp; Docker compose</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-l"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">2pt</span>
+              <div class="av av-sm av-a" style="margin-left:4px">DS</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card done">
+            <div class="ic-tag">USER-03</div>
+            <div class="ic-title">User registration &amp; login endpoint</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-m"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">5pt</span>
+              <div class="av av-sm av-v" style="margin-left:4px">AR</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card done">
+            <div class="ic-tag">PRISMA-01</div>
+            <div class="ic-title">Setup Prisma ORM &amp; database connection</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-l"></div>
+              <span class="badge lbl-db" style="font-size:10px;padding:2px 7px">Database</span>
+              <span class="ic-pts">3pt</span>
+              <div class="av av-sm av-a" style="margin-left:4px">DS</div>
+            </div>
+          </a>
+          <a href="issue-detail.html" class="issue-card done">
+            <div class="ic-tag">CI-01</div>
+            <div class="ic-title">Setup GitHub Actions CI pipeline</div>
+            <div class="ic-foot">
+              <div class="prio-dot p-m"></div>
+              <span class="badge lbl-be" style="font-size:10px;padding:2px 7px">Backend</span>
+              <span class="ic-pts">3pt</span>
+              <div class="av av-sm av-b" style="margin-left:4px">BW</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script src="../js/sidebar.js"></script>
+</body>
+</html>

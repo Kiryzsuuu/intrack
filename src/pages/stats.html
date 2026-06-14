@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Stats</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <style>
+    .stats-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .stats-top { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+    .sc { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px; }
+    .sc-num { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -1px; margin-bottom: 2px; }
+    .sc-lbl { font-size: 11px; color: var(--text-3); }
+    .sc-delta { font-size: 11px; font-weight: 600; margin-top: 6px; display: flex; align-items: center; gap: 3px; }
+
+    .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .chart-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 16px; }
+    .chart-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+    .chart-title span { font-size: 11px; font-weight: 400; color: var(--text-3); }
+
+    .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; }
+    .bar-group { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .bar-fill-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+    .bar-col { width: 100%; border-radius: 4px 4px 0 0; transition: opacity .2s; }
+    .bar-col:hover { opacity: .8; }
+    .bar-lbl { font-size: 10px; color: var(--text-3); }
+
+    .hbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .hbar-lbl { font-size: 12px; color: var(--text-2); width: 90px; flex-shrink: 0; }
+    .hbar-track { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; border: 0.5px solid var(--border); }
+    .hbar-fill { height: 100%; border-radius: 3px; }
+    .hbar-val { font-size: 11px; font-weight: 600; color: var(--text-3); width: 24px; text-align: right; }
+
+    .burndown-wrap { position: relative; height: 120px; }
+    .bd-grid { display: flex; gap: 0; height: 100%; align-items: flex-end; padding-bottom: 20px; }
+    .bd-bar-g { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; align-items: center; }
+    .bd-bar { width: 18px; border-radius: 3px 3px 0 0; }
+    .bd-day { font-size: 9px; color: var(--text-3); margin-top: 4px; }
+    .bd-ideal { position: absolute; top: 0; left: 0; right: 0; bottom: 20px; border-top: 1.5px dashed var(--border); transform: rotate(-8deg) translateY(20px); pointer-events: none; }
+    .legend { display: flex; gap: 12px; margin-top: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-3); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+    .member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+    .member-row:last-child { border-bottom: none; }
+    .member-info { flex: 1; }
+    .member-name { font-size: 13px; font-weight: 500; color: var(--text); }
+    .member-stats { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+    .member-bar-w { width: 80px; }
+    .member-pts { font-size: 11px; font-weight: 600; color: var(--text-2); text-align: right; margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="board" data-project="backend"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <a href="dashboard.html">Projects</a>
+        <span class="bc-sep"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        <a href="board.html">Intrack Backend</a>
+        <span class="bc-sep"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        <span class="cur">Stats</span>
+      </div>
+      <div class="topbar-right">
+        <div class="view-sw">
+          <a href="board.html"><i class="ti ti-layout-kanban" aria-hidden="true"></i> Board</a>
+          <a href="list.html"><i class="ti ti-list" aria-hidden="true"></i> List</a>
+          <a href="stats.html" class="active"><i class="ti ti-chart-bar" aria-hidden="true"></i> Stats</a>
+        </div>
+        <button class="btn"><i class="ti ti-calendar" aria-hidden="true"></i> Sprint 4</button>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="stats-body">
+
+        <div class="stats-top">
+          <div class="sc">
+            <div class="sc-num">14</div>
+            <div class="sc-lbl">Total issues</div>
+            <div class="sc-delta" style="color:var(--text-3)"><i class="ti ti-minus" aria-hidden="true"></i> sama dengan sprint lalu</div>
+          </div>
+          <div class="sc">
+            <div class="sc-num">5</div>
+            <div class="sc-lbl">Done</div>
+            <div class="sc-delta" style="color:var(--green)"><i class="ti ti-trending-up" aria-hidden="true"></i> +2 dari kemarin</div>
+          </div>
+          <div class="sc">
+            <div class="sc-num">36</div>
+            <div class="sc-lbl">Story points selesai</div>
+            <div class="sc-delta" style="color:var(--text-3)">dari 58 total pts</div>
+          </div>
+          <div class="sc">
+            <div class="sc-num">3</div>
+            <div class="sc-lbl">Overdue</div>
+            <div class="sc-delta" style="color:var(--orange)"><i class="ti ti-alert-circle" aria-hidden="true"></i> perlu perhatian</div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+
+          <div class="chart-card">
+            <div class="chart-title">Burndown — Sprint 4 <span>Jun 2–15</span></div>
+            <div class="burndown-wrap">
+              <div class="bd-ideal"></div>
+              <div class="bd-grid">
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:95%;background:var(--accent);opacity:.7"></div>
+                  <div class="bd-day">2</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:85%;background:var(--accent);opacity:.75"></div>
+                  <div class="bd-day">3</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:78%;background:var(--accent);opacity:.8"></div>
+                  <div class="bd-day">4</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:72%;background:var(--accent);opacity:.82"></div>
+                  <div class="bd-day">5</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:68%;background:var(--accent);opacity:.85"></div>
+                  <div class="bd-day">6</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:62%;background:var(--accent)"></div>
+                  <div class="bd-day">7</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:58%;background:var(--accent)"></div>
+                  <div class="bd-day">8</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:52%;background:var(--accent)"></div>
+                  <div class="bd-day">9</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:48%;background:var(--accent);opacity:.6"></div>
+                  <div class="bd-day">10</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:44%;background:var(--border);border:0.5px dashed var(--text-4)"></div>
+                  <div class="bd-day">11</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:32%;background:var(--border);border:0.5px dashed var(--text-4)"></div>
+                  <div class="bd-day">12</div>
+                </div>
+                <div class="bd-bar-g">
+                  <div class="bd-bar" style="height:18%;background:var(--border);border:0.5px dashed var(--text-4)"></div>
+                  <div class="bd-day">13</div>
+                </div>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Aktual</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--border);border:0.5px dashed var(--text-4)"></div> Proyeksi</div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-title">Velocity per sprint <span>5 sprint terakhir</span></div>
+            <div class="bar-chart">
+              <div class="bar-group">
+                <div class="bar-fill-wrap"><div class="bar-col" style="height:55%;background:var(--border)"></div></div>
+                <div class="bar-lbl">S1</div>
+              </div>
+              <div class="bar-group">
+                <div class="bar-fill-wrap"><div class="bar-col" style="height:70%;background:var(--border)"></div></div>
+                <div class="bar-lbl">S2</div>
+              </div>
+              <div class="bar-group">
+                <div class="bar-fill-wrap"><div class="bar-col" style="height:60%;background:var(--border)"></div></div>
+                <div class="bar-lbl">S3</div>
+              </div>
+              <div class="bar-group">
+                <div class="bar-fill-wrap"><div class="bar-col" style="height:85%;background:var(--accent);opacity:.7"></div></div>
+                <div class="bar-lbl">S4</div>
+              </div>
+              <div class="bar-group">
+                <div class="bar-fill-wrap"><div class="bar-col" style="height:100%;background:var(--accent)"></div></div>
+                <div class="bar-lbl" style="font-weight:600;color:var(--accent)">Sekarang</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:12px">
+              <span style="color:var(--text-3)">Avg velocity</span>
+              <span style="font-weight:700;color:var(--text)">24 pts/sprint</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px;font-size:11px;color:var(--green);font-weight:600">
+              <i class="ti ti-trending-up" aria-hidden="true"></i> +18% dari sprint lalu
+            </div>
+          </div>
+
+        </div>
+
+        <div class="charts-row">
+
+          <div class="chart-card">
+            <div class="chart-title">Issues per status</div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Done</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:36%;background:var(--green)"></div></div>
+              <span class="hbar-val" style="color:var(--green-text)">5</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">In progress</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:21%;background:var(--purple)"></div></div>
+              <span class="hbar-val" style="color:var(--purple-text)">3</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">In review</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:14%;background:var(--orange)"></div></div>
+              <span class="hbar-val" style="color:var(--orange-text)">2</span>
+            </div>
+            <div class="hbar-row" style="margin-bottom:0">
+              <span class="hbar-lbl">To do</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:29%;background:var(--text-3)"></div></div>
+              <span class="hbar-val">4</span>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-title">Issues per label</div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Backend</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:71%;background:var(--orange)"></div></div>
+              <span class="hbar-val" style="color:var(--orange-text)">10</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Frontend</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:14%;background:var(--blue)"></div></div>
+              <span class="hbar-val" style="color:var(--blue-text)">2</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Database</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:14%;background:var(--green)"></div></div>
+              <span class="hbar-val" style="color:var(--green-text)">2</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Bug</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:7%;background:var(--red)"></div></div>
+              <span class="hbar-val" style="color:var(--red-text)">1</span>
+            </div>
+            <div class="hbar-row" style="margin-bottom:0">
+              <span class="hbar-lbl">Testing</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:7%;background:var(--teal)"></div></div>
+              <span class="hbar-val" style="color:var(--teal-text)">1</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title">Kontribusi tim — Sprint 4</div>
+          <div>
+            <div class="member-row">
+              <div class="av av-md av-v">AR</div>
+              <div class="member-info">
+                <div class="member-name">Andi Rachman</div>
+                <div class="member-stats">4 issues · 19 pts</div>
+              </div>
+              <div class="member-bar-w">
+                <div class="member-pts">19 pts</div>
+                <div class="prog-track"><div class="prog-fill" style="width:73%"></div></div>
+              </div>
+            </div>
+            <div class="member-row">
+              <div class="av av-md av-a">DS</div>
+              <div class="member-info">
+                <div class="member-name">Dika Santoso</div>
+                <div class="member-stats">3 issues · 10 pts</div>
+              </div>
+              <div class="member-bar-w">
+                <div class="member-pts">10 pts</div>
+                <div class="prog-track"><div class="prog-fill" style="width:38%;background:var(--green)"></div></div>
+              </div>
+            </div>
+            <div class="member-row">
+              <div class="av av-md av-n">NR</div>
+              <div class="member-info">
+                <div class="member-name">Nina Rahayu</div>
+                <div class="member-stats">3 issues · 13 pts</div>
+              </div>
+              <div class="member-bar-w">
+                <div class="member-pts">13 pts</div>
+                <div class="prog-track"><div class="prog-fill" style="width:50%;background:var(--orange)"></div></div>
+              </div>
+            </div>
+            <div class="member-row">
+              <div class="av av-md av-b">BW</div>
+              <div class="member-info">
+                <div class="member-name">Budi Wijaya</div>
+                <div class="member-stats">2 issues · 8 pts</div>
+              </div>
+              <div class="member-bar-w">
+                <div class="member-pts">8 pts</div>
+                <div class="prog-track"><div class="prog-fill" style="width:31%;background:var(--teal)"></div></div>
+              </div>
+            </div>
+            <div class="member-row">
+              <div class="av av-md av-d">RN</div>
+              <div class="member-info">
+                <div class="member-name">Rani Novita</div>
+                <div class="member-stats">2 issues · 8 pts</div>
+              </div>
+              <div class="member-bar-w">
+                <div class="member-pts">8 pts</div>
+                <div class="prog-track"><div class="prog-fill" style="width:31%;background:var(--pink)"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../js/sidebar.js"></script>
+</body>
+</html>

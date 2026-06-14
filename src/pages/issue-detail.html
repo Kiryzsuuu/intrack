@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — TEST-05</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <style>
+    .detail-layout { display: flex; flex: 1; overflow: hidden; }
+    .detail-main  { flex: 1; overflow-y: auto; padding: 24px; min-width: 0; }
+    .detail-main::-webkit-scrollbar { width: 4px; }
+    .detail-main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .issue-tag { font-size: 11px; font-weight: 600; color: var(--text-3); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .issue-title-input {
+      font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.3;
+      border: none; background: none; outline: none; width: 100%;
+      margin-bottom: 12px; letter-spacing: -.3px;
+    }
+    .issue-title-input:hover { background: var(--surface-2); padding: 2px 6px; margin-left: -6px; border-radius: var(--r-sm); }
+    .issue-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+
+    .desc-card {
+      background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r); padding: 14px; margin-bottom: 18px;
+      font-size: 13px; color: var(--text-2); line-height: 1.7; cursor: text;
+    }
+    .desc-card code { font-family: var(--mono); background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: 12px; border: 0.5px solid var(--border); }
+    .desc-card pre { background: var(--surface); border-radius: var(--r-sm); padding: 10px 12px; margin-top: 8px; border: 0.5px solid var(--border); overflow-x: auto; }
+    .desc-card pre code { background: none; border: none; padding: 0; font-size: 12px; }
+
+    .subtask-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 18px; }
+    .st-head { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--border); }
+    .st-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 0.5px solid var(--border); transition: var(--transition); cursor: pointer; }
+    .st-row:last-child { border-bottom: none; }
+    .st-row:hover { background: var(--accent-light); }
+    .cb { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--text-3); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
+    .cb.done { background: var(--accent); border-color: var(--accent); color: white; font-size: 9px; }
+    .st-text { font-size: 13px; color: var(--text); flex: 1; }
+    .st-text.done { color: var(--text-3); text-decoration: line-through; }
+
+    .comment-list { margin-bottom: 14px; }
+    .c-item { display: flex; gap: 10px; margin-bottom: 12px; }
+    .c-body { flex: 1; min-width: 0; }
+    .c-meta { display: flex; align-items: baseline; gap: 7px; margin-bottom: 4px; }
+    .c-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .c-time { font-size: 11px; color: var(--text-3); }
+    .c-text {
+      font-size: 13px; color: var(--text-2); line-height: 1.6;
+      background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r); padding: 10px 12px;
+    }
+    .c-text code { font-family: var(--mono); background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: 11px; border: 0.5px solid var(--border); }
+    .c-code { font-family: var(--mono); font-size: 12px; background: var(--surface); border-radius: var(--r-sm); padding: 8px 10px; margin-top: 6px; border: 0.5px solid var(--border); line-height: 1.6; }
+    .c-input-area {
+      width: 100%; background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r); padding: 10px 12px; font-size: 13px; color: var(--text);
+      resize: none; outline: none; font-family: var(--font); min-height: 42px; transition: var(--transition);
+    }
+    .c-input-area:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); min-height: 80px; }
+
+    .act-row { display: flex; gap: 10px; align-items: flex-start; padding: 5px 0; }
+    .act-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-4); margin-top: 5px; flex-shrink: 0; }
+    .act-dot.accent { background: var(--accent); }
+    .act-text { font-size: 12px; color: var(--text-3); line-height: 1.5; flex: 1; }
+    .act-text strong { color: var(--text-2); font-weight: 600; }
+    .act-hl { color: var(--accent); font-weight: 600; }
+    .act-time { font-size: 11px; color: var(--text-4); flex-shrink: 0; margin-top: 1px; }
+
+    /* Sidebar */
+    .detail-sidebar { width: 248px; flex-shrink: 0; border-left: 0.5px solid var(--border); background: var(--surface); overflow-y: auto; }
+    .detail-sidebar::-webkit-scrollbar { width: 3px; }
+    .detail-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .ds-block { padding: 14px 16px; border-bottom: 0.5px solid var(--border); }
+    .ds-lbl { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 9px; }
+    .ds-select {
+      width: 100%; background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r-sm); padding: 7px 10px; font-size: 12px; color: var(--text);
+      outline: none; cursor: pointer;
+    }
+    .ds-select:focus { border-color: var(--accent); }
+    .ds-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; font-size: 12px; }
+    .ds-key { color: var(--text-3); }
+    .ds-val { color: var(--text); font-weight: 500; display: flex; align-items: center; gap: 5px; }
+
+    .related-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; }
+    .related-item:last-of-type { border-bottom: none; }
+    .related-item:hover .rel-title { color: var(--accent); }
+    .rel-id { font-size: 10px; font-weight: 600; color: var(--text-3); width: 58px; flex-shrink: 0; }
+    .rel-title { font-size: 12px; color: var(--text-2); flex: 1; line-height: 1.4; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="my-issues" data-project="backend"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <a href="board.html">Intrack Backend</a>
+        <span class="bc-sep"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        <a href="board.html">Sprint 4</a>
+        <span class="bc-sep"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        <span class="cur">TEST-05</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost"><i class="ti ti-copy" aria-hidden="true"></i> Duplicate</button>
+        <button class="btn btn-ghost"><i class="ti ti-share" aria-hidden="true"></i> Share</button>
+        <button class="btn btn-danger"><i class="ti ti-trash" aria-hidden="true"></i> Delete</button>
+      </div>
+    </div>
+
+    <div class="detail-layout">
+      <div class="detail-main">
+
+        <div class="issue-tag">
+          <i class="ti ti-test-pipe" style="font-size:13px" aria-hidden="true"></i>
+          TEST-05 &nbsp;·&nbsp; Intrack Backend &nbsp;·&nbsp; Sprint 4
+        </div>
+        <input class="issue-title-input" value="Unit test for auth middleware">
+        <div class="issue-badges">
+          <span class="badge badge-todo"><i class="ti ti-circle-dashed"></i> To do</span>
+          <span class="badge lbl-be">Backend</span>
+          <span class="badge lbl-test">Testing</span>
+          <span class="badge" style="background:var(--surface-2);color:var(--text-3);border:0.5px solid var(--border)">
+            <i class="ti ti-arrow-down"></i> Low
+          </span>
+          <span class="badge" style="background:var(--surface-2);color:var(--text-3);border:0.5px solid var(--border)">2 pts</span>
+        </div>
+
+        <div class="section-lbl">Description</div>
+        <div class="desc-card">
+          Tulis unit test untuk auth middleware menggunakan <strong>Jest</strong> + <strong>Supertest</strong>. Test harus mencakup semua skenario berikut:
+          <br><br>
+          • Token valid &rarr; request diteruskan ke handler berikutnya<br>
+          • Token expired &rarr; response 401 dengan pesan yang sesuai<br>
+          • Token tidak ada / header kosong &rarr; response 401<br>
+          • Token format salah (bukan Bearer) &rarr; response 401<br>
+          • Token signature tidak valid &rarr; response 403<br><br>
+          Pastikan coverage minimal <strong>80%</strong> untuk file
+          <code>src/middleware/auth.middleware.ts</code>.
+          <pre><code>// contoh test case
+describe('authMiddleware', () => {
+  it('should pass valid token', async () => {
+    const token = jwt.sign({ id: 1 }, process.env.JWT_SECRET);
+    const res = await request(app)
+      .get('/api/me')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+  });
+});</code></pre>
+        </div>
+
+        <div class="section-lbl">Subtasks <span style="font-weight:400;color:var(--text-3);text-transform:none;letter-spacing:0">(2/5)</span></div>
+        <div class="subtask-card">
+          <div class="st-head">
+            <span style="font-size:12px;font-weight:600;color:var(--text-2)">Test cases</span>
+            <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px"><i class="ti ti-plus" aria-hidden="true"></i> Tambah</button>
+          </div>
+          <div class="st-row" onclick="toggleSt(this)">
+            <div class="cb done"><i class="ti ti-check" aria-hidden="true"></i></div>
+            <span class="st-text done">Setup Jest &amp; Supertest config</span>
+            <div class="av av-sm av-v" style="margin-left:auto">AR</div>
+          </div>
+          <div class="st-row" onclick="toggleSt(this)">
+            <div class="cb done"><i class="ti ti-check" aria-hidden="true"></i></div>
+            <span class="st-text done">Test: valid token passes middleware</span>
+            <div class="av av-sm av-v" style="margin-left:auto">AR</div>
+          </div>
+          <div class="st-row" onclick="toggleSt(this)">
+            <div class="cb"></div>
+            <span class="st-text">Test: expired token returns 401</span>
+            <div class="av av-sm av-v" style="margin-left:auto">AR</div>
+          </div>
+          <div class="st-row" onclick="toggleSt(this)">
+            <div class="cb"></div>
+            <span class="st-text">Test: missing / malformed token returns 401</span>
+            <div class="av av-sm av-v" style="margin-left:auto">AR</div>
+          </div>
+          <div class="st-row" onclick="toggleSt(this)">
+            <div class="cb"></div>
+            <span class="st-text">Test: invalid signature returns 403</span>
+            <div class="av av-sm av-v" style="margin-left:auto">AR</div>
+          </div>
+        </div>
+
+        <div class="section-lbl" style="margin-bottom:12px">Comments</div>
+        <div class="comment-list">
+          <div class="c-item">
+            <div class="av av-md av-v">AR</div>
+            <div class="c-body">
+              <div class="c-meta"><span class="c-name">Andi Rachman</span><span class="c-time">Kemarin, 14:22</span></div>
+              <div class="c-text">
+                Sudah setup Jest config-nya. Pakai <code>ts-jest</code> supaya bisa langsung test TypeScript tanpa compile dulu.
+                <div class="c-code">// jest.config.ts<br>export default {<br>&nbsp;&nbsp;preset: 'ts-jest',<br>&nbsp;&nbsp;testEnvironment: 'node',<br>&nbsp;&nbsp;coverageThreshold: { global: { lines: 80 } }<br>};</div>
+              </div>
+            </div>
+          </div>
+          <div class="c-item">
+            <div class="av av-md av-a">DS</div>
+            <div class="c-body">
+              <div class="c-meta"><span class="c-name">Dika Santoso</span><span class="c-time">Kemarin, 16:05</span></div>
+              <div class="c-text">
+                <strong>@Andi</strong> untuk test expired token, kamu perlu mock <code>jsonwebtoken.verify</code> supaya throw <code>TokenExpiredError</code>. Jangan pakai token expired beneran, flaky di CI.
+              </div>
+            </div>
+          </div>
+          <div class="c-item">
+            <div class="av av-md av-v">AR</div>
+            <div class="c-body">
+              <div class="c-meta"><span class="c-name">Andi Rachman</span><span class="c-time">Hari ini, 09:40</span></div>
+              <div class="c-text">Good call, sudah pakai <code>jest.spyOn</code> untuk mock-nya. Lanjut ke test skenario missing token hari ini.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:20px">
+          <div class="av av-md av-v">AR</div>
+          <div style="flex:1">
+            <textarea id="commentBox" class="c-input-area" placeholder="Tulis komentar... (Ctrl+Enter untuk kirim)"></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:6px;gap:6px" id="c-actions" style="display:none">
+              <button class="btn btn-ghost" onclick="cancelComment()">Batal</button>
+              <button class="btn btn-primary" onclick="submitComment()"><i class="ti ti-send" aria-hidden="true"></i> Kirim</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-lbl" style="margin-bottom:10px">Activity</div>
+        <div>
+          <div class="act-row">
+            <div class="act-dot"></div>
+            <div class="act-text"><strong>Andi Rachman</strong> membuat issue ini</div>
+            <div class="act-time">Jun 3, 2026</div>
+          </div>
+          <div class="act-row">
+            <div class="act-dot"></div>
+            <div class="act-text"><strong>Andi Rachman</strong> mengassign ke diri sendiri</div>
+            <div class="act-time">Jun 3, 2026</div>
+          </div>
+          <div class="act-row">
+            <div class="act-dot"></div>
+            <div class="act-text"><strong>Andi Rachman</strong> menyelesaikan subtask <span class="act-hl">"Setup Jest config"</span></div>
+            <div class="act-time">Jun 8, 14:10</div>
+          </div>
+          <div class="act-row">
+            <div class="act-dot"></div>
+            <div class="act-text"><strong>Andi Rachman</strong> menyelesaikan subtask <span class="act-hl">"Test: valid token"</span></div>
+            <div class="act-time">Jun 8, 16:50</div>
+          </div>
+          <div class="act-row">
+            <div class="act-dot accent"></div>
+            <div class="act-text"><strong>Andi Rachman</strong> menambah komentar</div>
+            <div class="act-time">Jun 9, 09:40</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="detail-sidebar">
+        <div class="ds-block">
+          <div class="ds-lbl">Status</div>
+          <select class="ds-select">
+            <option selected>To do</option>
+            <option>In progress</option>
+            <option>In review</option>
+            <option>Done</option>
+          </select>
+        </div>
+        <div class="ds-block">
+          <div class="ds-lbl">Detail</div>
+          <div class="ds-row"><span class="ds-key">Prioritas</span>
+            <span class="ds-val"><div class="prio-dot p-l"></div> Low</span>
+          </div>
+          <div class="ds-row"><span class="ds-key">Label</span>
+            <span class="ds-val"><span class="badge lbl-test" style="font-size:10px">Testing</span></span>
+          </div>
+          <div class="ds-row"><span class="ds-key">Story pts</span><span class="ds-val">2 pts</span></div>
+          <div class="ds-row"><span class="ds-key">Sprint</span>
+            <span class="ds-val" style="color:var(--accent)">Sprint 4</span>
+          </div>
+          <div class="ds-row"><span class="ds-key">Due date</span><span class="ds-val">Jun 15, 2026</span></div>
+          <div class="ds-row"><span class="ds-key">Dibuat</span><span class="ds-val">Jun 3, 2026</span></div>
+        </div>
+        <div class="ds-block">
+          <div class="ds-lbl">Progress subtasks</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:5px">
+            <span>Selesai</span><span style="font-weight:600;color:var(--text)">2 / 5</span>
+          </div>
+          <div class="prog-track" style="height:5px"><div class="prog-fill" style="width:40%"></div></div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px">40% selesai</div>
+        </div>
+        <div class="ds-block">
+          <div class="ds-lbl">Assignee</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+            <div class="av av-md av-v">AR</div>
+            <div>
+              <div style="font-size:12px;font-weight:500;color:var(--text)">Andi Rachman</div>
+              <div style="font-size:11px;color:var(--text-3)">Backend dev</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;margin-top:6px">
+            <i class="ti ti-plus" aria-hidden="true"></i> Tambah assignee
+          </button>
+        </div>
+        <div class="ds-block">
+          <div class="ds-lbl">Related issues</div>
+          <a href="issue-detail.html" class="related-item">
+            <span class="rel-id">AUTH-04</span>
+            <span class="rel-title">Setup JWT authentication</span>
+            <span class="badge badge-progress" style="font-size:10px">In progress</span>
+          </a>
+          <a href="issue-detail.html" class="related-item">
+            <span class="rel-id">ROLE-06</span>
+            <span class="rel-title">Role &amp; permission middleware</span>
+            <span class="badge badge-progress" style="font-size:10px">In progress</span>
+          </a>
+          <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;margin-top:6px">
+            <i class="ti ti-plus" aria-hidden="true"></i> Link issue
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../js/sidebar.js"></script>
+<script>
+function toggleSt(row) {
+  const cb = row.querySelector('.cb');
+  const txt = row.querySelector('.st-text');
+  cb.classList.toggle('done');
+  txt.classList.toggle('done');
+  if (cb.classList.contains('done')) cb.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i>';
+  else cb.innerHTML = '';
+}
+const box = document.getElementById('commentBox');
+const actions = document.getElementById('c-actions');
+box.addEventListener('focus', () => { actions.style.display = 'flex'; });
+function cancelComment() { box.value = ''; actions.style.display = 'none'; box.blur(); }
+function submitComment() {
+  if (!box.value.trim()) return;
+  const list = document.querySelector('.comment-list');
+  const item = document.createElement('div');
+  item.className = 'c-item';
+  item.innerHTML = `<div class="av av-md av-v">AR</div>
+    <div class="c-body">
+      <div class="c-meta"><span class="c-name">Andi Rachman</span><span class="c-time">Baru saja</span></div>
+      <div class="c-text">${box.value.replace(/</g,'&lt;')}</div>
+    </div>`;
+  list.appendChild(item);
+  cancelComment();
+}
+box.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitComment(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <style>
+    .dash-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .dash-header { display: flex; align-items: flex-start; justify-content: space-between; }
+    .dash-greeting { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+    .dash-sub { font-size: 13px; color: var(--text-3); margin-top: 2px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .stat-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--r-lg); padding: 16px;
+    }
+    .stat-icon { width: 36px; height: 36px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+    .stat-icon i { font-size: 18px; }
+    .stat-num { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
+    .stat-label { font-size: 12px; color: var(--text-3); }
+    .stat-delta { font-size: 11px; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 3px; }
+    .delta-up   { color: var(--green); }
+    .delta-warn { color: var(--orange); }
+    .delta-flat { color: var(--text-3); }
+
+    .two-col { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+
+    .section-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--r-lg); padding: 16px;
+    }
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--text); }
+
+    .sprint-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 0.5px solid var(--border);
+    }
+    .sprint-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .sprint-proj-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .sprint-info { flex: 1; min-width: 0; }
+    .sprint-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sprint-meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+    .sprint-prog-wrap { width: 80px; }
+    .sprint-pct { font-size: 11px; font-weight: 600; color: var(--text-2); text-align: right; margin-bottom: 4px; }
+
+    .my-issue-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 0.5px solid var(--border);
+      cursor: pointer; transition: var(--transition);
+    }
+    .my-issue-row:last-child { border-bottom: none; }
+    .my-issue-row:hover { background: var(--accent-light); margin: 0 -16px; padding: 9px 16px; border-radius: var(--r-sm); }
+    .mi-id { font-size: 10px; font-weight: 600; color: var(--text-3); width: 56px; flex-shrink: 0; }
+    .mi-title { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; line-height: 1.4; }
+    .mi-due { font-size: 11px; color: var(--text-3); flex-shrink: 0; }
+    .mi-due.overdue { color: var(--red); }
+
+    .activity-row {
+      display: flex; gap: 10px; padding: 8px 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .activity-row:last-child { border-bottom: none; }
+    .act-line { font-size: 12px; color: var(--text-2); line-height: 1.5; flex: 1; }
+    .act-line strong { color: var(--text); }
+    .act-line .hl { color: var(--accent); font-weight: 600; }
+    .act-time { font-size: 11px; color: var(--text-3); flex-shrink: 0; margin-top: 1px; }
+
+    .team-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+    .team-row:last-child { border-bottom: none; }
+    .team-info { flex: 1; }
+    .team-name { font-size: 13px; font-weight: 500; color: var(--text); }
+    .team-issues { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+    .team-bar-wrap { width: 60px; }
+    .team-bar-track { height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; border: 0.5px solid var(--border); }
+    .team-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="dashboard" data-project="backend"></aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <span class="cur">Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-icon" title="Notifikasi" onclick="window.location='inbox.html'">
+          <i class="ti ti-bell" aria-hidden="true"></i>
+        </button>
+        <a href="create-issue.html" class="btn btn-primary">
+          <i class="ti ti-plus" aria-hidden="true"></i> New issue
+        </a>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="dash-body">
+
+        <div class="dash-header">
+          <div>
+            <div class="dash-greeting">Selamat pagi, Andi 👋</div>
+            <div class="dash-sub">Sabtu, 13 Juni 2026 · Sprint 4 aktif — 5 hari tersisa</div>
+          </div>
+          <a href="board.html" class="btn"><i class="ti ti-layout-kanban" aria-hidden="true"></i> Buka board</a>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--purple-bg)">
+              <i class="ti ti-clipboard-list" style="color:var(--purple-text)" aria-hidden="true"></i>
+            </div>
+            <div class="stat-num">14</div>
+            <div class="stat-label">Total issues sprint ini</div>
+            <div class="stat-delta delta-flat"><i class="ti ti-minus" aria-hidden="true"></i> sama seperti sprint lalu</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--green-bg)">
+              <i class="ti ti-circle-check" style="color:var(--green-text)" aria-hidden="true"></i>
+            </div>
+            <div class="stat-num">5</div>
+            <div class="stat-label">Done minggu ini</div>
+            <div class="stat-delta delta-up"><i class="ti ti-trending-up" aria-hidden="true"></i> +2 dari kemarin</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--blue-bg)">
+              <i class="ti ti-chart-line" style="color:var(--blue-text)" aria-hidden="true"></i>
+            </div>
+            <div class="stat-num">36</div>
+            <div class="stat-label">Story points selesai</div>
+            <div class="stat-delta delta-up"><i class="ti ti-trending-up" aria-hidden="true"></i> dari 58 total</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--red-bg)">
+              <i class="ti ti-alert-triangle" style="color:var(--red-text)" aria-hidden="true"></i>
+            </div>
+            <div class="stat-num">3</div>
+            <div class="stat-label">Overdue</div>
+            <div class="stat-delta delta-warn"><i class="ti ti-alert-circle" aria-hidden="true"></i> perlu perhatian</div>
+          </div>
+        </div>
+
+        <!-- Main two-col -->
+        <div class="two-col">
+          <div style="display:flex;flex-direction:column;gap:16px">
+
+            <!-- Sprint progress -->
+            <div class="section-card">
+              <div class="section-head">
+                <span class="section-title">Sprint aktif</span>
+                <a href="board.html" class="btn btn-ghost" style="font-size:11px;padding:3px 8px">
+                  Lihat semua <i class="ti ti-arrow-right" aria-hidden="true"></i>
+                </a>
+              </div>
+              <div class="sprint-item">
+                <div class="sprint-proj-dot" style="background:#5B4FE8"></div>
+                <div class="sprint-info">
+                  <div class="sprint-name">Intrack Backend — Sprint 4</div>
+                  <div class="sprint-meta">Jun 2 – Jun 15 · 14 issues</div>
+                </div>
+                <div class="sprint-prog-wrap">
+                  <div class="sprint-pct">62%</div>
+                  <div class="prog-track"><div class="prog-fill" style="width:62%"></div></div>
+                </div>
+              </div>
+              <div class="sprint-item">
+                <div class="sprint-proj-dot" style="background:#16A34A"></div>
+                <div class="sprint-info">
+                  <div class="sprint-name">Intrack Frontend — Sprint 3</div>
+                  <div class="sprint-meta">Jun 1 – Jun 14 · 9 issues</div>
+                </div>
+                <div class="sprint-prog-wrap">
+                  <div class="sprint-pct">78%</div>
+                  <div class="prog-track"><div class="prog-fill" style="width:78%;background:#16A34A"></div></div>
+                </div>
+              </div>
+              <div class="sprint-item">
+                <div class="sprint-proj-dot" style="background:#EA580C"></div>
+                <div class="sprint-info">
+                  <div class="sprint-name">Design system — Sprint 2</div>
+                  <div class="sprint-meta">Jun 5 – Jun 18 · 6 issues</div>
+                </div>
+                <div class="sprint-prog-wrap">
+                  <div class="sprint-pct">40%</div>
+                  <div class="prog-track"><div class="prog-fill" style="width:40%;background:#EA580C"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- My issues -->
+            <div class="section-card">
+              <div class="section-head">
+                <span class="section-title">Issue saya</span>
+                <a href="my-issues.html" class="btn btn-ghost" style="font-size:11px;padding:3px 8px">
+                  Lihat semua <i class="ti ti-arrow-right" aria-hidden="true"></i>
+                </a>
+              </div>
+              <a href="issue-detail.html" class="my-issue-row">
+                <div class="prio-dot p-h"></div>
+                <span class="mi-id">AUTH-04</span>
+                <span class="mi-title">Setup JWT authentication &amp; refresh token</span>
+                <span class="badge badge-progress" style="font-size:10px">In progress</span>
+                <span class="mi-due">Jun 15</span>
+              </a>
+              <a href="issue-detail.html" class="my-issue-row">
+                <div class="prio-dot p-h"></div>
+                <span class="mi-id">BUG-09</span>
+                <span class="mi-title">Fix: token expiry causes 500 on /me</span>
+                <span class="badge badge-review" style="font-size:10px">In review</span>
+                <span class="mi-due overdue">Jun 10 !</span>
+              </a>
+              <a href="issue-detail.html" class="my-issue-row">
+                <div class="prio-dot p-l"></div>
+                <span class="mi-id">TEST-05</span>
+                <span class="mi-title">Unit test for auth middleware</span>
+                <span class="badge badge-todo" style="font-size:10px">To do</span>
+                <span class="mi-due">Jun 15</span>
+              </a>
+              <a href="issue-detail.html" class="my-issue-row">
+                <div class="prio-dot p-m"></div>
+                <span class="mi-id">API-12</span>
+                <span class="mi-title">REST endpoint for project CRUD operations</span>
+                <span class="badge badge-review" style="font-size:10px">In review</span>
+                <span class="mi-due">Jun 13</span>
+              </a>
+            </div>
+
+            <!-- Activity -->
+            <div class="section-card">
+              <div class="section-head">
+                <span class="section-title">Aktivitas terbaru</span>
+              </div>
+              <div class="activity-row">
+                <div class="av av-sm av-a" style="flex-shrink:0;margin-top:1px">DS</div>
+                <div class="act-line"><strong>Dika Santoso</strong> menyelesaikan <span class="hl">SETUP-01</span></div>
+                <div class="act-time">10m lalu</div>
+              </div>
+              <div class="activity-row">
+                <div class="av av-sm av-n" style="flex-shrink:0;margin-top:1px">NR</div>
+                <div class="act-line"><strong>Nina Rahayu</strong> memindahkan <span class="hl">NOTIF-01</span> ke In progress</div>
+                <div class="act-time">32m lalu</div>
+              </div>
+              <div class="activity-row">
+                <div class="av av-sm av-v" style="flex-shrink:0;margin-top:1px">AR</div>
+                <div class="act-line"><strong>Kamu</strong> menambahkan komentar di <span class="hl">TEST-05</span></div>
+                <div class="act-time">1j lalu</div>
+              </div>
+              <div class="activity-row">
+                <div class="av av-sm av-b" style="flex-shrink:0;margin-top:1px">BW</div>
+                <div class="act-line"><strong>Budi Wijaya</strong> membuat <span class="hl">BUG-09</span></div>
+                <div class="act-time">2j lalu</div>
+              </div>
+              <div class="activity-row">
+                <div class="av av-sm av-d" style="flex-shrink:0;margin-top:1px">RN</div>
+                <div class="act-line"><strong>Rani Novita</strong> memindahkan <span class="hl">UI-07</span> ke In progress</div>
+                <div class="act-time">3j lalu</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right col -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+
+            <!-- Burndown mini -->
+            <div class="section-card">
+              <div class="section-head">
+                <span class="section-title">Status sprint 4</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:4px">
+                    <span>Done</span><span style="font-weight:600;color:var(--green-text)">5 issues</span>
+                  </div>
+                  <div class="prog-track"><div class="prog-fill" style="width:36%;background:var(--green)"></div></div>
+                </div>
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:4px">
+                    <span>In progress</span><span style="font-weight:600;color:var(--purple-text)">3 issues</span>
+                  </div>
+                  <div class="prog-track"><div class="prog-fill" style="width:21%;background:var(--purple)"></div></div>
+                </div>
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:4px">
+                    <span>In review</span><span style="font-weight:600;color:var(--orange-text)">2 issues</span>
+                  </div>
+                  <div class="prog-track"><div class="prog-fill" style="width:14%;background:var(--orange)"></div></div>
+                </div>
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:4px">
+                    <span>To do</span><span style="font-weight:600;color:var(--text-3)">4 issues</span>
+                  </div>
+                  <div class="prog-track"><div class="prog-fill" style="width:28%;background:var(--text-4)"></div></div>
+                </div>
+              </div>
+              <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;font-size:12px">
+                  <span style="color:var(--text-3)">Progress keseluruhan</span>
+                  <span style="font-weight:700;color:var(--text)">62%</span>
+                </div>
+                <div class="prog-track" style="margin-top:6px;height:6px">
+                  <div class="prog-fill" style="width:62%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Team -->
+            <div class="section-card">
+              <div class="section-head">
+                <span class="section-title">Tim</span>
+                <a href="settings.html#team" class="btn btn-ghost" style="font-size:11px;padding:3px 8px">Kelola</a>
+              </div>
+              <div class="team-row">
+                <div class="av av-md av-v">AR</div>
+                <div class="team-info">
+                  <div class="team-name">Andi Rachman</div>
+                  <div class="team-issues">4 issues aktif</div>
+                </div>
+                <div class="team-bar-wrap">
+                  <div class="team-bar-track"><div class="team-bar-fill" style="width:70%"></div></div>
+                </div>
+              </div>
+              <div class="team-row">
+                <div class="av av-md av-a">DS</div>
+                <div class="team-info">
+                  <div class="team-name">Dika Santoso</div>
+                  <div class="team-issues">3 issues aktif</div>
+                </div>
+                <div class="team-bar-wrap">
+                  <div class="team-bar-track"><div class="team-bar-fill" style="width:45%;background:var(--green)"></div></div>
+                </div>
+              </div>
+              <div class="team-row">
+                <div class="av av-md av-n">NR</div>
+                <div class="team-info">
+                  <div class="team-name">Nina Rahayu</div>
+                  <div class="team-issues">3 issues aktif</div>
+                </div>
+                <div class="team-bar-wrap">
+                  <div class="team-bar-track"><div class="team-bar-fill" style="width:55%;background:var(--orange)"></div></div>
+                </div>
+              </div>
+              <div class="team-row">
+                <div class="av av-md av-b">BW</div>
+                <div class="team-info">
+                  <div class="team-name">Budi Wijaya</div>
+                  <div class="team-issues">2 issues aktif</div>
+                </div>
+                <div class="team-bar-wrap">
+                  <div class="team-bar-track"><div class="team-bar-fill" style="width:35%;background:var(--teal)"></div></div>
+                </div>
+              </div>
+              <div class="team-row">
+                <div class="av av-md av-d">RN</div>
+                <div class="team-info">
+                  <div class="team-name">Rani Novita</div>
+                  <div class="team-issues">2 issues aktif</div>
+                </div>
+                <div class="team-bar-wrap">
+                  <div class="team-bar-track"><div class="team-bar-fill" style="width:30%;background:var(--pink)"></div></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../js/sidebar.js"></script>
+</body>
+</html>

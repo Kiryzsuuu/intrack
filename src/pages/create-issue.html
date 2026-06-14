@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Create Issue</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: rgba(0,0,0,.45); }
+    .modal { background: var(--surface); border-radius: 14px; width: 580px; border: 0.5px solid var(--border); overflow: hidden; }
+    .modal-head { padding: 16px 20px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { font-size: 15px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .modal-close { width: 28px; height: 28px; border-radius: 6px; border: none; background: none; cursor: pointer; color: var(--text-3); font-size: 18px; display: flex; align-items: center; justify-content: center; }
+    .modal-close:hover { background: var(--surface-2); color: var(--text); }
+    .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; max-height: 70vh; overflow-y: auto; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .lbl { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; }
+    .inp { background: var(--surface-2); border: 0.5px solid var(--border); border-radius: var(--r-sm); padding: 9px 12px; font-size: 13px; color: var(--text); outline: none; transition: all .15s; width: 100%; }
+    .inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .inp::placeholder { color: var(--text-3); }
+    textarea.inp { resize: vertical; min-height: 80px; font-family: inherit; }
+    select.inp { cursor: pointer; }
+    .modal-foot { padding: 14px 20px; border-top: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .hint { font-size: 11px; color: var(--text-3); }
+  </style>
+</head>
+<body>
+<div class="modal">
+  <div class="modal-head">
+    <div class="modal-title">
+      <i class="ti ti-plus" style="font-size:15px;color:var(--accent)" aria-hidden="true"></i>
+      Buat issue baru
+    </div>
+    <a href="board.html" class="modal-close"><i class="ti ti-x" aria-hidden="true"></i></a>
+  </div>
+  <div class="modal-body">
+    <div class="field">
+      <label class="lbl" for="ci-project">Project</label>
+      <select class="inp" id="ci-project">
+        <option selected>Intrack Backend</option>
+        <option>Intrack Frontend</option>
+        <option>Design system</option>
+        <option>Docs &amp; API</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="lbl" for="ci-title">Title <span style="color:var(--red)">*</span></label>
+      <input class="inp" type="text" id="ci-title" placeholder="Deskripsikan issue secara singkat...">
+    </div>
+    <div class="field">
+      <label class="lbl" for="ci-desc">Description</label>
+      <textarea class="inp" id="ci-desc" placeholder="Detail, acceptance criteria, langkah reproduksi, referensi..."></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="lbl">Status</label>
+        <select class="inp">
+          <option>To do</option>
+          <option>In progress</option>
+          <option>In review</option>
+          <option>Done</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Prioritas</label>
+        <select class="inp">
+          <option>Low</option>
+          <option selected>Medium</option>
+          <option>High</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Story points</label>
+        <input class="inp" type="number" placeholder="0" min="0" max="100" value="0">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="lbl">Assignee</label>
+        <select class="inp">
+          <option value="">— Unassigned —</option>
+          <option>Andi Rachman</option>
+          <option>Dika Santoso</option>
+          <option>Nina Rahayu</option>
+          <option>Budi Wijaya</option>
+          <option>Rani Novita</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Label</label>
+        <select class="inp">
+          <option>Backend</option>
+          <option>Frontend</option>
+          <option>Database</option>
+          <option>Bug</option>
+          <option>Testing</option>
+          <option>Design</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">Sprint</label>
+        <select class="inp">
+          <option selected>Sprint 4</option>
+          <option>Backlog</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="lbl">Due date</label>
+        <input class="inp" type="date" value="2026-06-15">
+      </div>
+      <div class="field">
+        <label class="lbl">Parent issue</label>
+        <input class="inp" type="text" placeholder="Cari issue...">
+      </div>
+      <div class="field">
+        <label class="lbl">Estimate (jam)</label>
+        <input class="inp" type="number" placeholder="0" min="0">
+      </div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <span class="hint"><kbd style="font-family:var(--mono);background:var(--surface-2);border:0.5px solid var(--border);padding:1px 5px;border-radius:3px;font-size:10px">Ctrl+Enter</kbd> untuk simpan</span>
+    <div style="display:flex;gap:8px">
+      <a href="board.html" class="btn btn-ghost">Batal</a>
+      <button class="btn btn-primary" onclick="createIssue()">
+        <i class="ti ti-plus" aria-hidden="true"></i> Buat issue
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+function createIssue() {
+  const t = document.getElementById('ci-title').value.trim();
+  if (!t) { document.getElementById('ci-title').focus(); return; }
+  window.location = 'board.html';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') window.location = 'board.html';
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) createIssue();
+});
+</script>
+</body>
+</html>

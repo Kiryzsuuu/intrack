@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Login</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <style>
+    :root {
+      --accent: #5B4FE8; --accent-hover: #4A3FD4; --accent-dim: rgba(91,79,232,.12);
+      --bg: #F2F2F5; --surface: #FFFFFF; --surface-2: #F7F7F9;
+      --border: rgba(0,0,0,.07); --border-hover: rgba(0,0,0,.14);
+      --text: #18181B; --text-2: #52525B; --text-3: #A1A1AA;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0C0C0E; --surface: #18181B; --surface-2: #27272A;
+        --border: rgba(255,255,255,.07); --border-hover: rgba(255,255,255,.14);
+        --text: #FAFAFA; --text-2: #A1A1AA; --text-3: #52525B;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system,"Inter","Segoe UI",sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .split { display: flex; width: 100%; min-height: 100vh; }
+    .split-left {
+      flex: 1; background: #18181B;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 40px; position: relative; overflow: hidden;
+    }
+    .split-left::before {
+      content: '';
+      position: absolute; top: -80px; right: -80px;
+      width: 400px; height: 400px;
+      background: var(--accent); opacity: .08; border-radius: 50%;
+    }
+    .split-left::after {
+      content: '';
+      position: absolute; bottom: -60px; left: -60px;
+      width: 300px; height: 300px;
+      background: var(--accent); opacity: .06; border-radius: 50%;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--accent); display: flex; align-items: center;
+      justify-content: center; color: white; font-size: 18px; font-weight: 700;
+    }
+    .brand-name { color: #FAFAFA; font-size: 18px; font-weight: 600; }
+    .hero { position: relative; z-index: 1; }
+    .hero-title { font-size: 32px; font-weight: 700; color: #FAFAFA; line-height: 1.2; margin-bottom: 14px; letter-spacing: -.5px; }
+    .hero-title span { color: var(--accent); }
+    .hero-sub { font-size: 14px; color: #71717A; line-height: 1.6; max-width: 340px; }
+    .feature-list { display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 1; }
+    .feature-item { display: flex; align-items: center; gap: 10px; }
+    .feature-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(91,79,232,.2); display: flex; align-items: center; justify-content: center; color: #A5B4FC; flex-shrink: 0; }
+    .feature-icon i { font-size: 16px; }
+    .feature-text { font-size: 13px; color: #A1A1AA; }
+
+    .split-right {
+      width: 480px; flex-shrink: 0;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center; padding: 40px;
+    }
+    .form-box { width: 100%; max-width: 360px; }
+    .form-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px; letter-spacing: -.3px; }
+    .form-sub { font-size: 13px; color: var(--text-3); margin-bottom: 28px; }
+
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .field input {
+      width: 100%; background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: 7px; padding: 10px 12px; font-size: 13px; color: var(--text);
+      outline: none; transition: all .15s;
+    }
+    .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .field input::placeholder { color: var(--text-3); }
+    .pass-wrap { position: relative; }
+    .pass-toggle {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 16px;
+    }
+
+    .form-options { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; font-size: 12px; }
+    .check-label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-2); }
+    .check-label input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
+    .link { color: var(--accent); font-weight: 500; }
+
+    .btn-login {
+      width: 100%; padding: 11px; background: var(--accent); color: white;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all .15s; margin-bottom: 12px;
+    }
+    .btn-login:hover { background: var(--accent-hover); }
+    .btn-login:active { transform: scale(.99); }
+
+    .or-divider { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .or-line { flex: 1; height: 0.5px; background: var(--border); }
+    .or-text { font-size: 11px; color: var(--text-3); }
+
+    .btn-social {
+      width: 100%; padding: 9px; background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      color: var(--text-2); transition: all .15s; margin-bottom: 8px;
+    }
+    .btn-social:hover { background: var(--border); }
+    .btn-social i { font-size: 16px; }
+
+    .form-footer { text-align: center; font-size: 12px; color: var(--text-3); margin-top: 20px; }
+
+    @media (max-width: 860px) {
+      .split-left { display: none; }
+      .split-right { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="split">
+  <div class="split-left">
+    <div class="brand">
+      <div class="brand-mark">P</div>
+      <div class="brand-name">Intrack</div>
+    </div>
+    <div class="hero">
+      <h1 class="hero-title">Kelola sprint.<br>Kirim <span>lebih cepat.</span></h1>
+      <p class="hero-sub">Intrack membantu tim engineering merencanakan, melacak, dan menyelesaikan pekerjaan — tanpa noise.</p>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">
+        <div class="feature-icon"><i class="ti ti-layout-kanban" aria-hidden="true"></i></div>
+        <span class="feature-text">Kanban board dengan drag &amp; drop yang smooth</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon"><i class="ti ti-bolt" aria-hidden="true"></i></div>
+        <span class="feature-text">Update realtime via Socket.io</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon"><i class="ti ti-chart-bar" aria-hidden="true"></i></div>
+        <span class="feature-text">Burndown chart &amp; sprint analytics</span>
+      </div>
+    </div>
+  </div>
+  <div class="split-right">
+    <div class="form-box">
+      <h2 class="form-title">Selamat datang</h2>
+      <p class="form-sub">Masuk ke workspace Anda</p>
+
+      <form onsubmit="handleLogin(event)">
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="andi@intrack.dev" value="andi@intrack.dev">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="pass-wrap">
+            <input type="password" id="password" placeholder="••••••••" value="password">
+            <button type="button" class="pass-toggle" onclick="togglePass()" aria-label="toggle password">
+              <i class="ti ti-eye" id="eye-icon" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-options">
+          <label class="check-label">
+            <input type="checkbox" checked> Ingat saya
+          </label>
+          <a href="#" class="link">Lupa password?</a>
+        </div>
+        <button type="submit" class="btn-login">Masuk ke Intrack</button>
+      </form>
+
+      <div class="or-divider">
+        <div class="or-line"></div>
+        <span class="or-text">atau masuk dengan</span>
+        <div class="or-line"></div>
+      </div>
+      <button class="btn-social" onclick="window.location='dashboard.html'">
+        <i class="ti ti-brand-google" aria-hidden="true"></i> Google
+      </button>
+      <button class="btn-social" onclick="window.location='dashboard.html'">
+        <i class="ti ti-brand-github" aria-hidden="true"></i> GitHub
+      </button>
+
+      <div class="form-footer">
+        Belum punya akun? <a href="#" class="link">Daftar gratis</a>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function handleLogin(e) {
+  e.preventDefault();
+  const btn = e.target.querySelector('.btn-login');
+  btn.textContent = 'Masuk...';
+  setTimeout(() => { window.location = 'dashboard.html'; }, 600);
+}
+function togglePass() {
+  const inp = document.getElementById('password');
+  const ico = document.getElementById('eye-icon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    ico.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    ico.className = 'ti ti-eye';
+  }
+}
+</script>
+</body>
+</html>
