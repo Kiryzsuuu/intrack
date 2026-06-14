@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Audit Trail</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .sel { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:7px 11px;font-size:13px;color:var(--text);outline:none;cursor:pointer }
+    .sel:focus { border-color:var(--accent) }
+    .tbl-wrap { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-lg);overflow:hidden }
+    table { width:100%;border-collapse:collapse }
+    th { font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;padding:10px 14px;text-align:left;background:var(--surface-2);border-bottom:0.5px solid var(--border) }
+    td { padding:11px 14px;border-bottom:0.5px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle }
+    tr:last-child td { border-bottom:none }
+    tr:hover td { background:var(--surface-2) }
+    .aksi-pill { font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;white-space:nowrap }
+    .pagination { display:flex;align-items:center;gap:6px;justify-content:center }
+    @media(max-width:900px){.hide-mobile{display:none}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="audit"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Audit Trail</span></div>
+      <div class="topbar-right">
+        <select id="f-aksi" class="sel" onchange="loadLogs()">
+          <option value="">Semua Aksi</option>
+          <option value="task.create">Task Dibuat</option>
+          <option value="task.to_do">Task Disetujui</option>
+          <option value="task.ditolak">Task Ditolak</option>
+          <option value="task.done">Task Done</option>
+          <option value="task.revisi">Task Revisi</option>
+          <option value="user.create">User Dibuat</option>
+          <option value="user.delete">User Dihapus</option>
+          <option value="user.reset_password">Reset Password</option>
+        </select>
+        <input type="text" id="f-search" class="input" placeholder="Cari nama/email..." style="width:200px" oninput="debounce()">
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+        <div id="total-row" style="font-size:13px;color:var(--text-3)"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Pengguna</th>
+                <th>Aksi</th>
+                <th class="hide-mobile">Detail</th>
+                <th class="hide-mobile">IP</th>
+              </tr>
+            </thead>
+            <tbody id="audit-tbody">
+              <tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:40px">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+if (!['direksi','superadmin'].includes(user.role)) { window.location.href='/pages/dashboard.html'; throw 'no access'; }
+
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let debTimer;
+
+const AKSI_CONFIG = {
+  'task.create':         { label:'Task Dibuat',       bg:'#EFF6FF', fg:'#1E40AF' },
+  'task.to_do':          { label:'Task Disetujui',    bg:'#D1FAE5', fg:'#065F46' },
+  'task.ditolak':        { label:'Task Ditolak',      bg:'#FEE2E2', fg:'#991B1B' },
+  'task.done':           { label:'Task Done',         bg:'#D1FAE5', fg:'#065F46' },
+  'task.revisi':         { label:'Task Revisi',       bg:'#FEF3C7', fg:'#92400E' },
+  'task.perlu_review':   { label:'Submit Review',     bg:'#F3E8FF', fg:'#6B21A8' },
+  'task.in_progress':    { label:'Mulai Dikerjakan',  bg:'#EFF6FF', fg:'#1E40AF' },
+  'user.create':         { label:'User Dibuat',       bg:'#F0FDF4', fg:'#166534' },
+  'user.delete':         { label:'User Dihapus',      bg:'#FEF2F2', fg:'#991B1B' },
+  'user.reset_password': { label:'Reset Password',    bg:'#FFFBEB', fg:'#92400E' },
+};
+
+async function loadLogs() {
+  const aksi   = document.getElementById('f-aksi').value;
+  const search = document.getElementById('f-search').value.trim();
+  const tbody  = document.getElementById('audit-tbody');
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:28px">Memuat...</td></tr>`;
+
+  try {
+    const params = new URLSearchParams({ page: currentPage, limit: PAGE_SIZE });
+    if (aksi)   params.set('aksi', aksi);
+
+    const { logs, total } = await apiFetch('/audit?' + params);
+    document.getElementById('total-row').textContent = `${total} log ditemukan`;
+
+    // Filter by search (client-side untuk nama/email)
+    const filtered = search
+      ? logs.filter(l => (l.userId?.namaLengkap||'').toLowerCase().includes(search.toLowerCase()) || (l.userId?.email||'').toLowerCase().includes(search.toLowerCase()))
+      : logs;
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:40px">Tidak ada log</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(l => {
+      const cfg   = AKSI_CONFIG[l.aksi] || { label: l.aksi, bg:'var(--surface-2)', fg:'var(--text-2)' };
+      const waktu = new Date(l.createdAt).toLocaleString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const detail = l.detail?.judul || l.detail?.email || '';
+      const inits  = (l.userId?.namaLengkap||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      return `<tr>
+        <td style="color:var(--text-3);white-space:nowrap">${waktu}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${inits}</div>
+            <div>
+              <div style="font-weight:600;font-size:13px">${l.userId?.namaLengkap||'—'}</div>
+              <div style="font-size:11px;color:var(--text-3)">${l.userId?.email||''}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="aksi-pill" style="background:${cfg.bg};color:${cfg.fg}">${cfg.label}</span></td>
+        <td class="hide-mobile" style="color:var(--text-2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${detail}</td>
+        <td class="hide-mobile" style="color:var(--text-3);font-size:12px">${l.ip||'—'}</td>
+      </tr>`;
+    }).join('');
+
+    renderPagination(total);
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function renderPagination(total) {
+  const pages = Math.ceil(total / PAGE_SIZE);
+  if (pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= Math.min(pages, 10); i++) {
+    html += `<button class="btn${i===currentPage?' btn-primary':''}" onclick="goto(${i})" style="min-width:36px;padding:6px 10px">${i}</button>`;
+  }
+  document.getElementById('pagination').innerHTML = html;
+}
+function goto(p) { currentPage = p; loadLogs(); }
+function debounce() { clearTimeout(debTimer); debTimer = setTimeout(loadLogs, 350); }
+
+loadLogs();
+</script>
+</body>
+</html>

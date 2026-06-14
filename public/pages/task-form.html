@@ -1,0 +1,398 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Form Task</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 24px;
+    }
+    .card-title {
+      font-size: 12px; font-weight: 700;
+      color: var(--text-3); text-transform: uppercase;
+      letter-spacing: .7px; margin-bottom: 20px;
+      padding-bottom: 12px; border-bottom: 0.5px solid var(--border);
+    }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .field input, .field textarea, .field select {
+      background: var(--surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 10px 13px;
+      font-size: 14px; color: var(--text);
+      outline: none; transition: var(--transition); width: 100%;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); background: var(--surface);
+    }
+    .field input::placeholder, .field textarea::placeholder { color: var(--text-3); }
+    .field textarea { resize: vertical; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+    /* Tags */
+    .tag-box {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r-sm); padding: 8px 12px; min-height: 44px; cursor: text;
+    }
+    .tag-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); background: var(--surface); }
+    .tag-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--accent-light); color: var(--accent);
+      font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 100px;
+    }
+    .tag-chip button { background: none; border: none; cursor: pointer; color: var(--accent); font-size: 14px; padding: 0; line-height: 1; }
+    .tag-input { border: none; background: none; outline: none; font-size: 13px; color: var(--text); min-width: 100px; flex: 1; }
+    .tag-input::placeholder { color: var(--text-3); }
+
+    /* Collaborators */
+    .collab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; }
+    .collab-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 12px; border: 0.5px solid var(--border);
+      border-radius: var(--r-sm); cursor: pointer; transition: var(--transition);
+      background: var(--surface-2); user-select: none;
+    }
+    .collab-item:hover { border-color: var(--accent); background: var(--accent-light); }
+    .collab-item.selected { border-color: var(--accent); background: var(--accent-light); }
+    .collab-check {
+      width: 16px; height: 16px; border-radius: 4px;
+      border: 1.5px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .collab-item.selected .collab-check { background: var(--accent); border-color: var(--accent); }
+    .collab-item.selected .collab-check::after { content: '✓'; font-size: 10px; color: white; font-weight: 700; }
+
+    .warn-dup {
+      display: none; align-items: center; gap: 10px;
+      background: var(--orange-bg); border: 0.5px solid rgba(234,88,12,.2);
+      color: var(--orange-text); border-radius: var(--r-sm); padding: 12px 16px; font-size: 13px;
+    }
+    @media(max-width:700px){ .row-2,.row-3{ grid-template-columns:1fr } }
+    @keyframes spin { to { transform:rotate(360deg) } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="tasks"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <a href="/pages/list.html">Task</a>
+        <span class="bc-sep">/</span>
+        <span class="cur" id="bc-title">Buat Task Baru</span>
+      </div>
+      <div class="topbar-right">
+        <a href="/pages/list.html" class="btn">Batal</a>
+        <button class="btn btn-primary" id="btn-submit" onclick="submitForm()">
+          <i class="ti ti-check"></i> <span id="btn-label">Simpan Task</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <div style="font-size:20px;font-weight:800;letter-spacing:-.4px" id="form-heading">Buat Task Baru</div>
+        </div>
+
+        <div class="warn-dup" id="warn-dup">
+          <i class="ti ti-alert-triangle" style="font-size:18px;flex-shrink:0"></i>
+          <span id="warn-dup-text"></span>
+        </div>
+
+        <!-- Template Picker -->
+        <div class="card" id="template-picker-card">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <i class="ti ti-copy" style="font-size:16px;color:var(--accent)"></i>
+            <span style="font-size:13px;font-weight:600">Mulai dari Template</span>
+            <select id="tpl-picker" style="flex:1;min-width:200px;padding:8px 12px;border-radius:var(--r-sm);border:0.5px solid var(--border);background:var(--surface-2);color:var(--text);font-size:13px;outline:none">
+              <option value="">— Pilih template (opsional) —</option>
+            </select>
+            <button class="btn btn-primary" onclick="applyTemplate()" style="font-size:12px" id="tpl-apply-btn" disabled><i class="ti ti-arrow-right"></i> Terapkan</button>
+          </div>
+        </div>
+
+        <!-- Informasi Task -->
+        <div class="card">
+          <div class="card-title">Informasi Task</div>
+          <div class="field" style="margin-bottom:16px">
+            <label>Judul Task <span style="color:var(--red)">*</span></label>
+            <input type="text" id="f-judul" placeholder="Masukkan judul task yang jelas dan spesifik..." maxlength="150">
+            <div style="font-size:11px;color:var(--text-3);text-align:right"><span id="char-count">0</span>/150</div>
+          </div>
+          <div class="field">
+            <label>Deskripsi <span style="color:var(--red)">*</span></label>
+            <textarea id="f-deskripsi" rows="5" placeholder="Jelaskan detail pekerjaan, ruang lingkup, dan hasil yang diharapkan..."></textarea>
+          </div>
+        </div>
+
+        <!-- Penugasan -->
+        <div class="card">
+          <div class="card-title">Penugasan & Jadwal</div>
+          <div class="row-3" id="row-penugasan">
+            <div class="field" id="f-direktorat-wrap" style="display:none">
+              <label>Direktorat</label>
+              <select id="f-direktorat" onchange="onDirChange()">
+                <option value="">Semua Direktorat</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>PIC (Person In Charge) <span style="color:var(--red)">*</span></label>
+              <select id="f-pic"><option value="">Pilih PIC...</option></select>
+            </div>
+            <div class="field">
+              <label>Prioritas <span style="color:var(--red)">*</span></label>
+              <select id="f-prioritas">
+                <option value="">Pilih prioritas...</option>
+                <option value="low">Rendah</option>
+                <option value="medium">Sedang</option>
+                <option value="high">Tinggi</option>
+                <option value="critical">Kritis</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Deadline <span style="color:var(--red)">*</span></label>
+              <input type="date" id="f-deadline">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="card">
+          <div class="card-title">Tags <span style="text-transform:none;font-weight:400;color:var(--text-3)">(opsional, maks. 5)</span></div>
+          <div class="field">
+            <div class="tag-box" id="tag-box" onclick="document.getElementById('f-tag-input').focus()">
+              <input type="text" class="tag-input" id="f-tag-input" placeholder="Ketik tag lalu tekan Enter...">
+            </div>
+          </div>
+        </div>
+
+        <!-- Collaborators -->
+        <div class="card">
+          <div class="card-title">Collaborators <span style="text-transform:none;font-weight:400;color:var(--text-3)">(opsional)</span></div>
+          <div class="collab-grid" id="collab-grid">
+            <div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Memuat daftar pengguna...</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user   = getUser();
+const editId = new URLSearchParams(window.location.search).get('id');
+const tags   = [];
+let selectedCollabs = new Set();
+let allManagers = [];
+
+document.getElementById('f-deadline').min = new Date().toISOString().split('T')[0];
+
+document.getElementById('f-judul').addEventListener('input', function () {
+  document.getElementById('char-count').textContent = this.value.length;
+});
+
+document.getElementById('f-tag-input').addEventListener('keydown', e => {
+  if (e.key === 'Backspace' && !e.target.value && tags.length) { tags.pop(); renderTags(); return; }
+  if (e.key !== 'Enter' && e.key !== ',') return;
+  e.preventDefault();
+  const val = e.target.value.trim();
+  if (!val || tags.length >= 5 || tags.includes(val)) { e.target.value = ''; return; }
+  tags.push(val); e.target.value = ''; renderTags();
+});
+
+function renderTags() {
+  const box = document.getElementById('tag-box');
+  box.querySelectorAll('.tag-chip').forEach(c => c.remove());
+  const inp = document.getElementById('f-tag-input');
+  tags.forEach((t, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `${t}<button type="button" onclick="removeTag(${i})">×</button>`;
+    box.insertBefore(chip, inp);
+  });
+  inp.disabled   = tags.length >= 5;
+  inp.placeholder = tags.length >= 5 ? 'Maks. 5 tag' : 'Ketik tag lalu tekan Enter...';
+}
+
+function removeTag(i) { tags.splice(i, 1); renderTags(); }
+
+function renderCollabGrid() {
+  const grid = document.getElementById('collab-grid');
+  if (!allManagers.length) {
+    grid.innerHTML = '<div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Tidak ada pengguna tersedia</div>';
+    return;
+  }
+  grid.innerHTML = allManagers.map(m => `
+    <div class="collab-item${selectedCollabs.has(m._id) ? ' selected' : ''}" onclick="toggleCollab('${m._id}')">
+      <div class="collab-check"></div>
+      <span style="font-size:13px">${m.namaLengkap}</span>
+    </div>`).join('');
+}
+
+function toggleCollab(id) {
+  selectedCollabs.has(id) ? selectedCollabs.delete(id) : selectedCollabs.add(id);
+  document.querySelector(`.collab-item[onclick*="${id}"]`)?.classList.toggle('selected', selectedCollabs.has(id));
+  // re-render to update all
+  renderCollabGrid();
+}
+
+async function loadPICOptions(direktoratId) {
+  const sel = document.getElementById('f-pic');
+  sel.innerHTML = '<option value="">Memuat...</option>';
+  let managers;
+  if (user.role === 'direksi' && !direktoratId) {
+    const data = await Users.list({ role: 'manager' }).catch(() => ({}));
+    managers = data.users || data || [];
+  } else {
+    const dirId = direktoratId || user.direktoratId?._id || user.direktoratId;
+    managers = await Users.managersByDirektorat(dirId).catch(() => []);
+  }
+  allManagers = managers;
+  sel.innerHTML = '<option value="">Pilih PIC...</option>';
+  managers.forEach(m => {
+    const o = document.createElement('option'); o.value = m._id; o.textContent = m.namaLengkap;
+    sel.appendChild(o);
+  });
+  renderCollabGrid();
+}
+
+async function onDirChange() {
+  await loadPICOptions(document.getElementById('f-direktorat').value);
+}
+
+let allTemplates = [];
+
+async function loadTemplates() {
+  try {
+    const { templates } = await TaskTemplates.list();
+    allTemplates = templates;
+    const sel = document.getElementById('tpl-picker');
+    templates.forEach(t => {
+      const o = document.createElement('option');
+      o.value = t._id; o.textContent = t.nama;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => {
+      document.getElementById('tpl-apply-btn').disabled = !sel.value;
+    });
+  } catch {}
+}
+
+async function applyTemplate() {
+  const id = document.getElementById('tpl-picker').value;
+  if (!id) return;
+  const tpl = allTemplates.find(t => t._id === id);
+  if (!tpl) return;
+
+  document.getElementById('f-judul').value     = tpl.nama;
+  document.getElementById('char-count').textContent = tpl.nama.length;
+  document.getElementById('f-deskripsi').value = tpl.deskripsi || '';
+  document.getElementById('f-prioritas').value = tpl.prioritas || 'medium';
+  if (tpl.durasiHari) {
+    const d = new Date();
+    d.setDate(d.getDate() + tpl.durasiHari);
+    document.getElementById('f-deadline').value = d.toISOString().slice(0, 10);
+  }
+  tpl.tags?.forEach(t => { if (!tags.includes(t)) tags.push(t); });
+  renderTags();
+  showToast(`Template "${tpl.nama}" diterapkan`);
+}
+
+async function initForm() {
+  loadTemplates();
+  if (user.role === 'direksi') {
+    const dirs = await Direktorat.list();
+    const wrap = document.getElementById('f-direktorat-wrap');
+    const sel  = document.getElementById('f-direktorat');
+    wrap.style.display = '';
+    // Jadikan row 4 kolom jika direktorat terlihat
+    document.getElementById('row-penugasan').style.gridTemplateColumns = 'repeat(4,1fr)';
+    dirs.forEach(d => {
+      const o = document.createElement('option'); o.value = d._id; o.textContent = d.nama;
+      sel.appendChild(o);
+    });
+    await loadPICOptions('');
+  } else {
+    await loadPICOptions(user.direktoratId?._id || user.direktoratId);
+  }
+
+  if (editId) {
+    document.getElementById('bc-title').textContent     = 'Edit Task';
+    document.getElementById('form-heading').textContent = 'Edit Task';
+    document.getElementById('btn-label').textContent    = 'Simpan Perubahan';
+    const { task } = await Tasks.get(editId);
+    document.getElementById('f-judul').value     = task.judul;
+    document.getElementById('char-count').textContent = task.judul.length;
+    document.getElementById('f-deskripsi').value = task.deskripsi;
+    document.getElementById('f-prioritas').value = task.prioritas;
+    document.getElementById('f-deadline').value  = task.deadline?.split('T')[0] || '';
+    document.getElementById('f-pic').value       = task.picUserId?._id || task.picUserId || '';
+    task.tags?.forEach(t => { if (!tags.includes(t)) tags.push(t); });
+    renderTags();
+    task.collaborators?.forEach(c => selectedCollabs.add(c._id || c));
+    renderCollabGrid();
+  }
+}
+
+async function submitForm() {
+  const judul    = document.getElementById('f-judul').value.trim();
+  const deskripsi= document.getElementById('f-deskripsi').value.trim();
+  const picUserId= document.getElementById('f-pic').value;
+  const prioritas= document.getElementById('f-prioritas').value;
+  const deadline = document.getElementById('f-deadline').value;
+
+  if (!judul)    { showToast('Judul task wajib diisi', 'error'); return; }
+  if (!deskripsi){ showToast('Deskripsi wajib diisi', 'error'); return; }
+  if (!picUserId){ showToast('PIC wajib dipilih', 'error'); return; }
+  if (!prioritas){ showToast('Prioritas wajib dipilih', 'error'); return; }
+  if (!deadline) { showToast('Deadline wajib diisi', 'error'); return; }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> Menyimpan...';
+
+  try {
+    const payload = { judul, deskripsi, picUserId, prioritas, deadline, tags, collaborators: [...selectedCollabs] };
+    if (editId) {
+      await Tasks.update(editId, payload);
+      showToast('Task berhasil diupdate');
+      setTimeout(() => window.location.href = `/pages/task.html?id=${editId}`, 700);
+    } else {
+      const { task, warningDuplikasi } = await Tasks.create(payload);
+      if (warningDuplikasi) {
+        document.getElementById('warn-dup').style.display = 'flex';
+        document.getElementById('warn-dup-text').textContent = warningDuplikasi;
+      }
+      showToast('Task berhasil dibuat');
+      setTimeout(() => window.location.href = `/pages/task.html?id=${task._id}`, 700);
+    }
+  } catch (e) {
+    showToast(e.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = `<i class="ti ti-check"></i> <span>${editId ? 'Simpan Perubahan' : 'Simpan Task'}</span>`;
+  }
+}
+
+initForm();
+</script>
+</body>
+</html>

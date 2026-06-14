@@ -1,0 +1,254 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — My Tasks</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .my-header {
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);padding:24px 28px;
+      display:flex;align-items:center;gap:20px;
+    }
+    .my-avatar {
+      width:56px;height:56px;border-radius:50%;background:var(--accent);
+      display:flex;align-items:center;justify-content:center;
+      color:#fff;font-size:20px;font-weight:800;flex-shrink:0;overflow:hidden;
+    }
+    .my-avatar img { width:100%;height:100%;object-fit:cover }
+    .my-stat { text-align:center;padding:0 20px;border-left:0.5px solid var(--border) }
+    .my-stat-n { font-size:24px;font-weight:800;color:var(--accent) }
+    .my-stat-l { font-size:11px;color:var(--text-3);margin-top:2px;text-transform:uppercase;letter-spacing:.5px }
+
+    /* Columns */
+    .columns-wrap { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px }
+    .column-card {
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);overflow:hidden;
+    }
+    .column-head {
+      padding:14px 16px;display:flex;align-items:center;gap:10px;
+      border-bottom:0.5px solid var(--border);
+    }
+    .column-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0 }
+    .column-title { font-size:13px;font-weight:700;flex:1 }
+    .column-count {
+      font-size:11px;font-weight:700;background:var(--surface-2);
+      padding:2px 8px;border-radius:100px;color:var(--text-3);
+    }
+    .column-body { padding:10px;display:flex;flex-direction:column;gap:8px;min-height:60px }
+
+    /* Task card */
+    .tc {
+      background:var(--surface-2);border:0.5px solid var(--border);
+      border-radius:var(--r-lg);padding:12px 14px;cursor:pointer;
+      transition:border-color .15s,box-shadow .15s;
+    }
+    .tc:hover { border-color:var(--accent);box-shadow:0 2px 12px rgba(91,79,232,.08) }
+    .tc-cover { width:100%;height:80px;object-fit:cover;border-radius:var(--r-sm);margin-bottom:10px;display:block }
+    .tc-title { font-size:13px;font-weight:600;line-height:1.4;margin-bottom:6px }
+    .tc-meta { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px }
+    .tc-deadline { font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:4px }
+    .tc-deadline.overdue { color:var(--red-text,#991B1B);font-weight:600 }
+    .tc-prio { width:8px;height:8px;border-radius:50%;flex-shrink:0 }
+    .tc-tags { display:flex;gap:4px;flex-wrap:wrap;margin-top:6px }
+    .tc-tag { font-size:10px;background:var(--accent-dim,rgba(91,79,232,.1));color:var(--accent);padding:2px 7px;border-radius:100px }
+    .tc-progress { margin-top:8px }
+    .tc-prog-bar { height:3px;background:var(--border);border-radius:2px;overflow:hidden }
+    .tc-prog-fill { height:100%;background:var(--accent);border-radius:2px;transition:width .3s }
+    .tc-prog-label { font-size:10px;color:var(--text-3);margin-top:3px }
+
+    /* Filter bar */
+    .filter-bar { display:flex;gap:8px;flex-wrap:wrap;align-items:center }
+    .sel { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:7px 11px;font-size:13px;color:var(--text);outline:none;cursor:pointer }
+    .sel:focus { border-color:var(--accent) }
+
+    @media(max-width:700px){ .my-stat { display:none } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="my-tasks"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">My Tasks</span></div>
+      <div class="topbar-right">
+        <a href="/pages/task-form.html" class="btn btn-primary"><i class="ti ti-plus"></i> Buat Task</a>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+
+        <!-- Header user -->
+        <div class="my-header">
+          <div class="my-avatar" id="my-avatar"></div>
+          <div style="flex:1">
+            <div style="font-size:18px;font-weight:800;letter-spacing:-.3px" id="my-name">—</div>
+            <div style="font-size:13px;color:var(--text-3);margin-top:2px" id="my-role">—</div>
+          </div>
+          <div class="my-stat"><div class="my-stat-n" id="stat-todo">0</div><div class="my-stat-l">To Do</div></div>
+          <div class="my-stat"><div class="my-stat-n" id="stat-progress">0</div><div class="my-stat-l">In Progress</div></div>
+          <div class="my-stat"><div class="my-stat-n" id="stat-review">0</div><div class="my-stat-l">Review</div></div>
+          <div class="my-stat"><div class="my-stat-n" id="stat-done">0</div><div class="my-stat-l">Done bulan ini</div></div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-bar">
+          <input type="text" id="f-search" class="input" placeholder="Cari task..." style="width:200px" oninput="render()">
+          <select id="f-prio" class="sel" onchange="render()">
+            <option value="">Semua Prioritas</option>
+            <option value="critical">Kritis</option>
+            <option value="high">Tinggi</option>
+            <option value="medium">Sedang</option>
+            <option value="low">Rendah</option>
+          </select>
+          <select id="f-sort" class="sel" onchange="render()">
+            <option value="deadline">Urutkan: Deadline</option>
+            <option value="prio">Urutkan: Prioritas</option>
+            <option value="created">Urutkan: Terbaru</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="f-overdue" onchange="render()"> Overdue saja
+          </label>
+        </div>
+
+        <!-- Columns -->
+        <div class="columns-wrap" id="columns-wrap"></div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+
+const COLUMNS = [
+  { status: 'menunggu_approval', label: 'Menunggu Approval', color: '#F59E0B' },
+  { status: 'to_do',            label: 'To Do',             color: '#6366F1' },
+  { status: 'in_progress',      label: 'In Progress',       color: '#3B82F6' },
+  { status: 'perlu_review',     label: 'Perlu Review',      color: '#8B5CF6' },
+  { status: 'revisi',           label: 'Revisi',            color: '#EF4444' },
+  { status: 'done',             label: 'Done',              color: '#10B981' },
+];
+
+const PRIO_ORDER = { critical:4, high:3, medium:2, low:1 };
+const PRIO_COLOR = { critical:'#EF4444', high:'#F97316', medium:'#EAB308', low:'#6B7280' };
+
+let allTasks = [];
+
+async function init() {
+  // Render avatar + nama
+  const inits = (user.namaLengkap||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const avEl  = document.getElementById('my-avatar');
+  if (user.fotoProfil) avEl.innerHTML = `<img src="${user.fotoProfil}">`;
+  else avEl.textContent = inits;
+  document.getElementById('my-name').textContent = user.namaLengkap;
+  document.getElementById('my-role').textContent = user.jabatan || user.role;
+
+  // Load tasks
+  try {
+    const { tasks } = await Tasks.list({ limit: 200 });
+    // Filter hanya task milik saya (PIC atau collaborator)
+    allTasks = tasks.filter(t =>
+      t.picUserId?._id === user._id || t.picUserId === user._id ||
+      (t.collaborators||[]).some(c => (c._id||c) === user._id)
+    );
+    updateStats();
+    render();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function updateStats() {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  document.getElementById('stat-todo').textContent     = allTasks.filter(t => t.status === 'to_do').length;
+  document.getElementById('stat-progress').textContent = allTasks.filter(t => t.status === 'in_progress').length;
+  document.getElementById('stat-review').textContent   = allTasks.filter(t => t.status === 'perlu_review').length;
+  document.getElementById('stat-done').textContent     = allTasks.filter(t => t.status === 'done' && new Date(t.doneAt || t.updatedAt) >= startOfMonth).length;
+}
+
+function render() {
+  const q       = document.getElementById('f-search').value.toLowerCase();
+  const prio    = document.getElementById('f-prio').value;
+  const sort    = document.getElementById('f-sort').value;
+  const overdue = document.getElementById('f-overdue').checked;
+
+  let filtered = allTasks.filter(t => {
+    if (q && !t.judul.toLowerCase().includes(q)) return false;
+    if (prio && t.prioritas !== prio) return false;
+    if (overdue && (!t.deadline || new Date(t.deadline) >= new Date() || t.status === 'done')) return false;
+    return true;
+  });
+
+  if (sort === 'deadline') filtered.sort((a,b) => new Date(a.deadline) - new Date(b.deadline));
+  else if (sort === 'prio') filtered.sort((a,b) => (PRIO_ORDER[b.prioritas]||0) - (PRIO_ORDER[a.prioritas]||0));
+  else filtered.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const wrap = document.getElementById('columns-wrap');
+  wrap.innerHTML = COLUMNS.map(col => {
+    const colTasks = filtered.filter(t => t.status === col.status);
+    return `
+      <div class="column-card">
+        <div class="column-head">
+          <div class="column-dot" style="background:${col.color}"></div>
+          <div class="column-title">${col.label}</div>
+          <div class="column-count">${colTasks.length}</div>
+        </div>
+        <div class="column-body">
+          ${colTasks.map(taskCard).join('') || `<div style="color:var(--text-3);font-size:12px;text-align:center;padding:16px 0">Tidak ada task</div>`}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function taskCard(t) {
+  const now      = new Date();
+  const deadline = t.deadline ? new Date(t.deadline) : null;
+  const overdue  = deadline && deadline < now && t.status !== 'done';
+  const dStr     = deadline ? deadline.toLocaleDateString('id-ID',{day:'numeric',month:'short'}) : '—';
+
+  const subtaskTotal = t.subtaskTotal || 0;
+  const subtaskDone  = t.subtaskDone  || 0;
+  const pct          = subtaskTotal > 0 ? Math.round(subtaskDone/subtaskTotal*100) : -1;
+
+  const coverHtml = t.coverImage
+    ? `<img class="tc-cover" src="${t.coverImage}" alt="">`
+    : '';
+
+  return `
+    <div class="tc" onclick="window.location='/pages/task.html?id=${t._id}'">
+      ${coverHtml}
+      <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px">
+        <div class="tc-prio" style="background:${PRIO_COLOR[t.prioritas]||'#ccc'};margin-top:4px"></div>
+        <div class="tc-title">${t.judul}</div>
+      </div>
+      <div class="tc-meta">
+        <div class="tc-deadline${overdue?' overdue':''}">
+          <i class="ti ti-calendar" style="font-size:12px"></i> ${dStr}${overdue?' ⚠':''}
+        </div>
+        <div style="font-size:11px;color:var(--text-3)">${t.direktoratId?.kode||''}</div>
+      </div>
+      ${(t.tags||[]).length ? `<div class="tc-tags">${t.tags.slice(0,3).map(g=>`<span class="tc-tag">${g}</span>`).join('')}</div>` : ''}
+      ${pct >= 0 ? `
+        <div class="tc-progress">
+          <div class="tc-prog-bar"><div class="tc-prog-fill" style="width:${pct}%"></div></div>
+          <div class="tc-prog-label">${subtaskDone}/${subtaskTotal} subtask</div>
+        </div>` : ''}
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>

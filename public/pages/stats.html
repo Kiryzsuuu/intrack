@@ -1,0 +1,393 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — KPI & Statistik</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 20px;
+    }
+    .kpi-label { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .kpi-val   { font-size: 36px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; margin-bottom: 4px; }
+    .kpi-sub   { font-size: 12px; color: var(--text-3); }
+
+    .grade-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px; border-radius: 50%;
+      font-size: 22px; font-weight: 800;
+    }
+    .grade-A { background: var(--green-bg);  color: var(--green-text);  }
+    .grade-B { background: var(--purple-bg); color: var(--purple-text); }
+    .grade-C { background: var(--orange-bg); color: var(--orange-text); }
+    .grade-D { background: var(--red-bg);    color: var(--red-text);    }
+
+    .section-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 20px;
+    }
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .section-title { font-size: 15px; font-weight: 700; }
+
+    .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .bar-label { font-size: 13px; color: var(--text-2); width: 140px; flex-shrink: 0; text-align: right; }
+    .bar-track { flex: 1; height: 8px; background: var(--surface-2); border-radius: 100px; overflow: hidden; border: 0.5px solid var(--border); }
+    .bar-fill  { height: 100%; border-radius: 100px; transition: width .6s ease; }
+    .bar-pct   { font-size: 13px; font-weight: 600; color: var(--text-2); width: 48px; text-align: right; flex-shrink: 0; }
+
+    .history-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+    .history-row::-webkit-scrollbar { height: 4px; }
+    .history-month {
+      flex-shrink: 0; width: 76px; text-align: center;
+      background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r); padding: 10px 6px;
+    }
+    .hm-month { font-size: 10px; color: var(--text-3); margin-bottom: 5px; }
+    .hm-score { font-size: 20px; font-weight: 800; margin-bottom: 2px; }
+
+    .sel {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--r-sm); padding: 7px 11px; font-size: 13px;
+      color: var(--text); outline: none; cursor: pointer;
+    }
+
+    .all-tbl table { width: 100%; border-collapse: collapse; }
+    .all-tbl th { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; padding: 10px 14px; text-align: left; background: var(--surface-2); border-bottom: 0.5px solid var(--border); }
+    .all-tbl td { padding: 12px 14px; border-bottom: 0.5px solid var(--border); font-size: 13px; vertical-align: middle; }
+    .all-tbl tr:last-child td { border-bottom: none; }
+
+    @media(max-width:1100px){ .kpi-grid{grid-template-columns:repeat(2,1fr)} }
+    @media(max-width:600px){ .kpi-grid{grid-template-columns:1fr 1fr} .bar-label{width:80px;font-size:11px} }
+    @media(max-width:480px){ .kpi-grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="kpi"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">KPI & Statistik</span></div>
+      <div class="topbar-right">
+        <button class="btn" onclick="window.open('/api/reports/kpi/pdf?_token='+getToken())">
+          <i class="ti ti-file-type-pdf"></i> <span>PDF</span>
+        </button>
+        <button class="btn" onclick="window.open('/api/reports/kpi/excel?_token='+getToken())">
+          <i class="ti ti-file-excel"></i> <span>Excel</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+
+        <!-- Filter periode + user -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div id="user-filter" style="display:none">
+            <select id="f-user" class="sel" onchange="loadKpi()">
+              <option value="me">KPI Saya</option>
+            </select>
+          </div>
+          <select id="f-bulan" class="sel" onchange="onPeriodeChange()">
+            <option value="1">Januari</option><option value="2">Februari</option>
+            <option value="3">Maret</option><option value="4">April</option>
+            <option value="5">Mei</option><option value="6">Juni</option>
+            <option value="7">Juli</option><option value="8">Agustus</option>
+            <option value="9">September</option><option value="10">Oktober</option>
+            <option value="11">November</option><option value="12">Desember</option>
+          </select>
+          <select id="f-tahun" class="sel" onchange="onPeriodeChange()"></select>
+        </div>
+
+        <!-- KPI cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Skor KPI</div>
+            <div class="kpi-val" id="kpi-total">—</div>
+            <div class="kpi-sub" id="kpi-grade-label">Memuat...</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Ketepatan Waktu (40%)</div>
+            <div class="kpi-val" id="kpi-waktu">—</div>
+            <div class="kpi-sub">Poin ketepatan deadline</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Volume (35%)</div>
+            <div class="kpi-val" id="kpi-volume">—</div>
+            <div class="kpi-sub">Penyelesaian task</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Kualitas (25%)</div>
+            <div class="kpi-val" id="kpi-kualitas">—</div>
+            <div class="kpi-sub">Minimisasi revisi</div>
+          </div>
+        </div>
+
+        <!-- Breakdown -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Breakdown Komponen KPI</span>
+            <div id="grade-wrap" style="display:flex;align-items:center;gap:10px">
+              <span id="grade-badge-el" class="grade-badge" style="display:none"></span>
+              <div>
+                <div style="font-size:14px;font-weight:700" id="grade-text"></div>
+                <div style="font-size:12px;color:var(--text-3)" id="target-text"></div>
+              </div>
+            </div>
+          </div>
+          <div id="kpi-bars"><div style="color:var(--text-3);font-size:14px;text-align:center;padding:30px">Memuat...</div></div>
+          <div style="margin-top:16px;padding-top:14px;border-top:0.5px solid var(--border);display:flex;gap:20px;flex-wrap:wrap" id="kpi-stats-extra"></div>
+        </div>
+
+        <!-- Riwayat 12 bulan -->
+        <div class="section-card">
+          <div class="section-head"><span class="section-title">Riwayat 12 Bulan</span></div>
+          <div class="history-row" id="history-row">
+            <div style="color:var(--text-3);font-size:13px;padding:10px">Memuat riwayat...</div>
+          </div>
+        </div>
+
+        <!-- Tabel semua manager (Direksi) -->
+        <div class="section-card all-tbl" id="all-managers-card" style="display:none">
+          <div class="section-head"><span class="section-title">KPI Semua Manager</span></div>
+          <div style="overflow-x:auto" id="all-managers-table"></div>
+        </div>
+
+        <!-- Time Tracking Analytics -->
+        <div class="section-card" id="timelog-analytics" style="display:none">
+          <div class="section-head">
+            <span class="section-title">Analitik Waktu Kerja</span>
+            <span id="timelog-total-label" style="font-size:12px;color:var(--text-3)"></span>
+          </div>
+          <!-- Bar chart harian -->
+          <div style="overflow-x:auto;padding-bottom:6px">
+            <div id="time-chart" style="display:flex;align-items:flex-end;gap:6px;height:120px;min-width:400px"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;justify-content:center" id="time-chart-labels"></div>
+          <!-- Per-user breakdown -->
+          <div style="margin-top:20px;border-top:0.5px solid var(--border);padding-top:16px">
+            <div style="font-size:13px;font-weight:700;margin-bottom:12px">Per Anggota Tim</div>
+            <div id="time-per-user"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+const now  = new Date();
+
+// Init periode
+document.getElementById('f-bulan').value = now.getMonth() + 1;
+const tahunSel = document.getElementById('f-tahun');
+for (let y = now.getFullYear(); y >= now.getFullYear() - 3; y--) {
+  const o = document.createElement('option'); o.value = y; o.textContent = y;
+  tahunSel.appendChild(o);
+}
+
+function onPeriodeChange() { loadKpi(); if (user.role === 'direksi') loadAllManagers(); }
+
+async function loadKpi() {
+  const bulan = +document.getElementById('f-bulan').value;
+  const tahun = +tahunSel.value;
+  const uid   = document.getElementById('f-user')?.value;
+  try {
+    let kpi;
+    if (uid && uid !== 'me') {
+      const res = await KPI.manager(uid, { bulan, tahun }); kpi = res.kpi;
+    } else {
+      const res = await KPI.me({ bulan, tahun }); kpi = res.kpi;
+    }
+    renderKpi(kpi);
+    loadHistory(uid && uid !== 'me' ? uid : user._id);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function renderKpi(kpi) {
+  if (!kpi) {
+    ['kpi-total','kpi-waktu','kpi-volume','kpi-kualitas'].forEach(id => document.getElementById(id).textContent = '—');
+    document.getElementById('kpi-grade-label').textContent = 'Belum ada data';
+    document.getElementById('kpi-bars').innerHTML = '<div style="color:var(--text-3);font-size:14px;text-align:center;padding:30px">Belum ada data KPI untuk periode ini</div>';
+    document.getElementById('grade-badge-el').style.display = 'none';
+    return;
+  }
+  const grade = hitungGrade(kpi.skorTotal);
+  document.getElementById('kpi-total').textContent    = kpi.skorTotal?.toFixed(1) ?? '—';
+  document.getElementById('kpi-waktu').textContent    = kpi.skorWaktu?.toFixed(1) ?? '—';
+  document.getElementById('kpi-volume').textContent   = kpi.skorVolume?.toFixed(1) ?? '—';
+  document.getElementById('kpi-kualitas').textContent = kpi.skorKualitas?.toFixed(1) ?? '—';
+  document.getElementById('kpi-grade-label').textContent = `Grade ${grade} — ${labelGrade(grade)}`;
+  document.getElementById('grade-text').textContent   = `Grade ${grade}`;
+  document.getElementById('target-text').textContent  = `Target: ${kpi.targetKpi ?? 80}`;
+  const gradeEl = document.getElementById('grade-badge-el');
+  gradeEl.textContent = grade; gradeEl.className = `grade-badge grade-${grade}`; gradeEl.style.display = 'flex';
+
+  document.getElementById('kpi-bars').innerHTML = [
+    { label:'Ketepatan Waktu', pct: kpi.skorWaktu   ?? 0, color:'var(--purple)' },
+    { label:'Volume Task',     pct: kpi.skorVolume  ?? 0, color:'var(--accent)' },
+    { label:'Kualitas',        pct: kpi.skorKualitas?? 0, color:'var(--green)' },
+  ].map(b => `
+    <div class="bar-row">
+      <div class="bar-label">${b.label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${b.pct}%;background:${b.color}"></div></div>
+      <div class="bar-pct">${b.pct.toFixed(1)}</div>
+    </div>`).join('');
+
+  document.getElementById('kpi-stats-extra').innerHTML = `
+    <div style="font-size:13px;color:var(--text-2)"><span style="font-weight:700;color:var(--text)">${kpi.totalDone??0}</span> task selesai</div>
+    <div style="font-size:13px;color:var(--text-2)"><span style="font-weight:700;color:var(--text)">${kpi.totalAssigned??0}</span> ditugaskan</div>
+    <div style="font-size:13px;color:var(--text-2)"><span style="font-weight:700;color:var(--text)">${kpi.totalTepat??0}</span> tepat waktu</div>
+    <div style="font-size:13px;color:var(--text-2)"><span style="font-weight:700;color:var(--text)">${kpi.totalRevisi??0}</span> revisi</div>`;
+}
+
+function hitungGrade(s) {
+  if (!s && s !== 0) return '—';
+  return s >= 85 ? 'A' : s >= 70 ? 'B' : s >= 50 ? 'C' : 'D';
+}
+function labelGrade(g) {
+  return { A:'Sangat Baik', B:'Baik', C:'Cukup', D:'Perlu Perbaikan' }[g] || '—';
+}
+
+async function loadHistory(userId) {
+  try {
+    const { riwayat } = await KPI.riwayat(userId);
+    const row = document.getElementById('history-row');
+    if (!riwayat?.length) { row.innerHTML = '<div style="color:var(--text-3);font-size:13px;padding:10px">Belum ada riwayat</div>'; return; }
+    const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    row.innerHTML = riwayat.map(r => {
+      const g = hitungGrade(r.skorTotal);
+      const c = {A:'var(--green)',B:'var(--purple)',C:'var(--orange)',D:'var(--red)'}[g] || 'var(--text-3)';
+      return `<div class="history-month">
+        <div class="hm-month">${BLN[r.periodeBulan-1]} ${String(r.periodeTahun).slice(-2)}</div>
+        <div class="hm-score" style="color:${c}">${r.skorTotal?.toFixed(0)??'—'}</div>
+        <div style="font-size:11px;font-weight:700;color:${c}">${g}</div>
+      </div>`;
+    }).join('');
+  } catch {}
+}
+
+async function loadAllManagers() {
+  const card = document.getElementById('all-managers-card');
+  try {
+    const bulan = +document.getElementById('f-bulan').value;
+    const tahun = +tahunSel.value;
+    const { managers } = await KPI.semua({ bulan, tahun });
+    card.style.display = 'block';
+    if (!managers.length) { document.getElementById('all-managers-table').innerHTML = '<div style="padding:24px;color:var(--text-3)">Belum ada data</div>'; return; }
+    document.getElementById('all-managers-table').innerHTML = `
+      <table>
+        <thead><tr><th>Manager</th><th>Direktorat</th><th>Skor</th><th>Grade</th><th class="hide-mobile">Done</th><th class="hide-mobile">Tepat Waktu</th><th class="hide-mobile">Revisi</th></tr></thead>
+        <tbody>${managers.map(m => {
+          const g = hitungGrade(m.skorTotal);
+          return `<tr>
+            <td style="font-weight:600">${m.namaLengkap}</td>
+            <td style="color:var(--text-3)">${m.direktorat||'—'}</td>
+            <td style="font-weight:700;font-size:16px">${m.skorTotal?.toFixed(1)??'—'}</td>
+            <td><span class="grade-badge grade-${g}" style="width:32px;height:32px;font-size:15px">${g}</span></td>
+            <td class="hide-mobile">${m.totalDone??'—'}</td>
+            <td class="hide-mobile">${m.totalTepat??'—'}</td>
+            <td class="hide-mobile">${m.totalRevisi??'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+  } catch {}
+}
+
+async function loadTimeAnalytics() {
+  try {
+    const { logs } = await apiFetch('/timelog');
+    if (!logs?.length) return;
+    document.getElementById('timelog-analytics').style.display = '';
+
+    const totalMenit = logs.reduce((s, l) => s + l.durasiMenit, 0);
+    const totalJam   = (totalMenit / 60).toFixed(1);
+    document.getElementById('timelog-total-label').textContent = `Total: ${totalJam} jam (${logs.length} sesi)`;
+
+    // Group by tanggal (last 14 days)
+    const byDate = {};
+    logs.forEach(l => {
+      const d = l.tanggal?.slice(0, 10) || new Date(l.createdAt).toISOString().slice(0, 10);
+      byDate[d] = (byDate[d] || 0) + l.durasiMenit;
+    });
+    const dates = Object.keys(byDate).sort().slice(-14);
+    const maxMin = Math.max(...dates.map(d => byDate[d]), 1);
+
+    document.getElementById('time-chart').innerHTML = dates.map(d => {
+      const mnt  = byDate[d];
+      const pct  = Math.max(4, Math.round((mnt / maxMin) * 100));
+      const jam  = (mnt / 60).toFixed(1);
+      const lbl  = new Date(d).toLocaleDateString('id-ID', { day:'numeric', month:'short' });
+      return `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:24px" title="${lbl}: ${jam} jam">
+          <div style="font-size:9px;color:var(--text-3)">${jam}j</div>
+          <div style="width:100%;border-radius:4px 4px 0 0;background:var(--accent);height:${pct}%;min-height:4px;transition:height .4s"></div>
+        </div>`;
+    }).join('');
+    document.getElementById('time-chart-labels').innerHTML = dates.map(d =>
+      `<span style="font-size:9px;color:var(--text-3)">${new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span>`
+    ).join('');
+
+    // Per-user
+    const byUser = {};
+    logs.forEach(l => {
+      const uid  = l.userId?._id || l.userId;
+      const name = l.userId?.namaLengkap || '—';
+      if (!byUser[uid]) byUser[uid] = { name, menit: 0 };
+      byUser[uid].menit += l.durasiMenit;
+    });
+    const sorted = Object.values(byUser).sort((a, b) => b.menit - a.menit);
+    const maxU   = sorted[0]?.menit || 1;
+    document.getElementById('time-per-user').innerHTML = sorted.map(u => {
+      const jam = (u.menit / 60).toFixed(1);
+      const pct = Math.round((u.menit / maxU) * 100);
+      return `
+        <div class="bar-row">
+          <div class="bar-label">${u.name}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--accent)"></div></div>
+          <div class="bar-pct">${jam}j</div>
+        </div>`;
+    }).join('');
+  } catch {}
+}
+
+async function init() {
+  if (user.role === 'direksi' || user.role === 'superadmin') loadTimeAnalytics();
+  if (user.role === 'direksi') {
+    document.getElementById('user-filter').style.display = '';
+    const fUser = document.getElementById('f-user');
+    const data  = await Users.list({ role:'manager' }).catch(() => ({}));
+    const mgrs  = data.users || data || [];
+    mgrs.forEach(m => {
+      const o = document.createElement('option'); o.value = m._id; o.textContent = m.namaLengkap;
+      fUser.appendChild(o);
+    });
+    loadAllManagers();
+  }
+  loadKpi();
+}
+
+init();
+</script>
+</body>
+</html>

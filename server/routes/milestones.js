@@ -1,0 +1,81 @@
+const router    = require('express').Router();
+const Milestone = require('../models/Milestone');
+const auth      = require('../middleware/auth');
+const { requireRole } = require('../middleware/roles');
+
+// GET /api/milestones
+router.get('/', auth, async (req, res) => {
+  const { direktoratId, status } = req.query;
+  const filter = {};
+  if (direktoratId) filter.direktoratId = direktoratId;
+  if (status) filter.status = status;
+
+  // manager/staff hanya lihat direktorat sendiri (jika tidak filter)
+  if ((req.user.role === 'manager' || req.user.role === 'staff') && !direktoratId) {
+    filter.$or = [
+      { direktoratId: req.user.direktoratId?._id || req.user.direktoratId },
+      { direktoratId: null },
+    ];
+  }
+
+  const milestones = await Milestone.find(filter)
+    .populate('direktoratId', 'nama kode')
+    .populate('createdBy', 'namaLengkap')
+    .populate('taskIds', 'judul status')
+    .sort({ tanggal: 1 });
+
+  res.json({ milestones });
+});
+
+// POST /api/milestones
+router.post('/', auth, async (req, res) => {
+  const { judul, deskripsi, tanggal, direktoratId, taskIds, warna } = req.body;
+  if (!judul || !tanggal) return res.status(400).json({ message: 'Judul dan tanggal wajib diisi' });
+
+  const ms = await Milestone.create({
+    judul, deskripsi, tanggal: new Date(tanggal),
+    direktoratId: direktoratId || null,
+    taskIds: taskIds || [],
+    warna: warna || '#6366F1',
+    createdBy: req.user._id,
+  });
+
+  await ms.populate([
+    { path: 'direktoratId', select: 'nama kode' },
+    { path: 'createdBy', select: 'namaLengkap' },
+  ]);
+
+  res.status(201).json({ message: 'Milestone dibuat', milestone: ms });
+});
+
+// PUT /api/milestones/:id
+router.put('/:id', auth, async (req, res) => {
+  const ms = await Milestone.findById(req.params.id);
+  if (!ms) return res.status(404).json({ message: 'Milestone tidak ditemukan' });
+
+  const { judul, deskripsi, tanggal, status, direktoratId, taskIds, warna } = req.body;
+  if (judul)        ms.judul        = judul;
+  if (deskripsi !== undefined) ms.deskripsi = deskripsi;
+  if (tanggal)      ms.tanggal      = new Date(tanggal);
+  if (status)       ms.status       = status;
+  if (direktoratId !== undefined) ms.direktoratId = direktoratId || null;
+  if (taskIds)      ms.taskIds      = taskIds;
+  if (warna)        ms.warna        = warna;
+
+  await ms.save();
+  res.json({ message: 'Milestone diupdate', milestone: ms });
+});
+
+// DELETE /api/milestones/:id
+router.delete('/:id', auth, async (req, res) => {
+  const ms = await Milestone.findById(req.params.id);
+  if (!ms) return res.status(404).json({ message: 'Milestone tidak ditemukan' });
+
+  if (ms.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'superadmin' && req.user.role !== 'direksi')
+    return res.status(403).json({ message: 'Tidak diizinkan' });
+
+  await ms.deleteOne();
+  res.json({ message: 'Milestone dihapus' });
+});
+
+module.exports = router;

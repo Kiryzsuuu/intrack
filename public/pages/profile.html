@@ -1,0 +1,405 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Profil Saya</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .profile-wrap {
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);overflow:hidden;
+    }
+
+    /* Hero header */
+    .profile-hero {
+      background:#18181B;
+      padding:32px 32px 80px;position:relative;overflow:hidden;
+    }
+    .profile-hero::before {
+      content:'';position:absolute;top:-60px;right:-60px;
+      width:280px;height:280px;border-radius:50%;
+      background:var(--accent);opacity:.07;
+    }
+    .profile-hero::after {
+      content:'';position:absolute;bottom:-40px;left:80px;
+      width:180px;height:180px;border-radius:50%;
+      background:var(--accent);opacity:.05;
+    }
+    .profile-hero-title { font-size:18px;font-weight:700;color:#FAFAFA;margin-bottom:2px;position:relative;z-index:1 }
+    .profile-hero-sub   { font-size:13px;color:#71717A;position:relative;z-index:1 }
+
+    /* Avatar floating */
+    .profile-avatar-row {
+      display:flex;align-items:flex-end;gap:20px;
+      padding:0 32px;margin-top:-48px;margin-bottom:16px;position:relative;
+    }
+    .avatar-xl {
+      width:96px;height:96px;border-radius:50%;flex-shrink:0;
+      background:var(--accent);border:4px solid var(--surface);
+      display:flex;align-items:center;justify-content:center;
+      color:#fff;font-size:32px;font-weight:800;
+      overflow:hidden;position:relative;cursor:pointer;
+      box-shadow:0 4px 16px rgba(0,0,0,.15);
+    }
+    .avatar-xl img { width:100%;height:100%;object-fit:cover }
+    .avatar-xl .av-overlay {
+      position:absolute;inset:0;background:rgba(0,0,0,.45);
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;transition:.2s;border-radius:50%;
+    }
+    .avatar-xl:hover .av-overlay { opacity:1 }
+    .av-overlay i { color:#fff;font-size:22px }
+    .profile-meta { padding-bottom:8px }
+    .profile-meta-name { font-size:20px;font-weight:800;letter-spacing:-.3px;color:#FAFAFA }
+    .profile-meta-role { font-size:13px;color:#71717A;margin-top:2px }
+    .profile-meta-jabatan { font-size:12px;color:#52525B;margin-top:1px }
+
+    /* Sections inside card */
+    .prof-section {
+      padding:24px 32px;border-top:0.5px solid var(--border);
+    }
+    .prof-section-title {
+      font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+      color:var(--text-3);margin-bottom:18px;
+    }
+
+    .field { display:flex;flex-direction:column;gap:6px }
+    .field label { font-size:12px;font-weight:600;color:var(--text-2) }
+    .field input {
+      background:var(--surface-2);border:0.5px solid var(--border);
+      border-radius:var(--r-sm);padding:10px 13px;
+      font-size:14px;color:var(--text);outline:none;transition:var(--transition);
+    }
+    .field input:focus { border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);background:var(--surface) }
+    .field input:disabled { color:var(--text-3);cursor:not-allowed }
+    .row-2 { display:grid;grid-template-columns:1fr 1fr;gap:16px }
+
+    /* Password section */
+    .pass-grid { display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px }
+    @media(max-width:860px){ .pass-grid { grid-template-columns:1fr } }
+
+    /* Toggle */
+    .toggle-row { display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:0.5px solid var(--border) }
+    .toggle-row:last-child { border-bottom:none;padding-bottom:0 }
+    .toggle-row:first-child { padding-top:0 }
+    .toggle { position:relative;width:44px;height:24px;flex-shrink:0 }
+    .toggle input { opacity:0;width:0;height:0 }
+    .slider { position:absolute;inset:0;background:var(--border);border-radius:100px;cursor:pointer;transition:.2s }
+    .slider::before { content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2) }
+    input:checked + .slider { background:var(--accent) }
+    input:checked + .slider::before { transform:translateX(20px) }
+
+    .logout-btn {
+      width:100%;padding:10px 14px;background:transparent;border:0.5px solid rgba(220,38,38,.3);
+      color:var(--red-text,#991B1B);border-radius:var(--r-sm);font-size:13px;font-weight:600;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:background .15s;
+    }
+    .logout-btn:hover { background:var(--red-bg) }
+
+    @media(max-width:760px){
+      .profile-hero { padding:24px 20px 72px }
+      .profile-avatar-row { padding:0 20px }
+      .prof-section { padding:20px }
+      .row-2 { grid-template-columns:1fr }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="profile"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Profil Saya</span></div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+        <div class="profile-wrap">
+
+          <!-- Hero -->
+          <div class="profile-hero">
+            <div class="profile-hero-title">Akun Saya</div>
+            <div class="profile-hero-sub">Kelola informasi dan keamanan akun Anda</div>
+          </div>
+
+          <!-- Avatar + nama -->
+          <div class="profile-avatar-row">
+            <div class="avatar-xl" id="avatar-el" onclick="document.getElementById('avatar-input').click()">
+              <div class="av-overlay"><i class="ti ti-camera"></i></div>
+            </div>
+            <input type="file" id="avatar-input" accept="image/jpg,image/jpeg,image/png,image/webp" style="display:none" onchange="uploadAvatar(event)">
+            <div class="profile-meta">
+              <div class="profile-meta-name" id="profile-name">—</div>
+              <div class="profile-meta-role" id="profile-role">—</div>
+              <div class="profile-meta-jabatan" id="profile-jabatan"></div>
+            </div>
+          </div>
+
+          <!-- Informasi Dasar -->
+          <div class="prof-section">
+            <div class="prof-section-title">Informasi Akun</div>
+            <div class="row-2" style="margin-bottom:14px">
+              <div class="field">
+                <label>ENIK</label>
+                <input type="text" id="f-enik" disabled>
+              </div>
+              <div class="field">
+                <label>Nama Lengkap</label>
+                <input type="text" id="f-nama" placeholder="Nama lengkap...">
+              </div>
+            </div>
+            <div class="row-2" style="margin-bottom:20px">
+              <div class="field">
+                <label>Email</label>
+                <input type="email" id="f-email" disabled>
+              </div>
+              <div class="field">
+                <label>Nomor WhatsApp</label>
+                <input type="text" id="f-wa" placeholder="08xxxxxxxxxx">
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" onclick="saveProfile()"><i class="ti ti-check"></i> Simpan Perubahan</button>
+            </div>
+          </div>
+
+          <!-- Ganti Password -->
+          <div class="prof-section">
+            <div class="prof-section-title">Ganti Password</div>
+            <div class="pass-grid" style="margin-bottom:18px">
+              <div class="field">
+                <label>Password Saat Ini</label>
+                <input type="password" id="f-old-pass" placeholder="Password lama...">
+              </div>
+              <div class="field">
+                <label>Password Baru</label>
+                <input type="password" id="f-new-pass" placeholder="Minimal 6 karakter...">
+              </div>
+              <div class="field">
+                <label>Konfirmasi Password Baru</label>
+                <input type="password" id="f-confirm-pass" placeholder="Ulangi password baru...">
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" onclick="changePassword()"><i class="ti ti-lock"></i> Perbarui Password</button>
+            </div>
+          </div>
+
+          <!-- Notifikasi + Keluar (2 kolom) -->
+          <div class="prof-section">
+            <div class="row-2" style="align-items:start;gap:24px">
+              <div>
+                <div class="prof-section-title" style="margin-bottom:14px">Preferensi Notifikasi</div>
+                <div class="toggle-row">
+                  <div>
+                    <div style="font-size:14px;font-weight:500">Notifikasi Email</div>
+                    <div style="font-size:12px;color:var(--text-3);margin-top:2px">Kirim update task ke email</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" id="notif-email" onchange="saveNotifPref()">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div style="font-size:14px;font-weight:500">Notifikasi WhatsApp</div>
+                    <div style="font-size:12px;color:var(--text-3);margin-top:2px">Butuh nomor WA aktif</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" id="notif-wa" onchange="saveNotifPref()">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div style="font-size:14px;font-weight:500">Push Notifikasi Browser</div>
+                    <div style="font-size:12px;color:var(--text-3);margin-top:2px">Notif Chrome/Arc saat tab tertutup</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" id="notif-push" onchange="togglePushNotif(this.checked)">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div id="push-status" style="font-size:11px;color:var(--text-3);margin-top:6px;padding:6px 0"></div>
+              </div>
+              <div>
+                <div class="prof-section-title" style="margin-bottom:14px">Sesi</div>
+                <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;line-height:1.6">Anda akan keluar dari semua sesi aktif di perangkat ini.</p>
+                <button class="logout-btn" onclick="logout()">
+                  <i class="ti ti-logout"></i> Keluar dari Akun
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script src="/js/dialogs.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+let currentUser = getUser();
+
+const ROLE_MAP = { superadmin:'Superadmin', komisaris:'Komisaris', direksi:'Direksi', manager:'Manager', staff:'Staff' };
+
+function renderProfile(u) {
+  const el = document.getElementById('avatar-el');
+  // Hapus overlay dulu, render ulang dengan gambar/inisial + overlay
+  const initStr = (u.namaLengkap || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  if (u.fotoProfil) {
+    el.innerHTML = `<img src="${u.fotoProfil}" alt=""><div class="av-overlay"><i class="ti ti-camera"></i></div>`;
+  } else {
+    el.innerHTML = `<span>${initStr}</span><div class="av-overlay"><i class="ti ti-camera"></i></div>`;
+  }
+
+  document.getElementById('profile-name').textContent    = u.namaLengkap;
+  const roleName  = ROLE_MAP[u.role] || u.role;
+  const dirSuffix = u.direktoratId?.kode ? ' — ' + u.direktoratId.kode : '';
+  document.getElementById('profile-role').textContent    = ['manager','staff','direksi'].includes(u.role) ? roleName + dirSuffix : roleName;
+  document.getElementById('profile-jabatan').textContent = u.jabatan || '';
+
+  document.getElementById('f-enik').value  = u.enik  || '—';
+  document.getElementById('f-nama').value  = u.namaLengkap;
+  document.getElementById('f-email').value = u.email;
+  document.getElementById('f-wa').value    = u.nomorWa || '';
+  document.getElementById('notif-email').checked = !!u.notifEmail;
+  document.getElementById('notif-wa').checked    = !!u.notifWa;
+  checkPushStatus();
+}
+
+async function saveProfile() {
+  const namaLengkap = document.getElementById('f-nama').value.trim();
+  const nomorWa     = document.getElementById('f-wa').value.trim();
+  if (!namaLengkap) { showToast('Nama tidak boleh kosong', 'error'); return; }
+  try {
+    const { user } = await Users.updateMe({ namaLengkap, nomorWa });
+    localStorage.setItem('wt_user', JSON.stringify(user));
+    renderProfile(user);
+    showToast('Profil berhasil disimpan');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function changePassword() {
+  const passwordLama = document.getElementById('f-old-pass').value;
+  const passwordBaru = document.getElementById('f-new-pass').value;
+  const konfirmasi   = document.getElementById('f-confirm-pass').value;
+  if (!passwordLama || !passwordBaru) { showToast('Password lama dan baru wajib diisi', 'error'); return; }
+  if (passwordBaru.length < 6)        { showToast('Password baru minimal 6 karakter', 'error'); return; }
+  if (passwordBaru !== konfirmasi)    { showToast('Konfirmasi password tidak cocok', 'error'); return; }
+  try {
+    await Auth.changePassword({ passwordLama, passwordBaru });
+    showToast('Password berhasil diperbarui');
+    ['f-old-pass','f-new-pass','f-confirm-pass'].forEach(id => document.getElementById(id).value = '');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function checkPushStatus() {
+  const cb  = document.getElementById('notif-push');
+  const lbl = document.getElementById('push-status');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    cb.disabled = true;
+    lbl.textContent = 'Browser tidak mendukung push notification';
+    return;
+  }
+  const perm = Notification.permission;
+  if (perm === 'denied') {
+    cb.checked = false; cb.disabled = true;
+    lbl.textContent = '⚠ Push diblokir di browser. Aktifkan lewat pengaturan situs.';
+    lbl.style.color = 'var(--red-text)';
+    return;
+  }
+  const reg = await navigator.serviceWorker.getRegistration('/sw.js').catch(() => null);
+  const sub = await reg?.pushManager?.getSubscription().catch(() => null);
+  cb.checked = !!sub;
+  lbl.textContent = sub ? '✓ Aktif di perangkat ini' : 'Belum diaktifkan di perangkat ini';
+  lbl.style.color = sub ? 'var(--green-text)' : 'var(--text-3)';
+}
+
+async function togglePushNotif(enable) {
+  const lbl = document.getElementById('push-status');
+  try {
+    if (enable) {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        document.getElementById('notif-push').checked = false;
+        lbl.textContent = '⚠ Izin ditolak. Aktifkan di pengaturan browser.';
+        lbl.style.color = 'var(--red-text)';
+        return;
+      }
+      // Subscribe
+      const { publicKey } = await apiFetch('/push/vapid-public-key');
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(publicKey),
+      });
+      await apiFetch('/push/subscribe', { method:'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+      showToast('Push notifikasi diaktifkan');
+      lbl.textContent = '✓ Aktif di perangkat ini';
+      lbl.style.color = 'var(--green-text)';
+    } else {
+      const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+      const sub = await reg?.pushManager?.getSubscription();
+      if (sub) {
+        await apiFetch('/push/subscribe', { method:'DELETE', body: JSON.stringify({ endpoint: sub.endpoint }) });
+        await sub.unsubscribe();
+      }
+      showToast('Push notifikasi dinonaktifkan');
+      lbl.textContent = 'Belum diaktifkan di perangkat ini';
+      lbl.style.color = 'var(--text-3)';
+    }
+  } catch(e) { showToast(e.message, 'error'); checkPushStatus(); }
+}
+
+function urlB64ToUint8Array(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function saveNotifPref() {
+  try {
+    await Users.updateMe({ notifEmail: document.getElementById('notif-email').checked, notifWa: document.getElementById('notif-wa').checked });
+    showToast('Preferensi notifikasi disimpan');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function uploadAvatar(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { showToast('Ukuran foto maksimal 2MB', 'error'); return; }
+  showToast('Mengunggah foto...');
+  try {
+    const { user } = await Users.uploadAvatar(file);
+    localStorage.setItem('wt_user', JSON.stringify(user));
+    renderProfile(user);
+    showToast('Foto profil diperbarui');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function logout() {
+  if (!await showConfirm('Keluar dari akun?', { title: 'Keluar', okLabel: 'Keluar', cancelLabel: 'Batal', type: 'warning' })) return;
+  try { await Auth.logout(); } catch {}
+  clearSession();
+  window.location.href = '/pages/login.html';
+}
+
+Auth.me().then(({ user }) => {
+  localStorage.setItem('wt_user', JSON.stringify(user));
+  renderProfile(user);
+}).catch(() => renderProfile(currentUser));
+</script>
+</body>
+</html>

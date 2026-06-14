@@ -1,0 +1,19 @@
+{
+  "name": "Intrack",
+  "short_name": "Intrack",
+  "description": "Task Management & KPI Tracker",
+  "start_url": "/pages/dashboard.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0F0F12",
+  "theme_color": "#5B4FE8",
+  "lang": "id",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Buat Task", "short_name": "Buat", "url": "/pages/task-form.html", "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }] },
+    { "name": "Board Kanban", "short_name": "Board", "url": "/pages/board.html", "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }] }
+  ]
+}

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Login</title>
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <style>
+    :root {
+      --accent:#5B4FE8;--accent-hover:#4A3FD4;--accent-dim:rgba(91,79,232,.12);
+      --bg:#F2F2F5;--surface:#FFFFFF;--surface-2:#F7F7F9;
+      --border:rgba(0,0,0,.07);--text:#18181B;--text-2:#52525B;--text-3:#A1A1AA;
+      --red:#DC2626;--red-bg:#FEF2F2;
+    }
+    @media(prefers-color-scheme:dark){
+      :root{
+        --bg:#0C0C0E;--surface:#18181B;--surface-2:#27272A;
+        --border:rgba(255,255,255,.07);--text:#FAFAFA;--text-2:#A1A1AA;--text-3:#52525B;
+        --red-bg:#450a0a;
+      }
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:-apple-system,"Inter","Segoe UI",sans-serif;
+      background:var(--bg);color:var(--text);
+      min-height:100vh;display:flex;align-items:center;justify-content:center;
+    }
+    .split{display:flex;width:100%;min-height:100vh}
+
+    /* Left panel */
+    .split-left{
+      flex:1;background:#18181B;
+      display:flex;flex-direction:column;justify-content:space-between;
+      padding:48px;position:relative;overflow:hidden;
+    }
+    .split-left::before{
+      content:'';position:absolute;top:-80px;right:-80px;
+      width:400px;height:400px;background:var(--accent);opacity:.08;border-radius:50%;
+    }
+    .split-left::after{
+      content:'';position:absolute;bottom:-60px;left:-60px;
+      width:300px;height:300px;background:var(--accent);opacity:.06;border-radius:50%;
+    }
+    .brand{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+    .brand-mark{
+      width:38px;height:38px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      overflow:hidden;flex-shrink:0;
+    }
+    .brand-mark img{width:38px;height:38px;object-fit:contain}
+    .brand-mark-fallback{
+      width:38px;height:38px;border-radius:10px;
+      background:var(--accent);display:flex;align-items:center;
+      justify-content:center;color:white;font-size:18px;font-weight:700;
+    }
+    .brand-name{color:#FAFAFA;font-size:19px;font-weight:700;letter-spacing:-.3px}
+
+    .hero{position:relative;z-index:1}
+    .hero-title{font-size:34px;font-weight:800;color:#FAFAFA;line-height:1.2;margin-bottom:14px;letter-spacing:-.6px}
+    .hero-title span{color:var(--accent)}
+    .hero-sub{font-size:14px;color:#71717A;line-height:1.7;max-width:340px}
+
+    .feature-list{display:flex;flex-direction:column;gap:14px;position:relative;z-index:1}
+    .feature-item{display:flex;align-items:center;gap:12px}
+    .feature-icon{
+      width:34px;height:34px;border-radius:8px;
+      background:rgba(91,79,232,.2);display:flex;align-items:center;
+      justify-content:center;color:#A5B4FC;flex-shrink:0;font-size:17px;
+    }
+    .feature-text{font-size:13px;color:#A1A1AA}
+
+    /* Right panel */
+    .split-right{
+      width:480px;flex-shrink:0;background:var(--surface);
+      display:flex;align-items:center;justify-content:center;padding:48px;
+    }
+    .form-box{width:100%;max-width:360px}
+    .form-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:6px;letter-spacing:-.4px}
+    .form-sub{font-size:13px;color:var(--text-3);margin-bottom:32px}
+
+    .field{margin-bottom:16px}
+    .field label{
+      display:block;font-size:11px;font-weight:700;color:var(--text-3);
+      text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;
+    }
+    .field input{
+      width:100%;background:var(--surface-2);border:0.5px solid var(--border);
+      border-radius:8px;padding:11px 13px;font-size:14px;color:var(--text);
+      outline:none;transition:border-color .15s,box-shadow .15s;
+    }
+    .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);background:var(--surface)}
+    .field input::placeholder{color:var(--text-3)}
+
+    .pass-wrap{position:relative}
+    .pass-toggle{
+      position:absolute;right:11px;top:50%;transform:translateY(-50%);
+      background:none;border:none;cursor:pointer;color:var(--text-3);
+      font-size:17px;padding:4px;line-height:1;
+    }
+    .pass-toggle:hover{color:var(--text)}
+
+    .btn-login{
+      width:100%;padding:12px;background:var(--accent);color:white;
+      border:none;border-radius:8px;font-size:14px;font-weight:700;
+      cursor:pointer;transition:background .15s,transform .1s;
+      margin-bottom:14px;letter-spacing:.1px;
+    }
+    .btn-login:hover:not(:disabled){background:var(--accent-hover)}
+    .btn-login:active:not(:disabled){transform:scale(.99)}
+    .btn-login:disabled{opacity:.55;cursor:not-allowed}
+
+    .alert{
+      border-radius:8px;padding:11px 14px;font-size:13px;margin-bottom:16px;
+      display:none;line-height:1.5;
+    }
+    .alert-error{background:var(--red-bg);border:0.5px solid rgba(220,38,38,.25);color:#991B1B}
+    .alert-info{background:#EFF6FF;border:0.5px solid rgba(37,99,235,.25);color:#1E40AF}
+
+    @media(max-width:860px){
+      .split-left{display:none}
+      .split-right{width:100%;padding:32px 24px}
+    }
+  </style>
+</head>
+<body>
+<div class="split">
+  <!-- Left branding panel -->
+  <div class="split-left" id="left-panel">
+    <div class="brand">
+      <div class="brand-mark" id="brand-mark">
+        <img src="/img/logo.png" alt="Logo"
+          onerror="this.parentElement.innerHTML='<div class=brand-mark-fallback>I</div>'">
+      </div>
+      <div class="brand-name" id="brand-name">Intrack</div>
+    </div>
+
+    <div class="hero">
+      <h1 class="hero-title" id="hero-title">Kelola task.<br>Pantau <span id="hero-title-accent">KPI tim.</span></h1>
+      <p class="hero-sub" id="hero-sub">Intrack membantu Direksi dan Manager merencanakan, melacak, dan menyelesaikan pekerjaan dengan sistem approval dan KPI otomatis.</p>
+    </div>
+
+    <div class="feature-list" id="feature-list">
+      <div class="feature-item">
+        <div class="feature-icon"><i class="ti ti-layout-kanban"></i></div>
+        <span class="feature-text">Kanban board &amp; list view untuk monitoring task</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon"><i class="ti ti-chart-bar"></i></div>
+        <span class="feature-text">Perhitungan KPI otomatis per Manager</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon"><i class="ti ti-bell"></i></div>
+        <span class="feature-text">Notifikasi realtime &amp; pengingat deadline</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right login panel -->
+  <div class="split-right">
+    <div class="form-box">
+      <h2 class="form-title" id="login-title">Selamat datang</h2>
+      <p class="form-sub" id="login-subtitle">Masuk ke akun Intrack Anda</p>
+
+      <div class="alert alert-error" id="err-msg"></div>
+      <div class="alert alert-info"  id="info-msg"></div>
+
+      <div class="field">
+        <label for="inp-email">ENIK</label>
+        <input type="text" id="inp-email" placeholder="Masukkan ENIK Anda"
+          autocomplete="username" inputmode="numeric" onkeydown="onEnter(event)">
+      </div>
+
+      <div class="field">
+        <label for="inp-password">Password</label>
+        <div class="pass-wrap">
+          <input type="password" id="inp-password" placeholder="••••••••"
+            autocomplete="current-password" onkeydown="onEnter(event)">
+          <button type="button" class="pass-toggle" onclick="togglePass()" aria-label="Lihat password">
+            <i class="ti ti-eye" id="eye-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-login" id="btn-login" onclick="doLogin()">
+        Masuk
+      </button>
+      <div style="text-align:center;margin-top:4px">
+        <a href="/pages/forgot-password.html" style="font-size:13px;color:var(--accent);text-decoration:none">Lupa password?</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+// Jika sudah login, langsung ke dashboard
+(function checkSession() {
+  try { if (getToken()) window.location.replace('/pages/dashboard.html'); } catch(e) {}
+})();
+
+// Load settings dari API dan terapkan ke halaman login
+(async function applySettings() {
+  try {
+    var s = await fetch('/api/site-settings').then(function(r){ return r.json(); });
+    if (!s) return;
+
+    // Nama app
+    var brandName = document.getElementById('brand-name');
+    if (brandName && s.appName) brandName.textContent = s.appName;
+    document.title = (s.appName || 'Intrack') + ' — Login';
+
+    // Accent color
+    if (s.accentColor) document.documentElement.style.setProperty('--accent', s.accentColor);
+
+    // Logo
+    if (s.appLogo) {
+      var img = document.querySelector('#brand-mark img');
+      if (img) img.src = s.appLogo;
+    }
+
+    // Hero
+    var heroTitle = document.getElementById('hero-title');
+    if (heroTitle && (s.heroLine1 || s.heroLine2)) {
+      heroTitle.innerHTML = (s.heroLine1 || '') + '<br><span id="hero-title-accent">' + (s.heroLine2 || '') + '</span>';
+    }
+    var heroSub = document.getElementById('hero-sub');
+    if (heroSub && s.heroSub) heroSub.textContent = s.heroSub;
+
+    // Features
+    if (s.loginFeatures && s.loginFeatures.length) {
+      var list = document.getElementById('feature-list');
+      if (list) list.innerHTML = s.loginFeatures.map(function(f) {
+        return '<div class="feature-item"><div class="feature-icon"><i class="ti ' + f.icon + '"></i></div><span class="feature-text">' + f.text + '</span></div>';
+      }).join('');
+    }
+
+    // Form title & subtitle
+    var lt = document.getElementById('login-title');
+    var ls = document.getElementById('login-subtitle');
+    if (lt && s.loginTitle)    lt.textContent = s.loginTitle;
+    if (ls && s.loginSubtitle) ls.textContent = s.loginSubtitle;
+  } catch(e) { /* silently ignore */ }
+})();
+
+function showError(msg) {
+  var el = document.getElementById('err-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('info-msg').style.display = 'none';
+}
+
+function showInfo(msg) {
+  var el = document.getElementById('info-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('err-msg').style.display = 'none';
+}
+
+function clearAlerts() {
+  document.getElementById('err-msg').style.display  = 'none';
+  document.getElementById('info-msg').style.display = 'none';
+}
+
+function onEnter(e) {
+  if (e.key === 'Enter') doLogin();
+}
+
+function togglePass() {
+  var inp = document.getElementById('inp-password');
+  var ico = document.getElementById('eye-icon');
+  inp.type      = inp.type === 'password' ? 'text' : 'password';
+  ico.className = inp.type === 'text' ? 'ti ti-eye-off' : 'ti ti-eye';
+}
+
+async function doLogin() {
+  var email    = (document.getElementById('inp-email').value    || '').trim();
+  var password = (document.getElementById('inp-password').value || '');
+  var btn      = document.getElementById('btn-login');
+
+  clearAlerts();
+
+  if (!email)    { showError('ENIK wajib diisi.');    return; }
+  if (!password) { showError('Password wajib diisi.'); return; }
+
+  btn.disabled    = true;
+  btn.textContent = 'Masuk...';
+
+  try {
+    var data = await Auth.login(email, password);
+    if (data && data.user && data.user.isFirstLogin) {
+      showInfo('Login pertama! Silakan ganti password di halaman Profil setelah masuk.');
+      setTimeout(function() { window.location.href = '/pages/dashboard.html'; }, 1400);
+    } else {
+      window.location.href = '/pages/dashboard.html';
+    }
+  } catch (err) {
+    showError(err && err.message ? err.message : 'Gagal login. Periksa email dan password.');
+    btn.disabled    = false;
+    btn.textContent = 'Masuk';
+  }
+}
+</script>
+</body>
+</html>

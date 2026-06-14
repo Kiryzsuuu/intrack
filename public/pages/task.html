@@ -1,0 +1,993 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorkTrack — Detail Task</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .task-body{padding:20px;display:grid;grid-template-columns:1fr 320px;gap:16px}
+    .task-main{display:flex;flex-direction:column;gap:14px}
+    .task-side{display:flex;flex-direction:column;gap:14px}
+    .section-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:16px}
+    .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .section-title{font-size:13px;font-weight:600}
+    .task-title-big{font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;line-height:1.3}
+    .task-desc{font-size:13px;color:var(--text-2);line-height:1.7;white-space:pre-wrap}
+    .meta-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3);margin-bottom:8px}
+    .meta-row strong{color:var(--text-2)}
+    .badge-waiting{background:#FFF7ED;color:#9A3412;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
+    .badge-todo{background:var(--surface-2);color:var(--text-3);border:0.5px solid var(--border);font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
+    .badge-progress{background:#F5F3FF;color:#4C1D95;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
+    .badge-review{background:#FFF7ED;color:#9A3412;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
+    .badge-revisi{background:#FEF2F2;color:#991B1B;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
+    .badge-done{background:#DCFCE7;color:#166534;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
+    .badge-rejected{background:#F4F4F5;color:#71717A;font-size:11px;padding:3px 10px;border-radius:100px;font-weight:600}
+    .subtask-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)}
+    .subtask-item:last-child{border-bottom:none}
+    .subtask-cb{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+    .subtask-txt{font-size:12px;flex:1}
+    .subtask-txt.done{text-decoration:line-through;color:var(--text-3)}
+    .ev-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)}
+    .ev-item:last-child{border-bottom:none}
+    .ev-icon{width:32px;height:32px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .kom-item{display:flex;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)}
+    .kom-item:last-child{border-bottom:none}
+    .kom-body{flex:1}
+    .kom-meta{font-size:11px;color:var(--text-3);margin-bottom:4px}
+    .kom-isi{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap}
+    .log-item{display:flex;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+    .log-item:last-child{border-bottom:none}
+    .log-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:4px}
+    .status-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+
+    /* Mention popup */
+    #mention-popup {
+      position:fixed;background:var(--surface);border:0.5px solid var(--border);
+      border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.12);
+      z-index:500;min-width:200px;max-height:220px;overflow-y:auto;display:none;
+    }
+    .mention-item {
+      display:flex;align-items:center;gap:10px;padding:9px 14px;
+      cursor:pointer;transition:background .1s;font-size:13px;
+    }
+    .mention-item:hover,.mention-item.focused{background:var(--surface-2)}
+    .mention-av {
+      width:28px;height:28px;border-radius:50%;background:var(--accent);
+      display:flex;align-items:center;justify-content:center;
+      color:#fff;font-size:11px;font-weight:700;flex-shrink:0;
+    }
+    .mention-name { font-weight:500 }
+    .mention-role { font-size:11px;color:var(--text-3) }
+    .tag-pill{font-size:11px;background:var(--accent-light);color:var(--accent);padding:2px 8px;border-radius:100px}
+    .revisi-note{background:var(--red-bg);border:0.5px solid rgba(220,38,38,.2);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--red-text);margin-top:8px}
+    @media(max-width:900px){.task-body{grid-template-columns:1fr}.task-side{order:-1}}
+    @media(max-width:480px){.status-actions{flex-direction:column}}
+
+    /* Evidence viewer modal */
+    #ev-modal {
+      position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.85);
+      display:none;flex-direction:column;align-items:center;justify-content:center;
+    }
+    #ev-modal.open { display:flex }
+    #ev-modal-header {
+      width:100%;max-width:960px;display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px;flex-shrink:0;
+    }
+    #ev-modal-title { color:#fff;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70% }
+    #ev-modal-actions { display:flex;gap:8px;flex-shrink:0 }
+    #ev-modal-actions a, #ev-modal-actions button {
+      background:rgba(255,255,255,.12);border:none;color:#fff;
+      padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;
+      cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:6px;
+      transition:background .15s;
+    }
+    #ev-modal-actions a:hover, #ev-modal-actions button:hover { background:rgba(255,255,255,.22) }
+    #ev-modal-body {
+      flex:1;width:100%;max-width:960px;padding:0 16px 16px;overflow:hidden;
+      display:flex;align-items:center;justify-content:center;
+    }
+    #ev-modal-body img {
+      max-width:100%;max-height:calc(100vh - 120px);object-fit:contain;
+      border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.4);
+    }
+    #ev-modal-body iframe {
+      width:100%;height:calc(100vh - 120px);border:none;border-radius:8px;
+    }
+    #ev-modal-body .ev-no-preview {
+      text-align:center;color:rgba(255,255,255,.6);
+    }
+    #ev-modal-body .ev-no-preview i { font-size:64px;opacity:.4;display:block;margin-bottom:16px }
+    #ev-modal-body .ev-no-preview p { font-size:15px;margin-bottom:20px }
+
+    /* Click outside to close */
+    #ev-modal-backdrop { position:absolute;inset:0;z-index:-1 }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="tasks"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <a href="/pages/dashboard.html">Dashboard</a>
+        <span class="bc-sep">/</span>
+        <a href="/pages/list.html">Task</a>
+        <span class="bc-sep">/</span>
+        <span class="cur" id="bc-title">Detail</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" id="btn-edit" style="display:none" onclick="editTask()"><i class="ti ti-pencil"></i> Edit</button>
+        <button class="btn btn-danger" id="btn-delete" style="display:none" onclick="deleteTask()"><i class="ti ti-trash"></i> Hapus</button>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="task-body">
+        <div class="task-main">
+
+          <!-- Main info -->
+          <div class="section-card" id="card-main">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+              <div id="task-status-badge"></div>
+              <div id="status-actions" class="status-actions"></div>
+            </div>
+            <h1 class="task-title-big" id="task-title">—</h1>
+            <div id="revisi-note" class="revisi-note" style="display:none"></div>
+            <div class="task-desc" id="task-desc">—</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px" id="task-tags"></div>
+          </div>
+
+          <!-- Subtasks -->
+          <div class="section-card">
+            <div class="section-head">
+              <span class="section-title">Subtask</span>
+              <span id="subtask-progress" style="font-size:12px;color:var(--text-3)"></span>
+            </div>
+            <div class="prog-track" style="margin-bottom:12px"><div class="prog-fill" id="subtask-bar" style="width:0%"></div></div>
+            <div id="subtask-list"></div>
+            <div id="add-subtask-form" style="display:none;margin-top:10px">
+              <div style="display:flex;gap:6px">
+                <input type="text" id="new-subtask" class="input" placeholder="Judul subtask..." maxlength="100" style="flex:1">
+                <button class="btn btn-primary" onclick="addSubtask()"><i class="ti ti-plus"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Evidence -->
+          <div class="section-card">
+            <div class="section-head">
+              <span class="section-title">Evidence</span>
+              <label id="upload-ev-btn" class="btn" style="cursor:pointer;display:none">
+                <i class="ti ti-upload"></i> Upload
+                <input type="file" id="ev-file" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" onchange="uploadEvidence()">
+              </label>
+            </div>
+            <div id="evidence-list"><div style="color:var(--text-3);font-size:13px">Belum ada evidence</div></div>
+          </div>
+
+          <!-- Komentar -->
+          <div class="section-card">
+            <div class="section-head"><span class="section-title">Komentar</span></div>
+            <div id="komentar-list"></div>
+            <div style="margin-top:12px;display:flex;gap:8px;position:relative" id="komentar-form">
+              <div style="flex:1;position:relative">
+                <textarea id="new-kom" class="input" rows="2" placeholder="Tulis komentar... ketik @ untuk mention" style="resize:vertical;width:100%" onkeyup="onKomKeyup(event)" onkeydown="onKomKeydown(event)"></textarea>
+              </div>
+              <button class="btn btn-primary" onclick="sendKomentar()" style="height:fit-content;align-self:flex-end"><i class="ti ti-send"></i></button>
+            </div>
+          </div>
+          <div id="mention-popup"></div>
+
+          <!-- Time Tracking -->
+          <div class="section-card" id="timelog-section" style="display:none">
+            <div class="section-head">
+              <span class="section-title"><i class="ti ti-clock" style="font-size:14px;margin-right:4px"></i>Time Tracking</span>
+              <span id="timelog-total" style="font-size:12px;color:var(--text-3)"></span>
+            </div>
+            <div id="timelog-form" style="display:none;margin-bottom:14px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:14px;gap:10px;flex-direction:column">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Durasi (menit)</label>
+                  <input type="number" id="tl-menit" class="input" min="1" max="1440" placeholder="contoh: 90">
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Tanggal</label>
+                  <input type="date" id="tl-tanggal" class="input">
+                </div>
+              </div>
+              <input type="text" id="tl-catatan" class="input" placeholder="Catatan (opsional)...">
+              <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button class="btn" onclick="cancelTimeLog()">Batal</button>
+                <button class="btn btn-primary" onclick="submitTimeLog()"><i class="ti ti-check"></i> Simpan</button>
+              </div>
+            </div>
+            <!-- Stopwatch -->
+            <div id="stopwatch-bar" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:10px 14px">
+              <i class="ti ti-clock-play" style="font-size:18px;color:var(--accent);flex-shrink:0"></i>
+              <span id="sw-display" style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.5px;color:var(--text);min-width:80px">00:00:00</span>
+              <div style="display:flex;gap:6px;margin-left:auto">
+                <button id="sw-btn-start" class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="swStart()"><i class="ti ti-player-play"></i> Mulai</button>
+                <button id="sw-btn-stop" class="btn" style="font-size:12px;padding:6px 14px;display:none" onclick="swStop()"><i class="ti ti-player-stop"></i> Stop & Simpan</button>
+                <button id="sw-btn-discard" class="btn" style="font-size:12px;padding:6px 14px;display:none;color:var(--red-text)" onclick="swDiscard()"><i class="ti ti-x"></i></button>
+              </div>
+            </div>
+            <div id="timelog-list"></div>
+            <button class="btn" id="tl-add-btn" onclick="showTimeLogForm()" style="width:100%;margin-top:10px;justify-content:center">
+              <i class="ti ti-plus"></i> Catat Manual
+            </button>
+          </div>
+
+          <!-- Task Dependencies -->
+          <div class="section-card" id="dep-section" style="display:none">
+            <div class="section-head">
+              <span class="section-title"><i class="ti ti-arrow-merge-right" style="font-size:14px;margin-right:4px"></i>Dependencies</span>
+              <button class="btn" id="dep-add-btn" onclick="showDepForm()" style="font-size:12px;padding:5px 10px"><i class="ti ti-plus"></i></button>
+            </div>
+            <div id="dep-add-form" style="display:none;margin-bottom:10px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:12px">
+              <label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Task yang harus selesai dulu</label>
+              <div style="display:flex;gap:8px">
+                <select id="dep-select" class="input" style="flex:1;font-size:13px"><option value="">Pilih task...</option></select>
+                <button class="btn btn-primary" onclick="addDependency()">Tambah</button>
+              </div>
+            </div>
+            <div id="dep-list"><div style="font-size:12px;color:var(--text-3)">Tidak ada dependency</div></div>
+          </div>
+
+          <!-- Recurrence & Template -->
+          <div class="section-card" id="recurring-section" style="display:none">
+            <div class="section-head"><span class="section-title"><i class="ti ti-refresh" style="font-size:14px;margin-right:4px"></i>Pengulangan (Recurring)</span></div>
+            <div id="recurring-info" style="margin-bottom:10px"></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select id="rec-tipe" class="input" style="font-size:13px;flex:1;min-width:140px">
+                <option value="none">Tidak berulang</option>
+                <option value="daily">Setiap X hari</option>
+                <option value="weekly">Setiap X minggu</option>
+                <option value="monthly">Setiap X bulan</option>
+              </select>
+              <input type="number" id="rec-interval" class="input" value="1" min="1" max="30" style="width:70px" placeholder="X">
+              <button class="btn btn-primary" onclick="saveRecurrence()" style="font-size:12px">Simpan</button>
+            </div>
+          </div>
+
+          <!-- Save as Template -->
+          <div class="section-card" id="template-save-section" style="display:none">
+            <div class="section-head"><span class="section-title"><i class="ti ti-copy" style="font-size:14px;margin-right:4px"></i>Template Task</span></div>
+            <p style="font-size:12px;color:var(--text-3);margin-bottom:10px">Simpan task ini sebagai template untuk digunakan kembali.</p>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="tpl-nama" class="input" placeholder="Nama template (opsional)" style="flex:1">
+              <button class="btn" onclick="saveAsTemplate()"><i class="ti ti-device-floppy"></i> Simpan Template</button>
+            </div>
+          </div>
+
+          <!-- Status log -->
+          <div class="section-card">
+            <div class="section-head"><span class="section-title">Riwayat Status</span></div>
+            <div id="status-log"></div>
+          </div>
+
+        </div>
+
+        <!-- Sidebar detail -->
+        <div class="task-side">
+          <div class="section-card" id="card-meta">
+            <div class="section-title" style="margin-bottom:12px">Detail Task</div>
+            <div class="meta-row"><i class="ti ti-user" style="font-size:14px"></i> PIC: <strong id="m-pic">—</strong></div>
+            <div class="meta-row"><i class="ti ti-building" style="font-size:14px"></i> Direktorat: <strong id="m-dir">—</strong></div>
+            <div class="meta-row"><i class="ti ti-calendar" style="font-size:14px"></i> Deadline: <strong id="m-deadline">—</strong></div>
+            <div class="meta-row"><i class="ti ti-flag" style="font-size:14px"></i> Prioritas: <strong id="m-prio">—</strong></div>
+            <div class="meta-row"><i class="ti ti-user-plus" style="font-size:14px"></i> Dibuat oleh: <strong id="m-creator">—</strong></div>
+            <div class="meta-row"><i class="ti ti-clock" style="font-size:14px"></i> Dibuat: <strong id="m-created">—</strong></div>
+            <div id="m-collaborators-wrap" style="display:none">
+              <div class="divider"></div>
+              <div class="section-lbl">Collaborators</div>
+              <div id="m-collaborators"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Evidence viewer modal -->
+<div id="ev-modal">
+  <div id="ev-modal-backdrop" onclick="closeEvModal()"></div>
+  <div id="ev-modal-header">
+    <span id="ev-modal-title"></span>
+    <div id="ev-modal-actions">
+      <a id="ev-modal-dl" download><i class="ti ti-download"></i> Download</a>
+      <button onclick="closeEvModal()"><i class="ti ti-x"></i> Tutup</button>
+    </div>
+  </div>
+  <div id="ev-modal-body" id="ev-modal-content"></div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script src="/js/dialogs.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user      = getUser();
+const taskId    = new URLSearchParams(window.location.search).get('id');
+if (!taskId) window.location.href = '/pages/list.html';
+
+let taskData = null;
+
+async function loadTask() {
+  try {
+    const { task, subtasks, evidences, logs } = await Tasks.get(taskId);
+    taskData = task;
+    renderTask(task);
+    renderSubtasks(subtasks);
+    renderEvidence(evidences);
+    renderLogs(logs);
+    loadKomentar();
+    loadTimeLog();
+    loadDependencies();
+    initRecurringUI(task);
+    initTemplateSection();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+function renderTask(t) {
+  document.getElementById('bc-title').textContent     = t.judul.slice(0, 40);
+  document.getElementById('task-title').textContent   = t.judul;
+  document.getElementById('task-desc').textContent    = t.deskripsi;
+  document.getElementById('task-status-badge').innerHTML = `<span class="${statusBadgeClass(t.status)}" style="font-size:12px">${statusLabel(t.status)}</span>`;
+
+  document.getElementById('m-pic').textContent     = t.picUserId?.namaLengkap || '—';
+  document.getElementById('m-dir').textContent     = t.direktoratId?.nama || '—';
+  document.getElementById('m-deadline').textContent= `${formatTanggal(t.deadline)}${isOverdue(t)?' ⚠':''}`;
+  document.getElementById('m-deadline').style.color= isOverdue(t) ? 'var(--red)' : '';
+  document.getElementById('m-prio').textContent    = prioritasLabel(t.prioritas);
+  document.getElementById('m-creator').textContent = t.dibuatOleh?.namaLengkap || '—';
+  document.getElementById('m-created').textContent = formatTanggal(t.createdAt);
+
+  // Tags
+  const tagsEl = document.getElementById('task-tags');
+  tagsEl.innerHTML = (t.tags || []).map(g => `<span class="tag-pill">${g}</span>`).join('');
+
+  // Revisi note
+  if (t.status === 'revisi' && t.catatanDireksi) {
+    const rn = document.getElementById('revisi-note');
+    rn.textContent = '📋 Catatan revisi: ' + t.catatanDireksi;
+    rn.style.display = 'block';
+  }
+
+  // Collaborators
+  if (t.collaborators?.length) {
+    document.getElementById('m-collaborators-wrap').style.display = 'block';
+    document.getElementById('m-collaborators').innerHTML = t.collaborators.map(c => `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <div class="av av-sm av-v" style="flex-shrink:0">${initials(c.namaLengkap)}</div>
+        <span style="font-size:12px">${c.namaLengkap}</span>
+      </div>`).join('');
+  }
+
+  // Tombol edit / delete (Direksi atau pembuat saat menunggu_approval/to_do)
+  const isDireksi = user?.role === 'direksi';
+  const isPembuat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
+  const editableStatuses = ['menunggu_approval', 'to_do'];
+  if (isDireksi || (isPembuat && editableStatuses.includes(t.status) && t.status !== 'done')) {
+    document.getElementById('btn-edit').style.display = '';
+  }
+  if (isDireksi) document.getElementById('btn-delete').style.display = '';
+
+  // Status action buttons
+  renderStatusActions(t);
+}
+
+function renderStatusActions(t) {
+  const el        = document.getElementById('status-actions');
+  const isDireksi = user?.role === 'direksi';
+  const isPIC     = t.picUserId?._id === user?._id || t.picUserId === user?._id;
+  let html = '';
+
+  if (isDireksi && t.status === 'menunggu_approval') {
+    html += `<button class="btn" style="background:var(--green-bg);color:var(--green-text);border-color:transparent" onclick="changeStatus('to_do')">✓ Setujui</button>`;
+    html += `<button class="btn btn-danger" onclick="promptReject('ditolak')">✗ Tolak</button>`;
+  }
+  if (isPIC && t.status === 'to_do') {
+    html += `<button class="btn btn-primary" onclick="changeStatus('in_progress')"><i class="ti ti-play"></i> Mulai Kerjakan</button>`;
+  }
+  if (isPIC && t.status === 'in_progress') {
+    html += `<button class="btn btn-primary" onclick="changeStatus('perlu_review')"><i class="ti ti-send"></i> Minta Review</button>`;
+  }
+  if (isDireksi && t.status === 'perlu_review') {
+    html += `<button class="btn" style="background:var(--green-bg);color:var(--green-text);border-color:transparent" onclick="changeStatus('done')">✓ Approve & Done</button>`;
+    html += `<button class="btn btn-danger" onclick="promptReject('revisi')">↩ Kembalikan Revisi</button>`;
+  }
+  if (isPIC && t.status === 'revisi') {
+    html += `<button class="btn btn-primary" onclick="changeStatus('in_progress')"><i class="ti ti-refresh"></i> Kerjakan Ulang</button>`;
+  }
+
+  el.innerHTML = html;
+
+  // Tombol add subtask & upload evidence (PIC atau Direksi)
+  if ((isPIC || isDireksi) && t.status !== 'done') {
+    document.getElementById('add-subtask-form').style.display = '';
+    document.getElementById('upload-ev-btn').style.display    = '';
+  }
+}
+
+function renderSubtasks(subtasks) {
+  const el     = document.getElementById('subtask-list');
+  const done   = subtasks.filter(s => s.isDone).length;
+  const total  = subtasks.length;
+  const pct    = total > 0 ? Math.round(done / total * 100) : 0;
+
+  document.getElementById('subtask-progress').textContent = total ? `${done}/${total} (${pct}%)` : '';
+  document.getElementById('subtask-bar').style.width      = pct + '%';
+
+  if (!total) { el.innerHTML = '<div style="color:var(--text-3);font-size:12px">Belum ada subtask</div>'; return; }
+  el.innerHTML = subtasks.map(s => `
+    <div class="subtask-item" id="sub-${s._id}">
+      <input type="checkbox" class="subtask-cb" ${s.isDone?'checked':''} onchange="toggleSubtask('${s._id}',this.checked)">
+      <span class="subtask-txt ${s.isDone?'done':''}">${s.judul}</span>
+      <button class="btn-icon" style="width:24px;height:24px;border:none" onclick="deleteSubtask('${s._id}')"><i class="ti ti-x" style="font-size:12px"></i></button>
+    </div>`).join('');
+}
+
+function renderEvidence(evidences) {
+  const el = document.getElementById('evidence-list');
+  if (!evidences.length) { el.innerHTML = '<div style="color:var(--text-3);font-size:13px">Belum ada evidence</div>'; return; }
+
+  const isDireksi = user?.role === 'direksi';
+  const isPIC     = taskData?.picUserId?._id === user?._id || taskData?.picUserId === user?._id;
+
+  el.innerHTML = evidences.map(ev => {
+    const canDelete = (isPIC && taskData?.status !== 'done') || isDireksi;
+    const ext  = (ev.namaFile || '').split('.').pop().toLowerCase();
+    const icon = ['jpg','jpeg','png'].includes(ext) ? 'ti-photo'
+               : ext === 'pdf' ? 'ti-file-type-pdf'
+               : ['xlsx','xls'].includes(ext) ? 'ti-file-type-xls'
+               : ext === 'docx' ? 'ti-file-type-doc'
+               : 'ti-paperclip';
+    const kb   = ev.ukuran ? Math.round(ev.ukuran / 1024) + ' KB' : '';
+    return `
+      <div class="ev-item">
+        <div class="ev-icon"><i class="ti ${icon}" style="font-size:16px;color:var(--accent)"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.namaFile}</div>
+          <div style="font-size:11px;color:var(--text-3)">${ev.uploaderId?.namaLengkap || ''} · ${formatTanggal(ev.createdAt)} · ${kb}</div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn" style="font-size:12px;padding:5px 10px" title="Lihat" onclick="openEvModal('${ev.urlFile}','${ev.namaFile.replace(/'/g,"\\'")}','${ev.mimeType||''}')">
+            <i class="ti ti-eye"></i>
+          </button>
+          <a href="${ev.urlFile}" download="${ev.namaFile}" class="btn" style="font-size:12px;padding:5px 10px" title="Download">
+            <i class="ti ti-download"></i>
+          </a>
+          ${canDelete ? `<button class="btn" style="font-size:12px;padding:5px 10px;color:var(--red-text,#991B1B)" onclick="deleteEvidence('${ev._id}')" title="Hapus"><i class="ti ti-trash"></i></button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadKomentar() {
+  const list = await Komentar.list(taskId).catch(() => []);
+  const el   = document.getElementById('komentar-list');
+  if (!list.length) { el.innerHTML = '<div style="color:var(--text-3);font-size:13px;margin-bottom:10px">Belum ada komentar</div>'; return; }
+  el.innerHTML = list.map(k => {
+    const inits = initials(k.userId?.namaLengkap || '?');
+    return `
+      <div class="kom-item">
+        <div class="av av-md av-v" style="flex-shrink:0">${inits}</div>
+        <div class="kom-body">
+          <div class="kom-meta"><strong>${k.userId?.namaLengkap}</strong> · ${formatRelative(k.createdAt)}</div>
+          <div class="kom-isi">${k.isi}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderLogs(logs) {
+  const el = document.getElementById('status-log');
+  if (!logs.length) { el.innerHTML = '<div style="color:var(--text-3);font-size:12px">Belum ada riwayat</div>'; return; }
+  el.innerHTML = logs.map(l => `
+    <div class="log-item">
+      <div class="log-dot"></div>
+      <div style="flex:1">
+        <span style="color:var(--text-2)">${l.userId?.namaLengkap || '—'}</span>
+        ${l.statusLama ? `mengubah status dari <strong>${statusLabel(l.statusLama)}</strong> ke ` : 'membuat task dengan status '}
+        <strong>${statusLabel(l.statusBaru)}</strong>
+        ${l.catatan ? `<div style="color:var(--text-3);margin-top:2px;font-style:italic">"${l.catatan}"</div>` : ''}
+      </div>
+      <span style="font-size:11px;color:var(--text-3);flex-shrink:0">${formatRelative(l.createdAt)}</span>
+    </div>`).join('');
+}
+
+async function changeStatus(statusBaru) {
+  try {
+    await Tasks.updateStatus(taskId, statusBaru);
+    showToast('Status berhasil diubah');
+    loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function promptReject(statusBaru) {
+  const label = statusBaru === 'ditolak' ? 'Tolak Task' : 'Kembalikan Revisi';
+  const catatan = await showPrompt('Masukkan catatan alasan (min. 10 karakter)', {
+    title: label, placeholder: 'Ketik alasan...', hint: 'Minimal 10 karakter', okLabel: 'Kirim', type: 'danger'
+  });
+  if (catatan === null) return;
+  if (catatan.length < 10) { showToast('Catatan minimal 10 karakter', 'error'); return; }
+  Tasks.updateStatus(taskId, statusBaru, catatan)
+    .then(() => { showToast('Status berhasil diubah'); loadTask(); })
+    .catch(e => showToast(e.message, 'error'));
+}
+
+async function addSubtask() {
+  const judul = document.getElementById('new-subtask').value.trim();
+  if (!judul) return;
+  try {
+    await Subtasks.create(taskId, judul);
+    document.getElementById('new-subtask').value = '';
+    loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleSubtask(id, isDone) {
+  try {
+    await Subtasks.update(id, { isDone });
+    loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteSubtask(id) {
+  if (!await showConfirm('Hapus subtask ini?', { title: 'Hapus Subtask', okLabel: 'Hapus', type: 'danger' })) return;
+  await Subtasks.delete(id).catch(e => showToast(e.message, 'error'));
+  loadTask();
+}
+
+async function uploadEvidence() {
+  const file = document.getElementById('ev-file').files[0];
+  if (!file) return;
+  try {
+    await Evidence.upload(taskId, file);
+    showToast('Evidence berhasil diupload');
+    document.getElementById('ev-file').value = '';
+    loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteEvidence(id) {
+  if (!await showConfirm('Hapus evidence ini?', { title: 'Hapus Evidence', okLabel: 'Hapus', type: 'danger' })) return;
+  await Evidence.delete(id).catch(e => showToast(e.message, 'error'));
+  loadTask();
+}
+
+async function sendKomentar() {
+  const isi = document.getElementById('new-kom').value.trim();
+  if (!isi) return;
+  try {
+    await Komentar.create(taskId, isi);
+    document.getElementById('new-kom').value = '';
+    loadKomentar();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function editTask() {
+  window.location.href = `/pages/task-form.html?id=${taskId}`;
+}
+
+async function deleteTask() {
+  if (!await showConfirm('Task tidak benar-benar dihapus (soft delete). Lanjutkan?', { title: 'Hapus Task', okLabel: 'Hapus', type: 'danger' })) return;
+  try {
+    await Tasks.delete(taskId);
+    showToast('Task dihapus');
+    setTimeout(() => window.location.href = '/pages/list.html', 1000);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement.id === 'new-subtask') { e.preventDefault(); addSubtask(); }
+});
+
+// ── Evidence viewer ───────────────────────────────────────────────────────────
+function openEvModal(url, nama, mime) {
+  const modal  = document.getElementById('ev-modal');
+  const body   = document.getElementById('ev-modal-body');
+  const title  = document.getElementById('ev-modal-title');
+  const dlBtn  = document.getElementById('ev-modal-dl');
+
+  title.textContent = nama;
+  dlBtn.href        = url;
+  dlBtn.download    = nama;
+
+  const ext = nama.split('.').pop().toLowerCase();
+  const isImage = ['jpg','jpeg','png','gif','webp','svg'].includes(ext);
+  const isPdf   = ext === 'pdf';
+
+  if (isImage) {
+    body.innerHTML = `<img src="${url}" alt="${nama}" onclick="event.stopPropagation()">`;
+  } else if (isPdf) {
+    body.innerHTML = `<iframe src="${url}#toolbar=1" title="${nama}"></iframe>`;
+  } else {
+    const iconMap = { xlsx:'ti-file-type-xls', xls:'ti-file-type-xls', docx:'ti-file-type-doc', doc:'ti-file-type-doc' };
+    const icon    = iconMap[ext] || 'ti-file';
+    body.innerHTML = `
+      <div class="ev-no-preview">
+        <i class="ti ${icon}"></i>
+        <p>Preview tidak tersedia untuk file <strong>.${ext}</strong></p>
+        <a href="${url}" download="${nama}" style="background:var(--accent);color:#fff;padding:10px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:8px">
+          <i class="ti ti-download"></i> Download File
+        </a>
+      </div>`;
+  }
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEvModal() {
+  const modal = document.getElementById('ev-modal');
+  modal.classList.remove('open');
+  document.getElementById('ev-modal-body').innerHTML = '';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeEvModal();
+});
+
+// ── @mention ─────────────────────────────────────────────────────────────────
+let mentionUsers   = [];
+let mentionFiltered = [];
+let mentionIdx     = -1;
+let mentionActive  = false;
+
+async function loadMentionUsers() {
+  try {
+    const data = await apiFetch('/users/mention');
+    mentionUsers = (Array.isArray(data) ? data : []).filter(u => u._id !== user?._id);
+  } catch {}
+}
+
+function getMentionQuery(ta) {
+  const val   = ta.value;
+  const caret = ta.selectionStart;
+  const before = val.slice(0, caret);
+  const match  = before.match(/@(\w*)$/);
+  return match ? match[1] : null;
+}
+
+function showMentionPopup(ta) {
+  const query = getMentionQuery(ta);
+  if (query === null) { hideMentionPopup(); return; }
+  mentionFiltered = mentionUsers.filter(u =>
+    u.namaLengkap.toLowerCase().includes(query.toLowerCase())
+  ).slice(0, 8);
+  if (!mentionFiltered.length) { hideMentionPopup(); return; }
+
+  const popup = document.getElementById('mention-popup');
+  const rect  = ta.getBoundingClientRect();
+  popup.style.top    = (rect.bottom + 4) + 'px';
+  popup.style.left   = rect.left + 'px';
+  popup.style.width  = Math.min(280, rect.width) + 'px';
+  popup.style.display = 'block';
+  mentionIdx   = -1;
+  mentionActive = true;
+
+  const ROLE_MAP = { superadmin:'Superadmin', komisaris:'Komisaris', direksi:'Direksi', manager:'Manager', staff:'Staff' };
+  popup.innerHTML = mentionFiltered.map((u, i) => {
+    const inits = u.namaLengkap.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    return `<div class="mention-item" data-idx="${i}" onmousedown="pickMention(${i})">
+      <div class="mention-av">${inits}</div>
+      <div>
+        <div class="mention-name">${u.namaLengkap}</div>
+        <div class="mention-role">${ROLE_MAP[u.role] || u.role}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function hideMentionPopup() {
+  document.getElementById('mention-popup').style.display = 'none';
+  mentionActive = false;
+  mentionIdx    = -1;
+}
+
+function pickMention(idx) {
+  const ta    = document.getElementById('new-kom');
+  const u     = mentionFiltered[idx];
+  if (!u) return;
+  const val   = ta.value;
+  const caret = ta.selectionStart;
+  const before = val.slice(0, caret);
+  const replaced = before.replace(/@\w*$/, '@' + u.namaLengkap + ' ');
+  ta.value = replaced + val.slice(caret);
+  ta.focus();
+  const newCaret = replaced.length;
+  ta.setSelectionRange(newCaret, newCaret);
+  hideMentionPopup();
+}
+
+function onKomKeyup(e) {
+  if (['ArrowUp','ArrowDown','Enter','Escape'].includes(e.key)) return;
+  showMentionPopup(e.target);
+}
+
+function onKomKeydown(e) {
+  if (!mentionActive) return;
+  const items = document.querySelectorAll('.mention-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    mentionIdx = Math.min(mentionIdx + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('focused', i === mentionIdx));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    mentionIdx = Math.max(mentionIdx - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('focused', i === mentionIdx));
+  } else if (e.key === 'Enter' && mentionIdx >= 0) {
+    e.preventDefault();
+    pickMention(mentionIdx);
+  } else if (e.key === 'Escape') {
+    hideMentionPopup();
+  }
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#mention-popup') && e.target.id !== 'new-kom') hideMentionPopup();
+});
+
+// ── Time Tracking ────────────────────────────────────────────────────────────
+async function loadTimeLog() {
+  const section = document.getElementById('timelog-section');
+  const isPIC   = taskData?.picUserId?._id === user?._id || taskData?.picUserId === user?._id;
+  const isCollab = (taskData?.collaborators||[]).some(c => (c._id||c) === user?._id);
+  const canLog  = isPIC || isCollab || user?.role === 'direksi' || user?.role === 'superadmin';
+  if (!canLog) return;
+  section.style.display = '';
+
+  // Set default tanggal hari ini
+  document.getElementById('tl-tanggal').value = new Date().toISOString().split('T')[0];
+
+  try {
+    const { logs, totalMenit } = await TimeLog.list({ taskId });
+    const jam  = Math.floor(totalMenit / 60);
+    const mnt  = totalMenit % 60;
+    document.getElementById('timelog-total').textContent =
+      totalMenit ? `Total: ${jam > 0 ? jam + 'j ' : ''}${mnt}m` : 'Belum ada log';
+
+    const el = document.getElementById('timelog-list');
+    if (!logs.length) {
+      el.innerHTML = '<div style="color:var(--text-3);font-size:12px;text-align:center;padding:12px 0">Belum ada catatan waktu</div>';
+      return;
+    }
+    el.innerHTML = logs.map(l => {
+      const jam = Math.floor(l.durasiMenit / 60);
+      const mnt = l.durasiMenit % 60;
+      const dur = (jam > 0 ? jam + 'j ' : '') + mnt + 'm';
+      const tgl = new Date(l.tanggal).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+      const isMine = l.userId?._id === user?._id || l.userId === user?._id;
+      const inits  = (l.userId?.namaLengkap||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${inits}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:600">${l.userId?.namaLengkap||'—'} · <span style="color:var(--accent)">${dur}</span></div>
+            <div style="font-size:11px;color:var(--text-3)">${tgl}${l.catatan ? ' · ' + l.catatan : ''}</div>
+          </div>
+          ${isMine ? `<button onclick="deleteTimeLog('${l._id}')" style="border:none;background:none;cursor:pointer;color:var(--text-3);padding:4px" title="Hapus"><i class="ti ti-trash" style="font-size:13px"></i></button>` : ''}
+        </div>`;
+    }).join('');
+  } catch(e) { /* silent */ }
+}
+
+function showTimeLogForm() {
+  document.getElementById('timelog-form').style.display = 'flex';
+  document.getElementById('tl-add-btn').style.display   = 'none';
+  document.getElementById('tl-menit').focus();
+}
+function cancelTimeLog() {
+  document.getElementById('timelog-form').style.display = 'none';
+  document.getElementById('tl-add-btn').style.display   = '';
+  document.getElementById('tl-menit').value   = '';
+  document.getElementById('tl-catatan').value = '';
+}
+
+async function submitTimeLog() {
+  const menit   = parseInt(document.getElementById('tl-menit').value);
+  const catatan = document.getElementById('tl-catatan').value.trim();
+  const tanggal = document.getElementById('tl-tanggal').value;
+  if (!menit || menit < 1) { showToast('Durasi minimal 1 menit', 'error'); return; }
+  if (menit > 1440)        { showToast('Durasi maksimal 1440 menit', 'error'); return; }
+  try {
+    await TimeLog.log(taskId, menit, catatan, tanggal);
+    cancelTimeLog();
+    loadTimeLog();
+    showToast('Waktu berhasil dicatat');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function deleteTimeLog(id) {
+  if (!await showConfirm('Hapus catatan waktu ini?', { title: 'Hapus Catatan Waktu', okLabel: 'Hapus', type: 'danger' })) return;
+  await TimeLog.delete(id).catch(e => showToast(e.message, 'error'));
+  loadTimeLog();
+}
+
+// ── Stopwatch ────────────────────────────────────────────────────────────────
+let swInterval = null, swStartTs = null;
+
+function swTick() {
+  const elapsed = Math.floor((Date.now() - swStartTs) / 1000);
+  const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+  const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  document.getElementById('sw-display').textContent = `${h}:${m}:${s}`;
+}
+
+function swStart() {
+  swStartTs = Date.now();
+  swInterval = setInterval(swTick, 1000);
+  document.getElementById('sw-btn-start').style.display   = 'none';
+  document.getElementById('sw-btn-stop').style.display    = '';
+  document.getElementById('sw-btn-discard').style.display = '';
+  document.getElementById('sw-display').style.color = 'var(--accent)';
+}
+
+async function swStop() {
+  clearInterval(swInterval);
+  const menit = Math.max(1, Math.round((Date.now() - swStartTs) / 60000));
+  swReset();
+  const catatan = await showPrompt(`Stopwatch selesai: ${menit} menit`, {
+    title: 'Simpan Waktu', placeholder: 'Catatan (opsional)', okLabel: 'Simpan', type: 'success'
+  });
+  if (catatan === null) return;
+  try {
+    await TimeLog.log(taskId, menit, catatan.trim(), new Date().toISOString().split('T')[0]);
+    showToast(`${menit} menit berhasil dicatat`);
+    loadTimeLog();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function swDiscard() {
+  clearInterval(swInterval);
+  swReset();
+}
+
+function swReset() {
+  swInterval = null; swStartTs = null;
+  document.getElementById('sw-display').textContent = '00:00:00';
+  document.getElementById('sw-display').style.color = '';
+  document.getElementById('sw-btn-start').style.display   = '';
+  document.getElementById('sw-btn-stop').style.display    = 'none';
+  document.getElementById('sw-btn-discard').style.display = 'none';
+}
+
+loadMentionUsers();
+// ── Dependencies ────────────────────────────────────────────────────────────
+let allTasksForDep = [];
+
+async function loadDependencies() {
+  document.getElementById('dep-section').style.display = '';
+  try {
+    const { dependencies } = await Dependency.list(taskId);
+    renderDependencies(dependencies);
+
+    // Preload all tasks for select dropdown (only once)
+    if (!allTasksForDep.length) {
+      const { tasks } = await Tasks.list({ limit: 200 });
+      allTasksForDep = tasks.filter(t => t._id !== taskId);
+      const sel = document.getElementById('dep-select');
+      allTasksForDep.forEach(t => {
+        const o = document.createElement('option');
+        o.value = t._id; o.textContent = t.judul;
+        sel.appendChild(o);
+      });
+    }
+  } catch {}
+}
+
+function renderDependencies(deps) {
+  const el = document.getElementById('dep-list');
+  if (!deps.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-3)">Tidak ada dependency. Task ini dapat dimulai kapan saja.</div>';
+    return;
+  }
+  el.innerHTML = deps.map(d => {
+    const isDone = d.status === 'done';
+    const color  = isDone ? '#10B981' : '#F59E0B';
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+        <i class="ti ${isDone ? 'ti-circle-check' : 'ti-clock'}" style="color:${color};font-size:16px;flex-shrink:0"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.judul}</div>
+          <div style="font-size:11px;color:var(--text-3)">${statusLabel(d.status)} · Deadline: ${formatTanggal(d.deadline)}</div>
+        </div>
+        <button class="btn-icon" style="width:24px;height:24px;flex-shrink:0" onclick="removeDependency('${d._id}')"><i class="ti ti-x" style="font-size:12px"></i></button>
+      </div>`;
+  }).join('');
+}
+
+function showDepForm() {
+  const f = document.getElementById('dep-add-form');
+  f.style.display = f.style.display === 'none' ? '' : 'none';
+}
+
+async function addDependency() {
+  const depId = document.getElementById('dep-select').value;
+  if (!depId) { showToast('Pilih task terlebih dahulu', 'error'); return; }
+  try {
+    const { dependencies } = await Dependency.add(taskId, depId);
+    renderDependencies(dependencies);
+    document.getElementById('dep-select').value = '';
+    document.getElementById('dep-add-form').style.display = 'none';
+    showToast('Dependency ditambahkan');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function removeDependency(depId) {
+  try {
+    await Dependency.remove(taskId, depId);
+    const { dependencies } = await Dependency.list(taskId);
+    renderDependencies(dependencies);
+    showToast('Dependency dihapus');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── Recurring ────────────────────────────────────────────────────────────────
+function initRecurringUI(task) {
+  const isMgrOrAbove = ['superadmin','direksi','komisaris','manager'].includes(user?.role);
+  if (!isMgrOrAbove) return;
+
+  document.getElementById('recurring-section').style.display = '';
+  const rec = task.recurrence;
+  if (rec && rec.tipe !== 'none') {
+    document.getElementById('rec-tipe').value     = rec.tipe;
+    document.getElementById('rec-interval').value = rec.interval || 1;
+    const labels = { daily:'hari', weekly:'minggu', monthly:'bulan' };
+    document.getElementById('recurring-info').innerHTML =
+      `<div style="background:var(--accent);color:#fff;border-radius:var(--r-lg);padding:8px 12px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;margin-bottom:8px">
+        <i class="ti ti-refresh"></i> Berulang setiap ${rec.interval} ${labels[rec.tipe]}
+        ${rec.nextRun ? '· Jadwal berikutnya: ' + formatTanggal(rec.nextRun) : ''}
+      </div>`;
+  }
+}
+
+async function saveRecurrence() {
+  const tipe     = document.getElementById('rec-tipe').value;
+  const interval = parseInt(document.getElementById('rec-interval').value) || 1;
+  try {
+    const { recurrence } = await Recurrence.set(taskId, tipe, interval);
+    showToast(tipe === 'none' ? 'Pengulangan dimatikan' : 'Pengulangan disimpan');
+    const labels = { daily:'hari', weekly:'minggu', monthly:'bulan' };
+    const info = document.getElementById('recurring-info');
+    if (tipe !== 'none') {
+      info.innerHTML = `<div style="background:var(--accent);color:#fff;border-radius:var(--r-lg);padding:8px 12px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;margin-bottom:8px">
+        <i class="ti ti-refresh"></i> Berulang setiap ${interval} ${labels[tipe]}
+      </div>`;
+    } else {
+      info.innerHTML = '';
+    }
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── Template ─────────────────────────────────────────────────────────────────
+function initTemplateSection() {
+  const isMgrOrAbove = ['superadmin','direksi','komisaris','manager'].includes(user?.role);
+  if (isMgrOrAbove) document.getElementById('template-save-section').style.display = '';
+}
+
+async function saveAsTemplate() {
+  const nama = document.getElementById('tpl-nama').value.trim();
+  try {
+    const { template } = await TaskTemplates.fromTask(taskId, nama || undefined);
+    showToast(`Template "${template.nama}" berhasil disimpan`);
+    document.getElementById('tpl-nama').value = '';
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+loadTask();
+</script>
+</body>
+</html>

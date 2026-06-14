@@ -1,0 +1,315 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Site Settings</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .card { background:var(--surface); border:0.5px solid var(--border); border-radius:var(--r-lg); padding:24px; }
+    .card-title { font-size:12px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.7px; margin-bottom:20px; padding-bottom:12px; border-bottom:0.5px solid var(--border); }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field label { font-size:12px; font-weight:600; color:var(--text-2); }
+    .field input, .field textarea, .field select {
+      background:var(--surface-2); border:0.5px solid var(--border);
+      border-radius:var(--r-sm); padding:10px 13px;
+      font-size:14px; color:var(--text); outline:none; transition:var(--transition); width:100%; font-family:inherit;
+    }
+    .field input:focus, .field textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); background:var(--surface); }
+    .field textarea { resize:vertical; }
+    .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .hint { font-size:11px; color:var(--text-3); margin-top:4px; }
+
+    /* Logo preview */
+    .logo-wrap { display:flex; align-items:center; gap:16px; }
+    .logo-preview {
+      width:64px; height:64px; border-radius:12px; border:0.5px solid var(--border);
+      background:var(--surface-2); display:flex; align-items:center; justify-content:center;
+      overflow:hidden; flex-shrink:0;
+    }
+    .logo-preview img { width:100%; height:100%; object-fit:contain; }
+    .logo-preview-fallback { font-size:24px; font-weight:800; color:var(--accent); }
+
+    /* Color preview */
+    .color-row { display:flex; gap:10px; align-items:center; }
+    .color-swatch { width:40px; height:40px; border-radius:8px; border:0.5px solid var(--border); cursor:pointer; flex-shrink:0; padding:2px; }
+
+    /* Feature items */
+    .feature-row {
+      display:flex; align-items:center; gap:8px;
+      background:var(--surface-2); border:0.5px solid var(--border);
+      border-radius:var(--r-sm); padding:8px 10px;
+    }
+    .feature-row input { background:transparent; border:none; padding:4px 6px; font-size:13px; flex:1; outline:none; color:var(--text); }
+    .feature-row .icon-inp { width:140px; flex-shrink:0; }
+    .feature-row .del-btn { background:none; border:none; cursor:pointer; color:var(--text-3); font-size:18px; padding:2px 4px; flex-shrink:0; }
+    .feature-row .del-btn:hover { color:var(--red-text); }
+
+    /* Login preview panel */
+    .login-preview {
+      background:#18181B; border-radius:var(--r-lg); padding:28px;
+      display:flex; flex-direction:column; justify-content:space-between;
+      min-height:340px; position:relative; overflow:hidden;
+    }
+    .login-preview::before { content:''; position:absolute; top:-40px; right:-40px; width:180px; height:180px; background:var(--accent); opacity:.1; border-radius:50%; }
+    .lp-brand { display:flex; align-items:center; gap:10px; position:relative; z-index:1; }
+    .lp-mark { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .lp-mark img { width:28px; height:28px; object-fit:contain; }
+    .lp-name { color:#FAFAFA; font-size:14px; font-weight:700; }
+    .lp-hero { position:relative; z-index:1; }
+    .lp-title { font-size:18px; font-weight:800; color:#FAFAFA; line-height:1.3; margin-bottom:8px; }
+    .lp-sub { font-size:11px; color:#71717A; line-height:1.6; }
+    .lp-features { display:flex; flex-direction:column; gap:8px; position:relative; z-index:1; }
+    .lp-feat { display:flex; align-items:center; gap:8px; }
+    .lp-feat-icon { width:24px; height:24px; border-radius:5px; background:rgba(91,79,232,.2); display:flex; align-items:center; justify-content:center; color:#A5B4FC; font-size:13px; flex-shrink:0; }
+    .lp-feat-text { font-size:11px; color:#A1A1AA; }
+
+    @media(max-width:900px){ .row-2 { grid-template-columns:1fr } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="site-settings"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Site Settings</span></div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="saveAll()"><i class="ti ti-check"></i> Simpan Semua</button>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+
+        <!-- ── Identitas Aplikasi ── -->
+        <div class="card">
+          <div class="card-title">Identitas Aplikasi</div>
+          <div class="row-2" style="align-items:start">
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div class="field">
+                <label>Nama Aplikasi</label>
+                <input type="text" id="s-appname" placeholder="Intrack" oninput="updatePreview()">
+              </div>
+              <div class="field">
+                <label>Accent Color</label>
+                <div class="color-row">
+                  <input type="color" id="s-color" class="color-swatch" oninput="syncColorHex()">
+                  <input type="text" id="s-color-hex" placeholder="#5B4FE8" style="width:110px" oninput="syncColorPicker()">
+                  <div style="font-size:12px;color:var(--text-3)">Warna tombol, link aktif, elemen UI</div>
+                </div>
+              </div>
+              <div class="field">
+                <label>Logo Aplikasi</label>
+                <div class="logo-wrap">
+                  <div class="logo-preview" id="logo-preview">
+                    <img id="logo-img" src="/img/logo.png" alt="Logo"
+                      onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='flex'">
+                    <div id="logo-fallback" class="logo-preview-fallback" style="display:none">I</div>
+                  </div>
+                  <div>
+                    <label class="btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                      <i class="ti ti-upload"></i> Upload Logo
+                      <input type="file" id="logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                        style="display:none" onchange="uploadLogo(event)">
+                    </label>
+                    <div class="hint">PNG / SVG / WebP, maks. 2MB. Ditampilkan di sidebar dan halaman login.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Mini login preview -->
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Preview Halaman Login</div>
+              <div class="login-preview" id="lp">
+                <div class="lp-brand">
+                  <div class="lp-mark" id="lp-mark">
+                    <img src="/img/logo.png" onerror="this.style.display='none'">
+                  </div>
+                  <div class="lp-name" id="lp-appname">Intrack</div>
+                </div>
+                <div class="lp-hero">
+                  <div class="lp-title" id="lp-title">Kelola task.<br><span id="lp-title-accent" style="color:var(--accent)">Pantau KPI tim.</span></div>
+                  <div class="lp-sub" id="lp-sub">Intrack membantu Direksi dan Manager merencanakan, melacak, dan menyelesaikan pekerjaan.</div>
+                </div>
+                <div class="lp-features" id="lp-features"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Halaman Login — Panel Kiri ── -->
+        <div class="card">
+          <div class="card-title">Halaman Login — Panel Kiri</div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="row-2">
+              <div class="field">
+                <label>Judul Baris 1</label>
+                <input type="text" id="s-hero1" placeholder="Kelola task." oninput="updatePreview()">
+              </div>
+              <div class="field">
+                <label>Judul Baris 2 <span style="color:var(--accent)">(warna accent)</span></label>
+                <input type="text" id="s-hero2" placeholder="Pantau KPI tim." oninput="updatePreview()">
+              </div>
+            </div>
+            <div class="field">
+              <label>Deskripsi</label>
+              <textarea id="s-herosub" rows="3" placeholder="Deskripsi singkat aplikasi..." oninput="updatePreview()"></textarea>
+            </div>
+            <div class="field">
+              <label>Fitur-fitur <span style="font-weight:400;color:var(--text-3)">(maks. 4 item)</span></label>
+              <div id="features-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+              <button class="btn" style="align-self:start" onclick="addFeature()" id="btn-add-feat">
+                <i class="ti ti-plus"></i> Tambah Fitur
+              </button>
+              <div class="hint">Nama icon dari <a href="https://tabler-icons.io" target="_blank" style="color:var(--accent)">tabler-icons.io</a> — contoh: <code>ti-chart-bar</code></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Halaman Login — Panel Kanan ── -->
+        <div class="card">
+          <div class="card-title">Halaman Login — Panel Kanan (Form)</div>
+          <div class="row-2">
+            <div class="field">
+              <label>Judul Form</label>
+              <input type="text" id="s-logintitle" placeholder="Selamat datang">
+            </div>
+            <div class="field">
+              <label>Subjudul Form</label>
+              <input type="text" id="s-loginsub" placeholder="Masuk ke akun Intrack Anda">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+if (user.role !== 'superadmin') { window.location.href = '/pages/dashboard.html'; throw 'no access'; }
+
+let features = [];
+
+async function loadSettings() {
+  const s = await SiteSettings.get();
+  document.getElementById('s-appname').value    = s.appName    || 'Intrack';
+  document.getElementById('s-hero1').value      = s.heroLine1  || 'Kelola task.';
+  document.getElementById('s-hero2').value      = s.heroLine2  || 'Pantau KPI tim.';
+  document.getElementById('s-herosub').value    = s.heroSub    || '';
+  document.getElementById('s-logintitle').value = s.loginTitle || 'Selamat datang';
+  document.getElementById('s-loginsub').value   = s.loginSubtitle || 'Masuk ke akun Intrack Anda';
+
+  const color = s.accentColor || '#5B4FE8';
+  document.getElementById('s-color').value     = color;
+  document.getElementById('s-color-hex').value = color;
+
+  features = (s.loginFeatures || []).map(f => ({ icon: f.icon, text: f.text }));
+  renderFeatures();
+  updatePreview();
+}
+
+function syncColorHex() {
+  document.getElementById('s-color-hex').value = document.getElementById('s-color').value;
+  updatePreview();
+}
+function syncColorPicker() {
+  const hex = document.getElementById('s-color-hex').value;
+  if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+    document.getElementById('s-color').value = hex;
+    updatePreview();
+  }
+}
+
+function updatePreview() {
+  const name   = document.getElementById('s-appname').value || 'Intrack';
+  const h1     = document.getElementById('s-hero1').value   || 'Kelola task.';
+  const h2     = document.getElementById('s-hero2').value   || 'Pantau KPI tim.';
+  const sub    = document.getElementById('s-herosub').value || '';
+  const color  = document.getElementById('s-color').value;
+
+  document.getElementById('lp-appname').textContent   = name;
+  document.getElementById('lp-title').innerHTML       = h1 + '<br><span id="lp-title-accent" style="color:' + color + '">' + h2 + '</span>';
+  document.getElementById('lp-sub').textContent       = sub;
+
+  // Update feature preview
+  const fp = document.getElementById('lp-features');
+  fp.innerHTML = features.slice(0,4).map(f => `
+    <div class="lp-feat">
+      <div class="lp-feat-icon" style="background:${color}22;color:${color}"><i class="ti ${f.icon}"></i></div>
+      <span class="lp-feat-text">${f.text}</span>
+    </div>`).join('');
+}
+
+function renderFeatures() {
+  const list = document.getElementById('features-list');
+  list.innerHTML = features.map((f, i) => `
+    <div class="feature-row">
+      <i class="ti ${f.icon || 'ti-star'}" style="font-size:18px;color:var(--accent);flex-shrink:0;width:22px;text-align:center"></i>
+      <input class="icon-inp" value="${f.icon || ''}" placeholder="ti-chart-bar"
+        oninput="features[${i}].icon=this.value;updatePreview()" title="Nama icon Tabler">
+      <input value="${f.text || ''}" placeholder="Teks fitur..."
+        oninput="features[${i}].text=this.value;updatePreview()">
+      <button class="del-btn" onclick="removeFeature(${i})"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+  document.getElementById('btn-add-feat').style.display = features.length >= 4 ? 'none' : '';
+}
+
+function addFeature() {
+  if (features.length >= 4) return;
+  features.push({ icon: 'ti-star', text: '' });
+  renderFeatures();
+  updatePreview();
+}
+
+function removeFeature(i) {
+  features.splice(i, 1);
+  renderFeatures();
+  updatePreview();
+}
+
+async function uploadLogo(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const { logoUrl } = await SiteSettings.uploadLogo(file);
+    const img = document.getElementById('logo-img');
+    const lpImg = document.querySelector('#lp-mark img');
+    img.src = logoUrl + '?t=' + Date.now();
+    img.style.display = '';
+    document.getElementById('logo-fallback').style.display = 'none';
+    if (lpImg) lpImg.src = logoUrl + '?t=' + Date.now();
+    showToast('Logo berhasil diupload');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function saveAll() {
+  const appName     = document.getElementById('s-appname').value.trim();
+  const accentColor = document.getElementById('s-color').value;
+  const heroLine1   = document.getElementById('s-hero1').value.trim();
+  const heroLine2   = document.getElementById('s-hero2').value.trim();
+  const heroSub     = document.getElementById('s-herosub').value.trim();
+  const loginTitle  = document.getElementById('s-logintitle').value.trim();
+  const loginSubtitle = document.getElementById('s-loginsub').value.trim();
+
+  if (!appName) { showToast('Nama aplikasi tidak boleh kosong', 'error'); return; }
+  try {
+    await SiteSettings.update({ appName, accentColor, heroLine1, heroLine2, heroSub, loginFeatures: features, loginTitle, loginSubtitle });
+    document.documentElement.style.setProperty('--accent', accentColor);
+    showToast('Pengaturan berhasil disimpan');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+loadSettings();
+</script>
+</body>
+</html>

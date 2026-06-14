@@ -1,0 +1,268 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Workload View</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .wl-header {
+      display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+      background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-xl);padding:16px 20px;
+    }
+    .wl-header-title { font-size:15px;font-weight:700 }
+    .wl-header-sub   { font-size:12px;color:var(--text-3);margin-top:2px }
+
+    /* Summary stats */
+    .wl-stats { display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px }
+    .wl-stat {
+      background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-xl);
+      padding:16px 20px;
+    }
+    .wl-stat-val { font-size:28px;font-weight:800;letter-spacing:-.5px }
+    .wl-stat-lbl { font-size:12px;color:var(--text-3);margin-top:2px }
+
+    /* Cards grid */
+    .wl-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px }
+    .wl-card {
+      background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-xl);
+      padding:20px;transition:border-color .15s;
+    }
+    .wl-card:hover { border-color:var(--accent) }
+    .wl-card-head { display:flex;align-items:center;gap:12px;margin-bottom:16px }
+    .wl-av {
+      width:44px;height:44px;border-radius:50%;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;
+    }
+    .wl-av img { width:44px;height:44px;border-radius:50%;object-fit:cover }
+    .wl-name { font-size:14px;font-weight:700 }
+    .wl-role { font-size:12px;color:var(--text-3) }
+    .wl-dir  { font-size:11px;color:var(--text-3);margin-top:1px }
+
+    /* Load bar */
+    .wl-bar-wrap { margin-bottom:14px }
+    .wl-bar-label { display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:6px }
+    .wl-bar-track { height:8px;background:var(--surface-2);border-radius:100px;overflow:hidden }
+    .wl-bar-fill  { height:100%;border-radius:100px;transition:width .4s ease }
+
+    /* Status breakdown */
+    .wl-breakdown { display:flex;flex-wrap:wrap;gap:8px }
+    .wl-chip {
+      display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:11px;font-weight:600;
+    }
+    .wl-chip-dot { width:7px;height:7px;border-radius:50% }
+
+    /* Overdue warning */
+    .wl-overdue { display:flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;color:#EF4444;font-weight:600 }
+
+    .wl-empty { padding:60px;text-align:center;color:var(--text-3) }
+    .wl-empty i { font-size:48px;opacity:.2;display:block;margin-bottom:12px }
+
+    select.sel {
+      background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-sm);
+      padding:7px 11px;font-size:13px;color:var(--text);outline:none;cursor:pointer;
+    }
+    select.sel:focus { border-color:var(--accent) }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="workload"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Workload View</span></div>
+      <div class="topbar-right">
+        <select id="f-dir" class="sel" onchange="loadWorkload()">
+          <option value="">Semua Direktorat</option>
+        </select>
+        <select id="f-sort" class="sel" onchange="renderCards()">
+          <option value="active">Urutkan: Task Aktif</option>
+          <option value="overdue">Urutkan: Overdue</option>
+          <option value="nama">Urutkan: Nama</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+
+        <div class="wl-header">
+          <div>
+            <div class="wl-header-title">Beban Kerja Tim</div>
+            <div class="wl-header-sub" id="wl-sub">Memuat data...</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3)">
+              <div style="width:10px;height:10px;background:#10B981;border-radius:2px"></div> Ringan (≤3)
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3)">
+              <div style="width:10px;height:10px;background:#F59E0B;border-radius:2px"></div> Sedang (4-7)
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3)">
+              <div style="width:10px;height:10px;background:#EF4444;border-radius:2px"></div> Berat (>7)
+            </div>
+          </div>
+        </div>
+
+        <div class="wl-stats" id="wl-stats"></div>
+
+        <div id="wl-grid" class="wl-grid">
+          <div class="wl-empty"><i class="ti ti-users-group"></i><p>Memuat...</p></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+
+const AV_COLORS = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777','#7C3AED','#2563EB'];
+let allWorkload = [];
+
+async function init() {
+  try {
+    const dirs = await Direktorat.list().catch(() => []);
+    const sel = document.getElementById('f-dir');
+    dirs.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d._id; o.textContent = d.kode + ' — ' + d.nama;
+      sel.appendChild(o);
+    });
+    await loadWorkload();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadWorkload() {
+  const params = {};
+  const dirF = document.getElementById('f-dir').value;
+  if (dirF) params.direktoratId = dirF;
+
+  try {
+    const { workload } = await Workload.get(params);
+    allWorkload = workload;
+    renderStats();
+    renderCards();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+function renderStats() {
+  const totalUsers   = allWorkload.length;
+  const totalActive  = allWorkload.reduce((s, w) => s + w.active, 0);
+  const totalOverdue = allWorkload.reduce((s, w) => s + w.overdue, 0);
+  const avgLoad      = totalUsers ? (totalActive / totalUsers).toFixed(1) : 0;
+  const maxLoad      = Math.max(...allWorkload.map(w => w.active), 1);
+
+  document.getElementById('wl-sub').textContent =
+    `${totalUsers} anggota · ${totalActive} task aktif · ${totalOverdue} overdue`;
+
+  document.getElementById('wl-stats').innerHTML = `
+    <div class="wl-stat">
+      <div class="wl-stat-val" style="color:var(--accent)">${totalUsers}</div>
+      <div class="wl-stat-lbl">Total Anggota</div>
+    </div>
+    <div class="wl-stat">
+      <div class="wl-stat-val" style="color:#3B82F6">${totalActive}</div>
+      <div class="wl-stat-lbl">Task Aktif</div>
+    </div>
+    <div class="wl-stat">
+      <div class="wl-stat-val" style="color:#EF4444">${totalOverdue}</div>
+      <div class="wl-stat-lbl">Task Overdue</div>
+    </div>
+    <div class="wl-stat">
+      <div class="wl-stat-val" style="color:#10B981">${avgLoad}</div>
+      <div class="wl-stat-lbl">Rata-rata Beban</div>
+    </div>
+  `;
+  window._maxLoad = maxLoad;
+}
+
+function renderCards() {
+  const sortBy = document.getElementById('f-sort').value;
+  let data = [...allWorkload];
+
+  if (sortBy === 'active')  data.sort((a,b) => b.active - a.active);
+  if (sortBy === 'overdue') data.sort((a,b) => b.overdue - a.overdue);
+  if (sortBy === 'nama')    data.sort((a,b) => a.user.namaLengkap.localeCompare(b.user.namaLengkap));
+
+  if (!data.length) {
+    document.getElementById('wl-grid').innerHTML = `
+      <div class="wl-empty" style="grid-column:1/-1"><i class="ti ti-users-group"></i><p>Tidak ada data workload</p></div>`;
+    return;
+  }
+
+  const maxLoad = window._maxLoad || 1;
+  const STATUS_MAP = {
+    to_do:             { label:'To Do',            color:'#6B7280' },
+    in_progress:       { label:'In Progress',      color:'#3B82F6' },
+    perlu_review:      { label:'Perlu Review',     color:'#8B5CF6' },
+    revisi:            { label:'Revisi',            color:'#EF4444' },
+    menunggu_approval: { label:'Menunggu Approval',color:'#F59E0B' },
+  };
+
+  document.getElementById('wl-grid').innerHTML = data.map(w => {
+    const u = w.user;
+    const inits  = (u.namaLengkap || '?').split(' ').map(x => x[0]).join('').toUpperCase().slice(0,2);
+    const color  = AV_COLORS[inits.charCodeAt(0) % AV_COLORS.length];
+    const avHtml = u.fotoProfil
+      ? `<img src="${u.fotoProfil}" alt="">`
+      : `<div style="background:${color}">${inits}</div>`;
+
+    const loadPct  = Math.min(100, Math.round((w.active / maxLoad) * 100));
+    const barColor = w.active > 7 ? '#EF4444' : w.active > 3 ? '#F59E0B' : '#10B981';
+    const roleLabel= u.role === 'manager' ? 'Manager' : 'Staff';
+    const dirLabel = u.direktoratId?.kode || u.direktoratId?.nama || '—';
+
+    const chips = Object.entries(STATUS_MAP).filter(([k]) => (w.breakdown[k] || 0) > 0).map(([k, v]) =>
+      `<div class="wl-chip" style="background:${v.color}20;color:${v.color}">
+        <div class="wl-chip-dot" style="background:${v.color}"></div>
+        ${w.breakdown[k]} ${v.label}
+      </div>`
+    ).join('');
+
+    const overdueHtml = w.overdue
+      ? `<div class="wl-overdue"><i class="ti ti-clock-exclamation"></i> ${w.overdue} task overdue</div>`
+      : '';
+
+    return `
+      <div class="wl-card">
+        <div class="wl-card-head">
+          <div class="wl-av">${avHtml}</div>
+          <div style="flex:1;min-width:0">
+            <div class="wl-name">${u.namaLengkap}</div>
+            <div class="wl-role">${roleLabel} · <span style="color:var(--accent)">${dirLabel}</span></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:22px;font-weight:800;color:${barColor}">${w.active}</div>
+            <div style="font-size:11px;color:var(--text-3)">task aktif</div>
+          </div>
+        </div>
+        <div class="wl-bar-wrap">
+          <div class="wl-bar-label">
+            <span>Beban Kerja</span>
+            <span>${w.done} selesai</span>
+          </div>
+          <div class="wl-bar-track">
+            <div class="wl-bar-fill" style="width:${loadPct}%;background:${barColor}"></div>
+          </div>
+        </div>
+        <div class="wl-breakdown">${chips || '<span style="font-size:12px;color:var(--text-3)">Tidak ada task aktif</span>'}</div>
+        ${overdueHtml}
+      </div>`;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>

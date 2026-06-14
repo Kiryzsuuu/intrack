@@ -1,0 +1,332 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Milestones</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .ms-timeline { position:relative;padding-left:32px }
+    .ms-timeline::before {
+      content:'';position:absolute;left:11px;top:0;bottom:0;width:2px;background:var(--border);border-radius:2px;
+    }
+
+    .ms-item {
+      position:relative;margin-bottom:24px;
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);padding:16px 20px;transition:border-color .15s;
+    }
+    .ms-item:hover { border-color:var(--accent) }
+    .ms-item.tercapai { opacity:.65 }
+    .ms-item::before {
+      content:'';position:absolute;left:-25px;top:18px;
+      width:16px;height:16px;border-radius:50%;border:3px solid var(--surface);
+      transform:rotate(45deg);
+    }
+    .ms-item.tercapai::before { background:#10B981;box-shadow:0 0 0 3px #10B98130 }
+    .ms-item.pending::before  { background:var(--accent);box-shadow:0 0 0 3px var(--accent-light,#5B4FE820) }
+    .ms-item.overdue::before  { background:#EF4444;box-shadow:0 0 0 3px #EF444430 }
+
+    .ms-head { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap }
+    .ms-title { font-size:15px;font-weight:700 }
+    .ms-date  { font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:5px }
+    .ms-badge { font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;white-space:nowrap }
+    .ms-desc  { font-size:13px;color:var(--text-2);margin-top:8px;line-height:1.6 }
+    .ms-dir   { font-size:12px;color:var(--text-3);margin-top:6px;display:flex;align-items:center;gap:5px }
+    .ms-tasks { margin-top:10px;display:flex;flex-wrap:wrap;gap:6px }
+    .ms-task-chip {
+      font-size:11px;padding:3px 10px;border-radius:100px;
+      background:var(--surface-2);border:0.5px solid var(--border);cursor:pointer;transition:border-color .1s;
+    }
+    .ms-task-chip:hover { border-color:var(--accent);color:var(--accent) }
+    .ms-actions { display:flex;gap:8px;margin-top:12px }
+    .ms-btn {
+      font-size:12px;padding:5px 12px;border-radius:var(--r-sm);border:0.5px solid var(--border);
+      background:var(--surface-2);cursor:pointer;transition:var(--transition);color:var(--text);
+    }
+    .ms-btn:hover { border-color:var(--accent);color:var(--accent) }
+    .ms-btn.danger:hover { border-color:var(--red,#EF4444);color:#EF4444 }
+    .ms-btn.primary { background:var(--accent);color:#fff;border-color:var(--accent) }
+    .ms-btn.primary:hover { opacity:.85 }
+
+    /* Form modal */
+    #ms-modal-overlay {
+      display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;
+      backdrop-filter:blur(4px);align-items:center;justify-content:center;
+    }
+    #ms-modal-overlay.open { display:flex }
+    #ms-modal {
+      background:var(--surface);border-radius:var(--r-xl);padding:28px;width:100%;max-width:520px;
+      border:0.5px solid var(--border);box-shadow:0 20px 60px rgba(0,0,0,.2);
+    }
+    #ms-modal h3 { font-size:16px;font-weight:700;margin-bottom:20px }
+    .ms-form-row { margin-bottom:14px }
+    .ms-form-row label { font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block }
+    .ms-form-row input, .ms-form-row textarea, .ms-form-row select {
+      width:100%;padding:9px 12px;border-radius:var(--r-sm);border:0.5px solid var(--border);
+      background:var(--surface-2);color:var(--text);font-size:13px;outline:none;box-sizing:border-box;
+    }
+    .ms-form-row input:focus, .ms-form-row textarea:focus, .ms-form-row select:focus { border-color:var(--accent) }
+    .ms-form-row textarea { resize:vertical;min-height:80px;font-family:inherit }
+    .ms-color-row { display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px }
+    .ms-color-swatch {
+      width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:.15s;
+    }
+    .ms-color-swatch.selected { border-color:#fff;box-shadow:0 0 0 2px var(--accent) }
+    .ms-modal-footer { display:flex;justify-content:flex-end;gap:10px;margin-top:20px }
+
+    .empty-ms { padding:64px;text-align:center;color:var(--text-3) }
+    .empty-ms i { font-size:48px;opacity:.2;display:block;margin-bottom:12px }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="milestones"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Milestones</span></div>
+      <div class="topbar-right">
+        <select id="f-status" class="btn" style="padding:8px 12px;font-size:13px;border:0.5px solid var(--border);background:var(--surface);color:var(--text);border-radius:var(--r-sm)" onchange="loadMilestones()">
+          <option value="">Semua Status</option>
+          <option value="pending">Pending</option>
+          <option value="tercapai">Tercapai</option>
+        </select>
+        <button class="btn btn-primary" onclick="openForm()"><i class="ti ti-plus"></i> Milestone Baru</button>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+
+        <div id="ms-timeline" class="ms-timeline">
+          <div class="empty-ms"><i class="ti ti-flag"></i><p>Memuat...</p></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="ms-modal-overlay">
+  <div id="ms-modal">
+    <h3 id="ms-modal-title">Milestone Baru</h3>
+    <input type="hidden" id="ms-edit-id">
+
+    <div class="ms-form-row">
+      <label>Judul Milestone *</label>
+      <input type="text" id="ms-judul" placeholder="Contoh: Fase 1 Selesai">
+    </div>
+    <div class="ms-form-row">
+      <label>Tanggal Target *</label>
+      <input type="date" id="ms-tanggal">
+    </div>
+    <div class="ms-form-row">
+      <label>Deskripsi</label>
+      <textarea id="ms-deskripsi" placeholder="Keterangan milestone (opsional)"></textarea>
+    </div>
+    <div class="ms-form-row">
+      <label>Direktorat (Opsional)</label>
+      <select id="ms-dir">
+        <option value="">Semua Direktorat</option>
+      </select>
+    </div>
+    <div class="ms-form-row">
+      <label>Warna Penanda</label>
+      <div class="ms-color-row" id="ms-colors"></div>
+    </div>
+
+    <div class="ms-modal-footer">
+      <button class="ms-btn" onclick="closeForm()">Batal</button>
+      <button class="ms-btn primary" onclick="saveMilestone()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script src="/js/dialogs.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+
+const COLORS = ['#6366F1','#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6'];
+let selectedColor = COLORS[0];
+let allDirs = [];
+
+async function init() {
+  allDirs = await Direktorat.list().catch(() => []);
+  const sel = document.getElementById('ms-dir');
+  allDirs.forEach(d => {
+    const o = document.createElement('option');
+    o.value = d._id; o.textContent = d.kode + ' — ' + d.nama;
+    sel.appendChild(o);
+  });
+
+  // Render color swatches
+  document.getElementById('ms-colors').innerHTML = COLORS.map(c => `
+    <div class="ms-color-swatch${c === selectedColor ? ' selected' : ''}"
+      style="background:${c}" onclick="pickColor('${c}')"></div>
+  `).join('');
+
+  await loadMilestones();
+}
+
+function pickColor(c) {
+  selectedColor = c;
+  document.querySelectorAll('.ms-color-swatch').forEach(el => {
+    el.classList.toggle('selected', el.style.background === c || el.style.backgroundColor === c);
+  });
+}
+
+async function loadMilestones() {
+  const statusF = document.getElementById('f-status').value;
+  const params  = statusF ? { status: statusF } : {};
+  try {
+    const { milestones } = await Milestones.list(params);
+    renderTimeline(milestones);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function renderTimeline(milestones) {
+  const wrap = document.getElementById('ms-timeline');
+  const now  = new Date();
+
+  if (!milestones.length) {
+    wrap.innerHTML = '<div class="empty-ms"><i class="ti ti-flag"></i><p>Belum ada milestone. Buat yang pertama!</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = milestones.map(ms => {
+    const tgl     = new Date(ms.tanggal);
+    const isOver  = tgl < now && ms.status === 'pending';
+    const cls     = ms.status === 'tercapai' ? 'tercapai' : (isOver ? 'overdue' : 'pending');
+    const badgeBg = ms.status === 'tercapai' ? '#D1FAE5' : (isOver ? '#FEE2E2' : '#EFF6FF');
+    const badgeFg = ms.status === 'tercapai' ? '#065F46' : (isOver ? '#991B1B' : '#1E40AF');
+    const badgeTxt= ms.status === 'tercapai' ? '✓ Tercapai' : (isOver ? '⚠ Overdue' : '○ Pending');
+
+    const taskChips = (ms.taskIds || []).map(t =>
+      `<div class="ms-task-chip" onclick="window.location='/pages/task.html?id=${t._id}'">${t.judul}</div>`
+    ).join('');
+
+    const curUser = getUser();
+    const canEdit = curUser?.role === 'superadmin' || curUser?.role === 'direksi' ||
+                    ms.createdBy?._id === curUser?._id;
+
+    return `
+      <div class="ms-item ${cls}">
+        <div class="ms-head">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:12px;height:12px;background:${ms.warna};border-radius:3px;transform:rotate(45deg);flex-shrink:0"></div>
+              <div class="ms-title">${ms.judul}</div>
+            </div>
+            ${ms.deskripsi ? `<div class="ms-desc">${ms.deskripsi}</div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span class="ms-badge" style="background:${badgeBg};color:${badgeFg}">${badgeTxt}</span>
+          </div>
+        </div>
+        <div class="ms-date"><i class="ti ti-calendar"></i> ${formatTanggal(ms.tanggal)}</div>
+        ${ms.direktoratId ? `<div class="ms-dir"><i class="ti ti-building"></i> ${ms.direktoratId.kode} — ${ms.direktoratId.nama}</div>` : ''}
+        ${taskChips ? `<div class="ms-tasks">${taskChips}</div>` : ''}
+        ${canEdit ? `
+        <div class="ms-actions">
+          ${ms.status === 'pending' ? `<button class="ms-btn primary" onclick="markTercapai('${ms._id}')"><i class="ti ti-check"></i> Tandai Tercapai</button>` : ''}
+          <button class="ms-btn" onclick="openEdit('${ms._id}')"><i class="ti ti-pencil"></i> Edit</button>
+          <button class="ms-btn danger" onclick="deleteMilestone('${ms._id}')"><i class="ti ti-trash"></i> Hapus</button>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function openForm() {
+  document.getElementById('ms-modal-title').textContent = 'Milestone Baru';
+  document.getElementById('ms-edit-id').value = '';
+  document.getElementById('ms-judul').value   = '';
+  document.getElementById('ms-tanggal').value = '';
+  document.getElementById('ms-deskripsi').value = '';
+  document.getElementById('ms-dir').value     = '';
+  selectedColor = COLORS[0];
+  document.querySelectorAll('.ms-color-swatch').forEach((el, i) => {
+    el.classList.toggle('selected', i === 0);
+  });
+  document.getElementById('ms-modal-overlay').classList.add('open');
+}
+
+async function openEdit(id) {
+  const { milestones } = await Milestones.list().catch(() => ({ milestones: [] }));
+  const ms = milestones.find(m => m._id === id);
+  if (!ms) return;
+
+  document.getElementById('ms-modal-title').textContent = 'Edit Milestone';
+  document.getElementById('ms-edit-id').value   = ms._id;
+  document.getElementById('ms-judul').value     = ms.judul;
+  document.getElementById('ms-tanggal').value   = ms.tanggal?.slice(0, 10) || '';
+  document.getElementById('ms-deskripsi').value = ms.deskripsi || '';
+  document.getElementById('ms-dir').value       = ms.direktoratId?._id || '';
+  selectedColor = ms.warna || COLORS[0];
+  document.querySelectorAll('.ms-color-swatch').forEach(el => {
+    const c = el.style.background || el.style.backgroundColor;
+    el.classList.toggle('selected', c === selectedColor);
+  });
+  document.getElementById('ms-modal-overlay').classList.add('open');
+}
+
+function closeForm() {
+  document.getElementById('ms-modal-overlay').classList.remove('open');
+}
+
+async function saveMilestone() {
+  const id      = document.getElementById('ms-edit-id').value;
+  const judul   = document.getElementById('ms-judul').value.trim();
+  const tanggal = document.getElementById('ms-tanggal').value;
+  const deskripsi = document.getElementById('ms-deskripsi').value.trim();
+  const direktoratId = document.getElementById('ms-dir').value;
+
+  if (!judul || !tanggal) { showToast('Judul dan tanggal wajib diisi', 'error'); return; }
+
+  const data = { judul, tanggal, deskripsi, direktoratId: direktoratId || null, warna: selectedColor };
+
+  try {
+    if (id) {
+      await Milestones.update(id, data);
+      showToast('Milestone diperbarui');
+    } else {
+      await Milestones.create(data);
+      showToast('Milestone dibuat');
+    }
+    closeForm();
+    loadMilestones();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function markTercapai(id) {
+  try {
+    await Milestones.update(id, { status: 'tercapai' });
+    showToast('Milestone ditandai tercapai');
+    loadMilestones();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteMilestone(id) {
+  if (!await showConfirm('Hapus milestone ini?', { title: 'Hapus Milestone', okLabel: 'Hapus', type: 'danger' })) return;
+  try {
+    await Milestones.delete(id);
+    showToast('Milestone dihapus');
+    loadMilestones();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+document.getElementById('ms-modal-overlay').addEventListener('click', e => {
+  if (e.target.id === 'ms-modal-overlay') closeForm();
+});
+
+init();
+</script>
+</body>
+</html>

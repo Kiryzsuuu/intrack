@@ -1,0 +1,166 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Notifikasi</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .notif-wrap { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+    .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      padding: 6px 14px; border-radius: 100px; font-size: 13px;
+      cursor: pointer; border: 0.5px solid var(--border);
+      background: var(--surface); color: var(--text-3); transition: var(--transition);
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .chip.active { background: var(--accent); color: #fff; border-color: transparent; }
+
+    .notif-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--r-lg); padding: 16px 18px;
+      display: flex; align-items: flex-start; gap: 14px;
+      cursor: pointer; transition: var(--transition);
+    }
+    .notif-card:hover { border-color: var(--accent); }
+    .notif-card.unread { border-left: 3px solid var(--accent); }
+    .notif-icon {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 18px;
+    }
+    .notif-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+    .notif-isi   { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+    .notif-time  { font-size: 12px; color: var(--text-3); white-space: nowrap; flex-shrink: 0; }
+    .notif-dot   { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 4px; }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; padding: 80px 20px; color: var(--text-3); text-align: center;
+    }
+    .empty-state i { font-size: 48px; opacity: .25; }
+    .empty-state p { font-size: 14px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="inbox"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Notifikasi</span></div>
+      <div class="topbar-right">
+        <button class="btn" onclick="markAllRead()"><i class="ti ti-checks"></i> <span>Tandai Semua Dibaca</span></button>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+        <div class="notif-wrap">
+          <div class="filter-chips" id="filter-chips">
+            <span class="chip active" data-type="">Semua</span>
+            <span class="chip" data-type="task_approval">Approval</span>
+            <span class="chip" data-type="task_approved">Disetujui</span>
+            <span class="chip" data-type="task_rejected">Ditolak</span>
+            <span class="chip" data-type="task_revisi">Revisi</span>
+            <span class="chip" data-type="deadline_reminder">Deadline</span>
+            <span class="chip" data-type="komentar">Komentar</span>
+          </div>
+
+          <div id="notif-list" style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+            <div class="empty-state"><i class="ti ti-loader"></i><p>Memuat...</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+let activeType = '';
+
+document.querySelectorAll('.chip').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    activeType = c.dataset.type;
+    loadNotif();
+  });
+});
+
+const ICONS = {
+  task_approval:    { icon:'ti-clock-check',    bg:'var(--orange-bg)',  color:'var(--orange-text)' },
+  task_approved:    { icon:'ti-circle-check',   bg:'var(--green-bg)',   color:'var(--green-text)' },
+  task_rejected:    { icon:'ti-x',              bg:'var(--red-bg)',     color:'var(--red-text)' },
+  task_revisi:      { icon:'ti-rotate',         bg:'var(--red-bg)',     color:'var(--red-text)' },
+  task_done:        { icon:'ti-check-all',      bg:'var(--green-bg)',   color:'var(--green-text)' },
+  task_review:      { icon:'ti-eye',            bg:'var(--purple-bg)', color:'var(--purple-text)' },
+  deadline_reminder:{ icon:'ti-alarm',          bg:'var(--orange-bg)', color:'var(--orange-text)' },
+  overdue:          { icon:'ti-alert-triangle', bg:'var(--red-bg)',    color:'var(--red-text)' },
+  komentar:         { icon:'ti-message',        bg:'var(--accent-light)',color:'var(--accent)' },
+};
+
+async function loadNotif() {
+  const list = document.getElementById('notif-list');
+  list.innerHTML = '<div class="empty-state"><i class="ti ti-loader"></i><p>Memuat...</p></div>';
+  try {
+    const params = { limit: 60 };
+    if (activeType) params.jenis = activeType;
+    const { notifikasi } = await Notifikasi.list(params);
+    renderList(notifikasi);
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state"><i class="ti ti-alert-circle"></i><p>${e.message}</p></div>`;
+  }
+}
+
+function renderList(items) {
+  const list = document.getElementById('notif-list');
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state"><i class="ti ti-bell-off"></i><p>Tidak ada notifikasi</p></div>';
+    return;
+  }
+  list.innerHTML = items.map(n => {
+    const ic = ICONS[n.jenis] || { icon:'ti-bell', bg:'var(--surface-2)', color:'var(--text-3)' };
+    return `
+      <div class="notif-card ${n.isRead?'':'unread'}" onclick="openNotif('${n._id}','${n.taskId||''}')">
+        <div class="notif-icon" style="background:${ic.bg}">
+          <i class="ti ${ic.icon}" style="color:${ic.color}"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="notif-title">${n.judul}</div>
+          <div class="notif-isi">${n.isi}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <span class="notif-time">${formatRelative(n.createdAt)}</span>
+          ${!n.isRead ? '<span class="notif-dot"></span>' : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function openNotif(id, taskId) {
+  try { await Notifikasi.markRead(id); } catch {}
+  if (taskId) window.location.href = `/pages/task.html?id=${taskId}`;
+  else loadNotif();
+}
+
+async function markAllRead() {
+  try {
+    await Notifikasi.markAllRead();
+    showToast('Semua notifikasi ditandai dibaca');
+    loadNotif();
+    loadNotifBadge();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+loadNotif();
+</script>
+</body>
+</html>

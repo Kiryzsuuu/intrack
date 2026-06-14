@@ -1,0 +1,289 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Kalender</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .cal-header {
+      display:flex;align-items:center;justify-content:space-between;
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);padding:16px 20px;
+    }
+    .cal-nav { display:flex;align-items:center;gap:10px }
+    .cal-month { font-size:18px;font-weight:800;letter-spacing:-.3px;min-width:180px;text-align:center }
+    .cal-nav-btn {
+      width:34px;height:34px;border-radius:var(--r);border:0.5px solid var(--border);
+      background:var(--surface-2);cursor:pointer;display:flex;align-items:center;justify-content:center;
+      transition:var(--transition);color:var(--text);
+    }
+    .cal-nav-btn:hover { border-color:var(--accent);color:var(--accent) }
+
+    .cal-legend { display:flex;gap:12px;flex-wrap:wrap }
+    .leg-item { display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3) }
+    .leg-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0 }
+
+    /* Calendar grid */
+    .cal-grid {
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);overflow:hidden;
+    }
+    .cal-dow-row {
+      display:grid;grid-template-columns:repeat(7,1fr);
+      background:var(--surface-2);border-bottom:0.5px solid var(--border);
+    }
+    .cal-dow {
+      padding:10px;text-align:center;font-size:11px;font-weight:700;
+      color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;
+    }
+    .cal-days { display:grid;grid-template-columns:repeat(7,1fr) }
+    .cal-day {
+      min-height:110px;padding:8px;border-right:0.5px solid var(--border);
+      border-bottom:0.5px solid var(--border);
+      transition:background .1s;position:relative;
+    }
+    .cal-day:nth-child(7n) { border-right:none }
+    .cal-day.other-month { background:var(--surface-2);opacity:.5 }
+    .cal-day.today { background:rgba(91,79,232,.04) }
+    .cal-day.today .cal-day-num {
+      background:var(--accent);color:#fff;
+      width:26px;height:26px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .cal-day-num { font-size:13px;font-weight:700;color:var(--text-2);margin-bottom:4px;width:26px;height:26px;display:flex;align-items:center;justify-content:center }
+    .cal-day-num.weekend { color:var(--red-text,#DC2626) }
+
+    .cal-task {
+      font-size:11px;font-weight:500;padding:3px 7px;border-radius:4px;
+      margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap;transition:opacity .1s;line-height:1.4;
+    }
+    .cal-task:hover { opacity:.8 }
+    .cal-more { font-size:10px;color:var(--text-3);padding:2px 4px;cursor:pointer }
+    .cal-more:hover { color:var(--accent) }
+
+    /* Day detail panel */
+    .day-panel {
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);padding:20px;display:none;
+    }
+    .day-panel.open { display:block }
+    .day-panel-title { font-size:15px;font-weight:700;margin-bottom:14px }
+    .dp-task {
+      display:flex;align-items:center;gap:12px;padding:10px 12px;
+      background:var(--surface-2);border:0.5px solid var(--border);
+      border-radius:var(--r-lg);margin-bottom:8px;cursor:pointer;
+      transition:border-color .15s;
+    }
+    .dp-task:hover { border-color:var(--accent) }
+    .dp-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0 }
+    .dp-title { font-size:13px;font-weight:500;flex:1 }
+    .dp-badge { font-size:11px;padding:2px 8px;border-radius:100px }
+
+    @media(max-width:768px){
+      .cal-day { min-height:60px }
+      .cal-task { display:none }
+      .cal-day.has-tasks::after {
+        content:'';display:block;width:6px;height:6px;border-radius:50%;
+        background:var(--accent);margin:4px auto 0;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="calendar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Kalender Task</span></div>
+      <div class="topbar-right">
+        <a href="/pages/task-form.html" class="btn btn-primary"><i class="ti ti-plus"></i> Buat Task</a>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+
+        <div class="cal-header">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+            <div class="cal-month" id="cal-month-label"></div>
+            <button class="cal-nav-btn" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+            <button class="btn" onclick="goToday()" style="font-size:12px">Hari Ini</button>
+          </div>
+          <div class="cal-legend">
+            <div class="leg-item"><div class="leg-dot" style="background:#EF4444"></div> Kritis / Overdue</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#F97316"></div> Tinggi</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#6366F1"></div> Sedang</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#10B981"></div> Done</div>
+          </div>
+        </div>
+
+        <div class="cal-grid">
+          <div class="cal-dow-row">
+            <div class="cal-dow">Min</div><div class="cal-dow">Sen</div>
+            <div class="cal-dow">Sel</div><div class="cal-dow">Rab</div>
+            <div class="cal-dow">Kam</div><div class="cal-dow">Jum</div>
+            <div class="cal-dow" style="color:var(--red-text,#DC2626)">Sab</div>
+          </div>
+          <div class="cal-days" id="cal-days"></div>
+        </div>
+
+        <div class="day-panel" id="day-panel">
+          <div class="day-panel-title" id="day-panel-title"></div>
+          <div id="day-panel-list"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const PRIO_COLOR = {
+  critical: { bg:'#FEE2E2', text:'#991B1B', dot:'#EF4444' },
+  high:     { bg:'#FFF7ED', text:'#9A3412', dot:'#F97316' },
+  medium:   { bg:'#EFF6FF', text:'#1E40AF', dot:'#6366F1' },
+  low:      { bg:'#F0FDF4', text:'#166534', dot:'#10B981' },
+};
+const STATUS_COLOR = {
+  done:             { bg:'#DCFCE7', text:'#166534' },
+  menunggu_approval:{ bg:'#FFF7ED', text:'#9A3412' },
+  in_progress:      { bg:'#EFF6FF', text:'#1E40AF' },
+  perlu_review:     { bg:'#F5F3FF', text:'#4C1D95' },
+  revisi:           { bg:'#FEF2F2', text:'#991B1B' },
+  to_do:            { bg:'#F4F4F5', text:'#71717A' },
+  ditolak:          { bg:'#F4F4F5', text:'#71717A' },
+};
+
+let curYear  = new Date().getFullYear();
+let curMonth = new Date().getMonth();
+let allTasks = [];
+
+async function loadTasks() {
+  try {
+    const { tasks } = await Tasks.list({ limit: 500 });
+    allTasks = tasks;
+    renderCal();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function changeMonth(d) { curMonth += d; if (curMonth > 11) { curMonth=0; curYear++; } if (curMonth < 0) { curMonth=11; curYear--; } renderCal(); }
+function goToday() { curYear = new Date().getFullYear(); curMonth = new Date().getMonth(); renderCal(); }
+
+function renderCal() {
+  document.getElementById('cal-month-label').textContent = BULAN[curMonth] + ' ' + curYear;
+  document.getElementById('day-panel').classList.remove('open');
+
+  const first = new Date(curYear, curMonth, 1).getDay();
+  const days  = new Date(curYear, curMonth + 1, 0).getDate();
+  const today = new Date();
+
+  // Group tasks by deadline date
+  const byDate = {};
+  allTasks.forEach(t => {
+    if (!t.deadline) return;
+    const d = new Date(t.deadline);
+    if (d.getFullYear() !== curYear || d.getMonth() !== curMonth) return;
+    const key = d.getDate();
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(t);
+  });
+
+  const wrap = document.getElementById('cal-days');
+  let html = '';
+
+  // Prev month padding
+  const prevDays = new Date(curYear, curMonth, 0).getDate();
+  for (let i = first - 1; i >= 0; i--) {
+    html += `<div class="cal-day other-month"><div class="cal-day-num">${prevDays - i}</div></div>`;
+  }
+
+  // Current month days
+  for (let d = 1; d <= days; d++) {
+    const isToday   = d === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
+    const dow       = new Date(curYear, curMonth, d).getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const tasks     = byDate[d] || [];
+
+    const taskHtml = tasks.slice(0,3).map(t => {
+      const now     = new Date();
+      const over    = new Date(t.deadline) < now && t.status !== 'done';
+      const isDone  = t.status === 'done';
+      const c       = isDone ? PRIO_COLOR.low : (over ? { bg:'#FEE2E2', text:'#991B1B' } : (PRIO_COLOR[t.prioritas] || PRIO_COLOR.medium));
+      return `<div class="cal-task" style="background:${c.bg};color:${c.text}"
+        onclick="event.stopPropagation();openTask('${t._id}')"
+        title="${t.judul}">
+        ${isDone?'✓ ':''}${t.judul}
+      </div>`;
+    }).join('');
+
+    const more = tasks.length > 3 ? `<div class="cal-more" onclick="event.stopPropagation();openDay(${d})">+${tasks.length-3} lagi</div>` : '';
+
+    html += `<div class="cal-day${isToday?' today':''}${tasks.length?' has-tasks':''}"
+      onclick="openDay(${d})" style="cursor:${tasks.length?'pointer':'default'}">
+      <div class="cal-day-num${isWeekend?' weekend':''}">${d}</div>
+      ${taskHtml}${more}
+    </div>`;
+  }
+
+  // Next month padding
+  const total = first + days;
+  const rem   = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let d = 1; d <= rem; d++) {
+    html += `<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+
+  wrap.innerHTML = html;
+}
+
+function openDay(d) {
+  const tasks = allTasks.filter(t => {
+    if (!t.deadline) return false;
+    const dl = new Date(t.deadline);
+    return dl.getDate() === d && dl.getMonth() === curMonth && dl.getFullYear() === curYear;
+  });
+  if (!tasks.length) return;
+
+  const panel = document.getElementById('day-panel');
+  document.getElementById('day-panel-title').textContent =
+    `Task deadline ${d} ${BULAN[curMonth]} ${curYear} (${tasks.length} task)`;
+
+  document.getElementById('day-panel-list').innerHTML = tasks.map(t => {
+    const now  = new Date();
+    const over = new Date(t.deadline) < now && t.status !== 'done';
+    const sc   = STATUS_COLOR[t.status] || STATUS_COLOR.to_do;
+    const pc   = PRIO_COLOR[t.prioritas] || PRIO_COLOR.medium;
+    return `
+      <div class="dp-task" onclick="openTask('${t._id}')">
+        <div class="dp-dot" style="background:${over?'#EF4444':pc.dot}"></div>
+        <div>
+          <div class="dp-title">${t.judul}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px">${t.picUserId?.namaLengkap||'—'} · ${t.direktoratId?.kode||'—'}</div>
+        </div>
+        <span class="dp-badge" style="background:${sc.bg};color:${sc.text}">${statusLabel(t.status)}</span>
+        ${over ? '<span style="color:#EF4444;font-size:12px;font-weight:700">Overdue</span>' : ''}
+      </div>`;
+  }).join('');
+
+  panel.classList.add('open');
+  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function openTask(id) { window.location.href = '/pages/task.html?id=' + id; }
+
+loadTasks();
+</script>
+</body>
+</html>

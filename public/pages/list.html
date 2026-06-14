@@ -1,0 +1,337 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Daftar Task</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .filters-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .sel {
+      background:var(--surface); border:0.5px solid var(--border);
+      border-radius:var(--r-sm); padding:7px 11px; font-size:13px;
+      color:var(--text); outline:none; cursor:pointer;
+    }
+    .sel:focus { border-color:var(--accent); }
+    .tbl-wrap {
+      background:var(--surface); border:0.5px solid var(--border);
+      border-radius:var(--r-lg); overflow:hidden;
+    }
+    table { width:100%; border-collapse:collapse; }
+    th {
+      font-size:11px; font-weight:600; color:var(--text-3);
+      text-transform:uppercase; letter-spacing:.5px;
+      padding:10px 14px; text-align:left;
+      background:var(--surface-2); border-bottom:0.5px solid var(--border);
+    }
+    td {
+      padding:12px 14px; border-bottom:0.5px solid var(--border);
+      font-size:13px; color:var(--text); vertical-align:middle;
+    }
+    tr:hover td { background:var(--surface-2); }
+    tr:last-child td { border-bottom:none; }
+    .task-link {
+      color:var(--text); font-weight:500; cursor:pointer;
+      max-width:340px; overflow:hidden; text-overflow:ellipsis;
+      white-space:nowrap; display:block;
+    }
+    .task-link:hover { color:var(--accent); }
+    .pagination { display:flex; align-items:center; gap:6px; justify-content:center; }
+    @media(max-width:900px){.hide-mobile{display:none}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Bulk action bar */
+    #bulk-bar {
+      display:none;position:sticky;bottom:16px;z-index:200;
+      background:var(--surface);border:0.5px solid var(--accent);
+      border-radius:var(--r-xl);padding:12px 18px;box-shadow:0 8px 32px rgba(91,79,232,.2);
+      align-items:center;gap:12px;flex-wrap:wrap;
+    }
+    #bulk-bar.visible { display:flex }
+    #bulk-bar .bulk-count { font-size:13px;font-weight:700;color:var(--accent) }
+
+    /* Row checkbox */
+    .row-cb { width:16px;height:16px;cursor:pointer;accent-color:var(--accent) }
+    tr.selected td { background:var(--accent-light,#EEF2FF) !important }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="tasks"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <a href="/pages/dashboard.html">Dashboard</a>
+        <span class="bc-sep">/</span>
+        <span class="cur">Daftar Task</span>
+      </div>
+      <div class="topbar-right">
+        <div class="view-sw">
+          <a href="/pages/list.html" class="active"><i class="ti ti-list"></i> List</a>
+          <a href="/pages/board.html"><i class="ti ti-layout-kanban"></i> Board</a>
+        </div>
+        <a href="/pages/task-form.html" class="btn btn-primary"><i class="ti ti-plus"></i> <span>Buat Task</span></a>
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+        <div class="filters-row">
+          <input type="text" id="f-search" class="input" placeholder="Cari judul task..." style="width:240px" oninput="debounceLoad()">
+          <select id="f-status" class="sel" onchange="loadList()">
+            <option value="">Semua Status</option>
+            <option value="menunggu_approval">Menunggu Approval</option>
+            <option value="to_do">To Do</option>
+            <option value="in_progress">In Progress</option>
+            <option value="perlu_review">Perlu Review</option>
+            <option value="revisi">Revisi</option>
+            <option value="done">Done</option>
+            <option value="ditolak">Ditolak</option>
+          </select>
+          <select id="f-prioritas" class="sel" onchange="loadList()">
+            <option value="">Semua Prioritas</option>
+            <option value="critical">Kritis</option>
+            <option value="high">Tinggi</option>
+            <option value="medium">Sedang</option>
+            <option value="low">Rendah</option>
+          </select>
+          <select id="f-direktorat" class="sel" onchange="loadList()" style="display:none">
+            <option value="">Semua Direktorat</option>
+          </select>
+          <button class="btn" onclick="exportExcel()"><i class="ti ti-file-excel"></i> Export</button>
+        </div>
+
+        <div id="total-row" style="font-size:13px;color:var(--text-3)"></div>
+
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="cb-all" class="row-cb" title="Pilih semua" onchange="toggleSelectAll(this.checked)"></th>
+                <th>Judul Task</th>
+                <th class="hide-mobile">PIC</th>
+                <th class="hide-mobile">Direktorat</th>
+                <th>Status</th>
+                <th>Prioritas</th>
+                <th>Deadline</th>
+                <th class="hide-mobile">Evidence</th>
+              </tr>
+            </thead>
+            <tbody id="task-tbody">
+              <tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:48px">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination" id="pagination"></div>
+
+        <!-- Bulk Action Bar -->
+        <div id="bulk-bar">
+          <span class="bulk-count" id="bulk-count">0 dipilih</span>
+          <span style="font-size:12px;color:var(--text-3)">Ubah status menjadi:</span>
+          <select id="bulk-status-sel" class="sel" style="font-size:12px;padding:5px 10px">
+            <option value="in_progress">In Progress</option>
+            <option value="perlu_review">Perlu Review</option>
+            <option value="to_do">To Do</option>
+            <option value="done">Done</option>
+            <option value="ditolak">Ditolak</option>
+          </select>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="doBulkStatus()"><i class="ti ti-check"></i> Terapkan</button>
+          <button class="btn" style="font-size:12px;padding:6px 14px" onclick="clearSelection()"><i class="ti ti-x"></i> Batal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script src="/js/dialogs.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+let currentPage = 1;
+const PAGE_SIZE = 25;
+let debounceTimer;
+let selectedIds = new Set();
+
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('status')) document.getElementById('f-status').value = urlParams.get('status');
+
+async function loadList() {
+  const search     = document.getElementById('f-search').value;
+  const status     = document.getElementById('f-status').value;
+  const prioritas  = document.getElementById('f-prioritas').value;
+  const direktorat = document.getElementById('f-direktorat').value;
+  const params = { page: currentPage, limit: PAGE_SIZE };
+  if (search)     params.search       = search;
+  if (status)     params.status       = status;
+  if (prioritas)  params.prioritas    = prioritas;
+  if (direktorat) params.direktoratId = direktorat;
+
+  const tbody = document.getElementById('task-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:28px">Memuat...</td></tr>';
+
+  try {
+    const { tasks, total } = await Tasks.list(params);
+    document.getElementById('total-row').textContent = `${total} task ditemukan`;
+    renderTable(tasks);
+    renderPagination(total);
+    updateBulkBar();
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red-text);padding:28px">${e.message}</td></tr>`;
+  }
+}
+
+function renderTable(tasks) {
+  const tbody = document.getElementById('task-tbody');
+  if (!tasks.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:48px">Tidak ada task</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tasks.map(t => {
+    const isSelected = selectedIds.has(t._id);
+    const coverHtml = t.coverImage
+      ? `<div style="width:48px;height:36px;border-radius:6px;overflow:hidden;flex-shrink:0;position:relative;background:var(--surface-2)">
+           <img src="${t.coverImage}" style="width:100%;height:100%;object-fit:cover;display:block">
+           <div style="position:absolute;inset:0;background:rgba(0,0,0,.08)"></div>
+         </div>`
+      : `<div style="width:48px;height:36px;border-radius:6px;background:var(--surface-2);border:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center">
+           <i class="ti ti-photo" style="font-size:14px;color:var(--text-3)"></i>
+         </div>`;
+    return `
+    <tr class="${isSelected ? 'selected' : ''}" data-id="${t._id}">
+      <td style="width:36px"><input type="checkbox" class="row-cb" data-id="${t._id}" ${isSelected ? 'checked' : ''} onchange="toggleRow(this)"></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${coverHtml}
+          <div>
+            <a class="task-link" href="/pages/task.html?id=${t._id}" style="max-width:260px">${t.judul}</a>
+            ${isOverdue(t) ? '<span style="color:var(--red);font-size:11px;font-weight:600">⚠ Overdue</span>' : ''}
+          </div>
+        </div>
+      </td>
+      <td class="hide-mobile">
+        <div style="display:flex;align-items:center;gap:8px">
+          ${t.picUserId?.fotoProfil
+            ? `<img src="${t.picUserId.fotoProfil}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
+            : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${(t.picUserId?.namaLengkap||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`}
+          <span style="color:var(--text-2)">${t.picUserId?.namaLengkap || '-'}</span>
+        </div>
+      </td>
+      <td class="hide-mobile" style="color:var(--text-2)">${t.direktoratId?.nama || '-'}</td>
+      <td><span class="badge ${statusBadgeClass(t.status)}">${statusLabel(t.status)}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="prio-dot p-${t.prioritas}"></span>
+          <span style="color:var(--text-2)">${prioritasLabel(t.prioritas)}</span>
+        </div>
+      </td>
+      <td style="color:${isOverdue(t)?'var(--red)':'var(--text-2)'}">${formatTanggal(t.deadline)}</td>
+      <td class="hide-mobile" style="color:var(--text-3)">${t.evidenceCount || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleRow(cb) {
+  const id = cb.dataset.id;
+  if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+  const row = cb.closest('tr');
+  row.classList.toggle('selected', cb.checked);
+  updateBulkBar();
+}
+
+function toggleSelectAll(checked) {
+  document.querySelectorAll('.row-cb[data-id]').forEach(cb => {
+    cb.checked = checked;
+    if (checked) selectedIds.add(cb.dataset.id); else selectedIds.delete(cb.dataset.id);
+    cb.closest('tr').classList.toggle('selected', checked);
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const n   = selectedIds.size;
+  bar.classList.toggle('visible', n > 0);
+  document.getElementById('bulk-count').textContent = `${n} dipilih`;
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = false; cb.closest('tr')?.classList.remove('selected'); });
+  document.getElementById('cb-all').checked = false;
+  updateBulkBar();
+}
+
+async function doBulkStatus() {
+  const ids     = [...selectedIds];
+  const status  = document.getElementById('bulk-status-sel').value;
+  if (!ids.length) return;
+  if (!await showConfirm(`Ubah status ${ids.length} task menjadi "${statusLabel(status)}"?`, { title: 'Ubah Status Massal', okLabel: 'Terapkan' })) return;
+  try {
+    const { updated } = await Tasks.bulkStatus(ids, status);
+    showToast(`${updated} task diperbarui`);
+    clearSelection();
+    loadList();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function renderPagination(total) {
+  const pages = Math.ceil(total / PAGE_SIZE);
+  if (pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= pages; i++) {
+    html += `<button class="btn${i===currentPage?' btn-primary':''}" onclick="gotoPage(${i})" style="min-width:36px;padding:6px 10px">${i}</button>`;
+  }
+  document.getElementById('pagination').innerHTML = html;
+}
+
+function gotoPage(p) { currentPage = p; loadList(); }
+function debounceLoad() { clearTimeout(debounceTimer); debounceTimer = setTimeout(loadList, 350); }
+async function exportExcel() {
+  const btn = document.querySelector('[onclick="exportExcel()"]');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Mengekspor...';
+  try {
+    const token = getToken();
+    const direktorat = document.getElementById('f-direktorat').value;
+    const qs = direktorat ? '?direktoratId=' + direktorat : '';
+    const res = await fetch('/api/reports/tasks/excel' + qs, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('Gagal mengekspor');
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'tasks-intrack.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) { showToast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = orig; }
+}
+
+async function initFilters() {
+  if (user?.role === 'direksi') {
+    const dirs = await Direktorat.list();
+    const sel  = document.getElementById('f-direktorat');
+    sel.style.display = '';
+    dirs.forEach(d => {
+      const o = document.createElement('option'); o.value = d._id; o.textContent = d.nama;
+      sel.appendChild(o);
+    });
+  }
+  loadList();
+}
+
+initFilters();
+</script>
+</body>
+</html>

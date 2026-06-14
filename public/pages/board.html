@@ -1,0 +1,288 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Board Kanban</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .board-wrap {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - var(--topbar-h));
+      overflow: hidden;
+      padding: 18px 24px;
+      gap: 14px;
+    }
+    .board-filters { display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex-shrink:0; }
+    .sel {
+      background:var(--surface); border:0.5px solid var(--border);
+      border-radius:var(--r-sm); padding:7px 11px; font-size:13px;
+      color:var(--text); outline:none; cursor:pointer;
+    }
+    .board-cols {
+      display: flex;
+      gap: 14px;
+      overflow-x: auto;
+      flex: 1;
+      align-items: flex-start;
+      padding-bottom: 10px;
+    }
+    .board-cols::-webkit-scrollbar { height: 5px; }
+    .board-cols::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .kanban-col {
+      width: 260px;
+      min-width: 260px;
+      flex-shrink: 0;
+      background: var(--surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--r-lg);
+      display: flex;
+      flex-direction: column;
+      max-height: 100%;
+    }
+    .col-header {
+      padding: 12px 14px;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .col-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .col-title { font-size: 13px; font-weight: 600; flex: 1; }
+    .col-count {
+      font-size: 11px; color: var(--text-3);
+      background: var(--border); padding: 2px 7px;
+      border-radius: 100px; font-weight: 600;
+    }
+    .col-cards {
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 8px;
+      overflow-y: auto; flex: 1;
+    }
+    .col-cards::-webkit-scrollbar { width: 3px; }
+    .col-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .task-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--r);
+      padding: 12px;
+      cursor: grab;
+      transition: var(--transition);
+      user-select: none;
+    }
+    .task-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); border-color: var(--accent); }
+    .task-card.dragging { opacity:.4; cursor:grabbing; }
+    .kanban-col.drag-over .col-cards { background:var(--accent-light,#EEF2FF); border-radius:0 0 var(--r-lg) var(--r-lg); }
+    .card-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 10px; line-height: 1.4; }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; }
+    .card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .tag-pill { font-size: 10px; background: var(--accent-light); color: var(--accent); padding: 2px 7px; border-radius: 100px; }
+    .overdue-mark { font-size: 11px; font-weight: 600; color: var(--red); margin-bottom: 4px; display: block; }
+
+    @media(max-width:768px){
+      .board-wrap { padding:14px 16px; }
+      .kanban-col { min-width: 220px; width: 220px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="board"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc">
+        <a href="/pages/dashboard.html">Dashboard</a>
+        <span class="bc-sep">/</span>
+        <span class="cur">Board Kanban</span>
+      </div>
+      <div class="topbar-right">
+        <div class="view-sw">
+          <a href="/pages/list.html"><i class="ti ti-list"></i> List</a>
+          <a href="/pages/board.html" class="active"><i class="ti ti-layout-kanban"></i> Board</a>
+        </div>
+        <a href="/pages/task-form.html" class="btn btn-primary"><i class="ti ti-plus"></i> <span>Buat Task</span></a>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board-filters">
+        <select id="f-prioritas" class="sel" onchange="loadBoard()">
+          <option value="">Semua Prioritas</option>
+          <option value="critical">Kritis</option>
+          <option value="high">Tinggi</option>
+          <option value="medium">Sedang</option>
+          <option value="low">Rendah</option>
+        </select>
+        <select id="f-direktorat" class="sel" onchange="loadBoard()" style="display:none">
+          <option value="">Semua Direktorat</option>
+        </select>
+        <input type="text" id="f-search" class="input" placeholder="Cari task..." style="width:200px" oninput="loadBoard()">
+      </div>
+      <div class="board-cols" id="board-cols">
+        <div style="display:flex;align-items:center;justify-content:center;width:100%;color:var(--text-3);font-size:14px;padding:60px">Memuat board...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script src="/js/dialogs.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+
+const COLUMNS = [
+  { status:'menunggu_approval', label:'Menunggu Approval', color:'#EA580C', direksiOnly:true },
+  { status:'to_do',             label:'To Do',             color:'#A1A1AA' },
+  { status:'in_progress',       label:'In Progress',       color:'#7C3AED' },
+  { status:'perlu_review',      label:'Perlu Review',      color:'#EA580C', direksiOnly:true },
+  { status:'revisi',            label:'Revisi',            color:'#DC2626' },
+  { status:'done',              label:'Done',              color:'#16A34A' },
+];
+
+async function loadBoard() {
+  const prioritas    = document.getElementById('f-prioritas').value;
+  const direktoratId = document.getElementById('f-direktorat').value;
+  const search       = document.getElementById('f-search').value;
+  const params = { limit: 200 };
+  if (prioritas)    params.prioritas    = prioritas;
+  if (direktoratId) params.direktoratId = direktoratId;
+  if (search)       params.search       = search;
+
+  try {
+    const { tasks } = await Tasks.list(params);
+    renderBoard(tasks);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+let dragTaskId  = null;
+let dragFromStatus = null;
+
+function renderBoard(tasks) {
+  const isDireksi = user?.role === 'direksi' || user?.role === 'superadmin';
+  const cols = COLUMNS.filter(c => !c.direksiOnly || isDireksi);
+
+  document.getElementById('board-cols').innerHTML = cols.map(col => {
+    const colTasks = tasks.filter(t => t.status === col.status);
+    return `
+      <div class="kanban-col" data-status="${col.status}"
+        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${col.status}')">
+        <div class="col-header">
+          <div class="col-dot" style="background:${col.color}"></div>
+          <span class="col-title">${col.label}</span>
+          <span class="col-count">${colTasks.length}</span>
+        </div>
+        <div class="col-cards">
+          ${colTasks.length ? colTasks.map(renderCard).join('') : '<div class="drop-hint" style="text-align:center;font-size:13px;color:var(--text-3);padding:24px 10px">Tidak ada task</div>'}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderCard(t) {
+  const od = isOverdue(t);
+  return `
+    <div class="task-card" data-id="${t._id}" data-status="${t.status}"
+      draggable="true"
+      ondragstart="onDragStart(event,'${t._id}','${t.status}')"
+      ondragend="onDragEnd(event)"
+      onclick="window.location='/pages/task.html?id=${t._id}'">
+      ${od ? `<span class="overdue-mark">⚠ Overdue</span>` : ''}
+      <div class="card-title">${t.judul}</div>
+      <div class="card-footer">
+        <div style="display:flex;align-items:center;gap:5px">
+          <div class="prio-dot p-${t.prioritas}"></div>
+          <span style="font-size:11px;color:var(--text-3)">${prioritasLabel(t.prioritas)}</span>
+        </div>
+        <span style="font-size:11px;color:${od?'var(--red)':'var(--text-3)'}">${formatTanggal(t.deadline)}</span>
+      </div>
+      ${t.picUserId ? `<div style="margin-top:8px;font-size:11px;color:var(--text-3)">${t.picUserId.namaLengkap || ''}</div>` : ''}
+      ${t.tags?.length ? `<div class="card-tags">${t.tags.map(g=>`<span class="tag-pill">${g}</span>`).join('')}</div>` : ''}
+    </div>`;
+}
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────────
+function onDragStart(e, taskId, fromStatus) {
+  dragTaskId     = taskId;
+  dragFromStatus = fromStatus;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => e.target.classList.add('dragging'), 0);
+}
+
+function onDragEnd(e) {
+  e.target.classList.remove('dragging');
+  document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+}
+
+async function onDrop(e, toStatus) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!dragTaskId || dragFromStatus === toStatus) return;
+
+  // Cek transisi valid
+  const VALID = {
+    menunggu_approval: ['to_do','ditolak'],
+    to_do:             ['in_progress'],
+    in_progress:       ['perlu_review'],
+    perlu_review:      ['done','revisi'],
+    revisi:            ['in_progress'],
+  };
+  if (!VALID[dragFromStatus]?.includes(toStatus)) {
+    showToast(`Tidak bisa pindah dari "${statusLabel(dragFromStatus)}" ke "${statusLabel(toStatus)}"`, 'error');
+    return;
+  }
+
+  // Kalau reject/revisi perlu catatan
+  let catatan = null;
+  if (['ditolak','revisi'].includes(toStatus)) {
+    catatan = await showPrompt(
+      `Masukkan alasan ${toStatus === 'ditolak' ? 'penolakan' : 'revisi'} (min. 10 karakter)`,
+      { title: toStatus === 'ditolak' ? 'Tolak Task' : 'Kembalikan Revisi', placeholder: 'Ketik alasan...', hint: 'Minimal 10 karakter', okLabel: 'Kirim', type: 'danger' }
+    );
+    if (catatan === null) return;
+    if (catatan.length < 10) { showToast('Alasan minimal 10 karakter', 'error'); return; }
+  }
+
+  try {
+    await Tasks.updateStatus(dragTaskId, toStatus, catatan);
+    showToast(`Task dipindah ke ${statusLabel(toStatus)}`);
+    loadBoard();
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+async function initFilters() {
+  if (user?.role === 'direksi') {
+    const dirs = await Direktorat.list();
+    const sel  = document.getElementById('f-direktorat');
+    sel.style.display = '';
+    dirs.forEach(d => {
+      const o = document.createElement('option'); o.value = d._id; o.textContent = d.nama;
+      sel.appendChild(o);
+    });
+  }
+}
+
+initFilters().then(() => loadBoard());
+</script>
+</body>
+</html>

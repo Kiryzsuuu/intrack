@@ -1,0 +1,377 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Gantt Chart</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .gantt-toolbar {
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);padding:14px 20px;
+      display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    }
+    .gantt-toolbar-title { font-size:15px;font-weight:700;flex:1 }
+    .sel { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:7px 11px;font-size:13px;color:var(--text);outline:none;cursor:pointer }
+    .sel:focus { border-color:var(--accent) }
+    .zoom-btn {
+      width:32px;height:32px;border:0.5px solid var(--border);border-radius:var(--r-sm);
+      background:var(--surface-2);cursor:pointer;display:flex;align-items:center;
+      justify-content:center;transition:var(--transition);color:var(--text);
+    }
+    .zoom-btn:hover { border-color:var(--accent);color:var(--accent) }
+
+    /* Gantt wrap */
+    .gantt-wrap {
+      background:var(--surface);border:0.5px solid var(--border);
+      border-radius:var(--r-xl);overflow:hidden;
+    }
+    .gantt-inner { display:flex;overflow:auto }
+
+    /* Left task list */
+    .gantt-list { flex-shrink:0;width:280px;border-right:0.5px solid var(--border);overflow:hidden }
+    .gantt-list-head {
+      display:flex;align-items:center;gap:8px;padding:12px 16px;
+      background:var(--surface-2);border-bottom:0.5px solid var(--border);
+      font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;
+      height:48px;
+    }
+    .gantt-row {
+      display:flex;align-items:center;gap:8px;padding:0 16px;
+      height:44px;border-bottom:0.5px solid var(--border);cursor:pointer;
+      transition:background .1s;
+    }
+    .gantt-row:hover { background:var(--surface-2) }
+    .gantt-row:last-child { border-bottom:none }
+    .gantt-row-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0 }
+    .gantt-row-name { font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+    .gantt-row-pic  { font-size:11px;color:var(--text-3);flex-shrink:0;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+
+    /* Right chart area */
+    .gantt-chart { flex:1;overflow:auto;position:relative;min-width:0 }
+    .gantt-chart-head {
+      display:flex;background:var(--surface-2);
+      border-bottom:0.5px solid var(--border);
+      height:48px;position:sticky;top:0;z-index:10;
+    }
+    .gantt-day-col { flex-shrink:0;border-right:0.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center }
+    .gantt-day-col.today-col { background:rgba(91,79,232,.06) }
+    .gantt-day-label { font-size:10px;font-weight:600;color:var(--text-3) }
+    .gantt-day-dow   { font-size:9px;color:var(--text-3);margin-top:1px }
+    .gantt-day-col.weekend { background:var(--surface-2);opacity:.7 }
+
+    .gantt-chart-body { position:relative }
+    .gantt-bar-row { position:relative;height:44px;border-bottom:0.5px solid var(--border);display:flex;align-items:center }
+    .gantt-bar-row:last-child { border-bottom:none }
+    .gantt-grid-line { position:absolute;top:0;bottom:0;width:0.5px;background:var(--border) }
+    .gantt-grid-today { position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:.3;z-index:5 }
+
+    .gantt-bar {
+      position:absolute;height:24px;border-radius:6px;cursor:pointer;
+      display:flex;align-items:center;padding:0 8px;top:10px;
+      transition:opacity .15s,box-shadow .15s;white-space:nowrap;overflow:hidden;
+      font-size:11px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.1);
+    }
+    .gantt-bar:hover { opacity:.85;box-shadow:0 2px 8px rgba(0,0,0,.15) }
+    .gantt-bar-label { overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+
+    /* Tooltip */
+    .gantt-tooltip {
+      position:fixed;background:#18181B;color:#FAFAFA;border-radius:10px;
+      padding:10px 14px;font-size:12px;pointer-events:none;z-index:1000;
+      box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:240px;line-height:1.6;
+      display:none;
+    }
+    .gantt-tooltip.show { display:block }
+
+    .empty-gantt { padding:64px;text-align:center;color:var(--text-3) }
+    .empty-gantt i { font-size:48px;opacity:.2;display:block;margin-bottom:12px }
+
+    /* Milestone markers */
+    .gantt-milestone {
+      position:absolute;z-index:8;top:50%;transform:translateX(-50%) translateY(-50%) rotate(45deg);
+      width:14px;height:14px;cursor:pointer;
+    }
+    .gantt-milestone:hover { filter:brightness(1.2) }
+    .gantt-milestone-row { position:relative;height:28px;border-bottom:0.5px solid var(--border);display:flex;align-items:center }
+    .gantt-milestone-vline { position:absolute;top:0;bottom:-100vh;width:1px;border-left:2px dashed;opacity:.35;z-index:6 }
+    .gantt-milestone-label { font-size:10px;font-weight:600;margin-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="gantt"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Gantt Chart</span></div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+
+        <div class="gantt-toolbar">
+          <div class="gantt-toolbar-title">Timeline Task</div>
+          <select id="f-status" class="sel" onchange="renderGantt()">
+            <option value="">Semua Status</option>
+            <option value="to_do">To Do</option>
+            <option value="in_progress">In Progress</option>
+            <option value="perlu_review">Perlu Review</option>
+            <option value="done">Done</option>
+          </select>
+          <select id="f-dir" class="sel" onchange="renderGantt()">
+            <option value="">Semua Direktorat</option>
+          </select>
+          <select id="f-zoom" class="sel" onchange="renderGantt()">
+            <option value="day">Zoom: Harian</option>
+            <option value="week" selected>Zoom: Mingguan</option>
+          </select>
+          <div style="display:flex;gap:4px">
+            <button class="zoom-btn" onclick="shiftRange(-1)" title="Mundur"><i class="ti ti-chevron-left" style="font-size:14px"></i></button>
+            <button class="btn" onclick="resetRange()" style="font-size:12px">Sekarang</button>
+            <button class="zoom-btn" onclick="shiftRange(1)"  title="Maju"><i class="ti ti-chevron-right" style="font-size:14px"></i></button>
+          </div>
+        </div>
+
+        <div id="gantt-wrap" class="gantt-wrap">
+          <div class="gantt-inner" id="gantt-inner">
+            <div style="padding:40px;color:var(--text-3)">Memuat...</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="gantt-tooltip" id="gantt-tooltip"></div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+
+const PRIO_COLORS = {
+  critical: { bar:'#EF4444', text:'#fff' },
+  high:     { bar:'#F97316', text:'#fff' },
+  medium:   { bar:'#6366F1', text:'#fff' },
+  low:      { bar:'#10B981', text:'#fff' },
+};
+const STATUS_COLORS = {
+  done:              { bar:'#10B981', text:'#fff' },
+  in_progress:       { bar:'#3B82F6', text:'#fff' },
+  perlu_review:      { bar:'#8B5CF6', text:'#fff' },
+  revisi:            { bar:'#EF4444', text:'#fff' },
+  menunggu_approval: { bar:'#F59E0B', text:'#fff' },
+  to_do:             { bar:'#6B7280', text:'#fff' },
+  ditolak:           { bar:'#9CA3AF', text:'#fff' },
+};
+
+let allTasks = [];
+let allMilestones = [];
+let rangeOffset = 0;
+
+const COL_W_DAY  = 36;
+const COL_W_WEEK = 64;
+
+function colW() { return document.getElementById('f-zoom').value === 'week' ? COL_W_WEEK : COL_W_DAY; }
+function numCols() { return document.getElementById('f-zoom').value === 'week' ? 28 : 60; }
+
+function rangeStart() {
+  const d = new Date();
+  d.setDate(d.getDate() + rangeOffset);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function shiftRange(dir) {
+  const step = document.getElementById('f-zoom').value === 'week' ? 14 : 30;
+  rangeOffset += dir * step;
+  renderGantt();
+}
+function resetRange() { rangeOffset = 0; renderGantt(); }
+
+async function init() {
+  try {
+    const [taskData, dirs, msData] = await Promise.all([
+      Tasks.list({ limit: 500 }),
+      Direktorat.list().catch(() => []),
+      Milestones.list().catch(() => ({ milestones: [] })),
+    ]);
+    allTasks = (taskData.tasks || []).filter(t => t.deadline);
+    allMilestones = msData.milestones || [];
+
+    const sel = document.getElementById('f-dir');
+    dirs.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d._id; o.textContent = d.kode + ' — ' + d.nama;
+      sel.appendChild(o);
+    });
+
+    renderGantt();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function renderGantt() {
+  const statusF = document.getElementById('f-status').value;
+  const dirF    = document.getElementById('f-dir').value;
+
+  let tasks = allTasks.filter(t => {
+    if (statusF && t.status !== statusF) return false;
+    if (dirF && (t.direktoratId?._id || t.direktoratId) !== dirF) return false;
+    return true;
+  });
+
+  const inner = document.getElementById('gantt-inner');
+
+  if (!tasks.length) {
+    inner.innerHTML = '<div class="empty-gantt"><i class="ti ti-chart-gantt"></i><p>Tidak ada task yang sesuai filter</p></div>';
+    return;
+  }
+
+  const cw      = colW();
+  const nc      = numCols();
+  const start   = rangeStart();
+  const isWeek  = document.getElementById('f-zoom').value === 'week';
+  const today   = new Date(); today.setHours(0,0,0,0);
+
+  // Build days array
+  const cols = [];
+  for (let i = 0; i < nc; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    cols.push(d);
+  }
+
+  // Header HTML
+  let headHtml = cols.map(d => {
+    const isToday   = d.toDateString() === today.toDateString();
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    const dow       = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'][d.getDay()];
+    return `<div class="gantt-day-col${isToday?' today-col':''}${isWeekend?' weekend':''}" style="width:${cw}px;min-width:${cw}px">
+      <div class="gantt-day-label">${d.getDate()}/${d.getMonth()+1}</div>
+      <div class="gantt-day-dow">${dow}</div>
+    </div>`;
+  }).join('');
+
+  // Chart body — grid lines + bars
+  const totalW = cw * nc;
+
+  let gridLines = cols.map((d, i) => {
+    const isToday = d.toDateString() === today.toDateString();
+    return `<div class="${isToday ? 'gantt-grid-today' : 'gantt-grid-line'}" style="left:${i * cw}px"></div>`;
+  }).join('');
+
+  let barsHtml = tasks.map(t => {
+    const deadline = new Date(t.deadline);
+    deadline.setHours(23,59,59,0);
+    // Use createdAt as start, deadline as end
+    const taskStart = t.approvedAt ? new Date(t.approvedAt) : new Date(t.createdAt);
+    taskStart.setHours(0,0,0,0);
+
+    const startDiff = Math.floor((taskStart - start) / 86400000);
+    const endDiff   = Math.floor((deadline - start) / 86400000);
+
+    const barLeft  = Math.max(0, startDiff) * cw;
+    const barRight = Math.min(nc - 1, endDiff) * cw + cw;
+    const barWidth = Math.max(cw, barRight - barLeft);
+
+    const color = STATUS_COLORS[t.status] || STATUS_COLORS.to_do;
+    const isOverdue = deadline < today && t.status !== 'done';
+
+    // Only show if bar overlaps visible range
+    if (endDiff < 0 || startDiff >= nc) {
+      return `<div class="gantt-bar-row"></div>`;
+    }
+
+    return `<div class="gantt-bar-row">
+      ${gridLines}
+      <div class="gantt-bar"
+        style="left:${barLeft}px;width:${barWidth}px;background:${isOverdue?'#EF4444':color.bar};color:${color.text};${isOverdue?'background:repeating-linear-gradient(45deg,#EF4444,#EF4444 4px,#DC2626 4px,#DC2626 8px)':''}"
+        onmouseenter="showTooltip(event,'${t.judul.replace(/'/g,"\\'")}','${t.picUserId?.namaLengkap||'—'}','${statusLabel(t.status)}','${formatTanggal(t.deadline)}')"
+        onmouseleave="hideTooltip()"
+        onclick="window.location='/pages/task.html?id=${t._id}'">
+        <span class="gantt-bar-label">${t.judul}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // List HTML
+  let listRowsHtml = tasks.map(t => {
+    const color = STATUS_COLORS[t.status] || STATUS_COLORS.to_do;
+    return `<div class="gantt-row" onclick="window.location='/pages/task.html?id=${t._id}'">
+      <div class="gantt-row-dot" style="background:${color.bar}"></div>
+      <div class="gantt-row-name" title="${t.judul}">${t.judul}</div>
+      <div class="gantt-row-pic">${t.picUserId?.namaLengkap?.split(' ')[0]||'—'}</div>
+    </div>`;
+  }).join('');
+
+  // Milestones within visible range
+  const visMilestones = allMilestones.filter(ms => {
+    const d = new Date(ms.tanggal); d.setHours(0,0,0,0);
+    const diff = Math.floor((d - start) / 86400000);
+    return diff >= 0 && diff < nc;
+  });
+
+  // Milestone marker row in list panel
+  const msListHtml = visMilestones.length
+    ? `<div style="padding:6px 16px;border-top:0.5px solid var(--border);background:var(--surface-2)">
+        <div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Milestones</div>
+        ${visMilestones.map(ms =>
+          `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <div style="width:10px;height:10px;background:${ms.warna};transform:rotate(45deg);border-radius:1px;flex-shrink:0"></div>
+            <div style="font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ms.judul}</div>
+          </div>`).join('')}
+      </div>` : '';
+
+  // Milestone vertical lines + markers in chart body
+  const msChartHtml = visMilestones.map(ms => {
+    const d    = new Date(ms.tanggal); d.setHours(0,0,0,0);
+    const diff = Math.floor((d - start) / 86400000);
+    const x    = diff * cw + cw / 2;
+    return `
+      <div class="gantt-milestone-vline" style="left:${x}px;border-color:${ms.warna}"></div>
+      <div class="gantt-milestone" style="left:${x}px;background:${ms.warna};border-radius:3px"
+        title="${ms.judul} — ${formatTanggal(ms.tanggal)}"></div>`;
+  }).join('');
+
+  inner.innerHTML = `
+    <div class="gantt-list">
+      <div class="gantt-list-head"><i class="ti ti-list" style="font-size:14px"></i> Task (${tasks.length})</div>
+      ${listRowsHtml}
+      ${msListHtml}
+    </div>
+    <div class="gantt-chart">
+      <div class="gantt-chart-head" style="width:${totalW}px">${headHtml}</div>
+      <div class="gantt-chart-body" style="position:relative;width:${totalW}px">
+        ${barsHtml}
+        ${msChartHtml}
+      </div>
+    </div>`;
+}
+
+function showTooltip(e, judul, pic, status, deadline) {
+  const t = document.getElementById('gantt-tooltip');
+  t.innerHTML = `<strong>${judul}</strong><br>PIC: ${pic}<br>Status: ${status}<br>Deadline: ${deadline}`;
+  t.style.left = (e.clientX + 12) + 'px';
+  t.style.top  = (e.clientY - 10) + 'px';
+  t.classList.add('show');
+}
+function hideTooltip() { document.getElementById('gantt-tooltip').classList.remove('show'); }
+
+document.addEventListener('mousemove', e => {
+  const t = document.getElementById('gantt-tooltip');
+  if (t.classList.contains('show')) {
+    t.style.left = (e.clientX + 12) + 'px';
+    t.style.top  = (e.clientY - 10) + 'px';
+  }
+});
+
+init();
+</script>
+</body>
+</html>
