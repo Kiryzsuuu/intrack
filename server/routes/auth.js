@@ -33,7 +33,7 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ message: 'Email atau password salah' });
 
   const token = jwt.sign(
-    { id: user._id, namaLengkap: user.namaLengkap, fotoProfil: user.fotoProfil || null },
+    { id: user._id, namaLengkap: user.namaLengkap },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' },
   );

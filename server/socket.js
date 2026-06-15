@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const User = require('./models/User');
 
 let io;
 
@@ -18,7 +19,7 @@ function initSocket(server) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.id;
       socket.userName = decoded.namaLengkap || '';
-      socket.userPhoto = decoded.fotoProfil || null;
+      socket.userPhoto = socket.handshake.auth?.photo || null;
       next();
     } catch {
       next(new Error('Token tidak valid'));

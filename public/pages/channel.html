@@ -9,171 +9,251 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="/styles/base.css">
   <style>
-    .ch-layout { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+    /* ── Layout ── */
+    .ch-layout {
+      display: flex; height: calc(100vh - 56px); overflow: hidden;
+      background: var(--bg);
+    }
 
-    /* Sidebar channel list */
+    /* ── Channel list panel (Discord-style dark sidebar) ── */
     .ch-list-panel {
-      width: 260px; flex-shrink: 0; border-right: 0.5px solid var(--border);
-      display: flex; flex-direction: column; background: var(--surface);
+      width: 240px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      background: var(--surface-2);
+      border-right: 0.5px solid var(--border);
     }
     .ch-list-head {
-      padding: 16px 14px 10px; display: flex; align-items: center;
-      justify-content: space-between; border-bottom: 0.5px solid var(--border);
+      padding: 0 12px;
+      height: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 13px; font-weight: 700; color: var(--text);
     }
-    .ch-list-head h3 { font-size: 13px; font-weight: 700; color: var(--text); margin: 0; }
-    .ch-items { flex: 1; overflow-y: auto; padding: 8px 6px; }
-    .ch-item {
-      display: flex; align-items: center; gap: 10px; padding: 9px 10px;
-      border-radius: var(--r-sm); cursor: pointer; transition: var(--transition);
-      margin-bottom: 2px;
+    .ch-list-head-btn {
+      width: 28px; height: 28px; border-radius: 6px; border: none; cursor: pointer;
+      background: none; color: var(--text-3); display: flex; align-items: center;
+      justify-content: center; font-size: 16px; transition: var(--transition);
     }
-    .ch-item:hover { background: var(--surface-2); }
-    .ch-item.active { background: var(--accent-dim); }
-    .ch-item-icon {
-      width: 32px; height: 32px; border-radius: 8px; background: var(--surface-2);
-      border: 0.5px solid var(--border); display: flex; align-items: center;
-      justify-content: center; font-size: 15px; color: var(--accent); flex-shrink: 0;
-    }
-    .ch-item.active .ch-item-icon { background: var(--accent-dim); }
-    .ch-item-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ch-item-priv { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+    .ch-list-head-btn:hover { background: var(--border); color: var(--text); }
 
-    /* Main chat area */
-    .ch-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-    .ch-topbar {
-      padding: 12px 20px; border-bottom: 0.5px solid var(--border);
-      display: flex; align-items: center; gap: 12px; background: var(--surface);
+    .ch-section-label {
+      padding: 16px 12px 4px;
+      font-size: 10px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: .8px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .ch-topbar-name { font-size: 15px; font-weight: 700; color: var(--text); }
-    .ch-topbar-desc { font-size: 12px; color: var(--text-3); flex: 1; }
-
-    /* Messages */
-    .ch-messages {
-      flex: 1; overflow-y: auto; padding: 16px 20px;
-      display: flex; flex-direction: column; gap: 2px;
-    }
-    .ch-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 14px; }
-
-    .msg-group { margin-bottom: 14px; }
-    .msg-row { display: flex; gap: 10px; align-items: flex-start; padding: 2px 0; }
-    .msg-row:hover .msg-actions { opacity: 1; }
-    .msg-av {
-      width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+    .ch-section-add {
+      width: 18px; height: 18px; border-radius: 4px; border: none; cursor: pointer;
+      background: none; color: var(--text-3); font-size: 14px; line-height: 1;
       display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; overflow: hidden;
+      transition: var(--transition);
     }
-    .msg-av img { width: 100%; height: 100%; object-fit: cover; }
-    .msg-content { flex: 1; min-width: 0; }
-    .msg-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
-    .msg-name { font-size: 13px; font-weight: 700; color: var(--text); }
-    .msg-time { font-size: 11px; color: var(--text-3); }
-    .msg-text { font-size: 14px; color: var(--text); line-height: 1.55; word-break: break-word; }
-    .msg-actions {
-      opacity: 0; transition: opacity .15s; margin-left: auto;
-      display: flex; gap: 4px; flex-shrink: 0; padding-top: 2px;
+    .ch-section-add:hover { color: var(--text); background: var(--border); }
+
+    .ch-items { flex: 1; overflow-y: auto; padding: 0 6px 8px; }
+    .ch-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: 6px;
+      cursor: pointer; transition: background .1s;
+      margin-bottom: 1px; color: var(--text-3);
+      position: relative;
     }
-    .msg-del-btn {
-      background: none; border: none; cursor: pointer;
-      color: var(--text-3); font-size: 14px; padding: 2px 4px; border-radius: 4px;
+    .ch-item:hover { background: var(--border); color: var(--text); }
+    .ch-item.active { background: var(--accent-dim); color: var(--accent); }
+    .ch-item-hash { font-size: 18px; font-weight: 300; flex-shrink: 0; line-height: 1; width: 20px; text-align: center; }
+    .ch-item-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ch-item-actions { display: none; gap: 2px; }
+    .ch-item:hover .ch-item-actions { display: flex; }
+    .ch-item-btn { width: 20px; height: 20px; border: none; background: none; cursor: pointer; color: var(--text-3); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .ch-item-btn:hover { color: var(--text); background: var(--border); }
+    .ch-item-btn.danger:hover { color: var(--red-text); }
+
+    /* Voice channel items */
+    .ch-voice-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: 6px;
+      cursor: pointer; transition: background .1s;
+      margin-bottom: 1px; color: var(--text-3);
     }
-    .msg-del-btn:hover { color: var(--red-text); background: rgba(239,68,68,.1); }
+    .ch-voice-item:hover { background: var(--border); color: var(--text); }
+    .ch-voice-item.in-voice { color: #3BA55C; }
+    .ch-voice-participants-list { padding: 0 8px 4px 34px; display: flex; flex-direction: column; gap: 3px; }
+    .ch-vp-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); }
+    .ch-vp-av { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #fff; overflow: hidden; flex-shrink: 0; }
+    .ch-vp-av img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Voice status bar (bottom of left panel, like Discord) */
+    .ch-voice-bar {
+      border-top: 0.5px solid var(--border);
+      background: var(--surface-2);
+      padding: 8px 10px;
+      display: none; align-items: center; gap: 8px;
+    }
+    .ch-voice-bar.active { display: flex; }
+    .ch-voice-bar-info { flex: 1; min-width: 0; }
+    .ch-voice-bar-status { font-size: 11px; font-weight: 600; color: #3BA55C; }
+    .ch-voice-bar-name { font-size: 11px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ch-voice-bar-btns { display: flex; gap: 2px; }
+    .vc-mini-btn {
+      width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
+      background: none; color: var(--text-3); font-size: 16px;
+      display: flex; align-items: center; justify-content: center; transition: var(--transition);
+    }
+    .vc-mini-btn:hover { background: var(--border); color: var(--text); }
+    .vc-mini-btn.off { color: #EF4444; }
+    .vc-mini-btn.danger:hover { color: #EF4444; }
+
+    /* ── Main chat area ── */
+    .ch-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--surface); }
+
+    .ch-topbar {
+      height: 48px; padding: 0 16px;
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); flex-shrink: 0;
+      box-shadow: 0 1px 0 var(--border);
+    }
+    .ch-topbar-hash { font-size: 22px; color: var(--text-3); font-weight: 300; }
+    .ch-topbar-name { font-size: 15px; font-weight: 700; color: var(--text); }
+    .ch-topbar-sep { color: var(--border); font-size: 18px; }
+    .ch-topbar-desc { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ch-topbar-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+
+    /* Voice participants bar (inside chat, below topbar) */
+    .voice-panel {
+      background: rgba(59,165,92,.08); border-bottom: 0.5px solid rgba(59,165,92,.2);
+      padding: 8px 16px; display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .voice-panel.active { display: flex; }
+    .voice-panel-label { font-size: 11px; font-weight: 700; color: #3BA55C; display: flex; align-items: center; gap: 5px; }
+    .voice-participants { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+    .voice-participant {
+      display: flex; align-items: center; gap: 5px; padding: 3px 8px;
+      background: rgba(59,165,92,.1); border: 0.5px solid rgba(59,165,92,.25);
+      border-radius: 100px; font-size: 12px; color: var(--text-2);
+    }
+    .voice-participant .vp-av {
+      width: 18px; height: 18px; border-radius: 50%; background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px; font-weight: 700; color: #fff; overflow: hidden; flex-shrink: 0;
+    }
+    .voice-participant .vp-av img { width: 100%; height: 100%; object-fit: cover; }
+    .voice-participant .vp-icons { display: flex; gap: 2px; color: var(--text-3); font-size: 11px; }
+    .voice-participant.muted .vp-icons .ic-mic { color: #EF4444; }
+
+    /* Messages area */
+    .ch-messages {
+      flex: 1; overflow-y: auto; padding: 16px 16px 8px;
+      display: flex; flex-direction: column; gap: 0;
+      background: var(--surface);
+    }
+    .ch-empty {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 8px; color: var(--text-3); text-align: center;
+    }
+    .ch-empty-icon {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: var(--accent-dim); display: flex; align-items: center;
+      justify-content: center; font-size: 32px; color: var(--accent); margin-bottom: 8px;
+    }
+    .ch-empty h3 { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+    .ch-empty p { font-size: 13px; max-width: 340px; line-height: 1.6; }
 
     .date-divider {
-      display: flex; align-items: center; gap: 10px; margin: 14px 0 10px;
-      color: var(--text-3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+      display: flex; align-items: center; gap: 10px; margin: 20px 0 12px;
+      color: var(--text-3); font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .5px; flex-shrink: 0;
     }
     .date-divider::before, .date-divider::after { content: ''; flex: 1; height: 0.5px; background: var(--border); }
 
+    .msg-row {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 2px 8px; border-radius: 6px; margin-bottom: 0;
+      transition: background .08s;
+    }
+    .msg-row:hover { background: var(--surface-2); }
+    .msg-row:hover .msg-actions { opacity: 1; }
+    .msg-row.msg-continue { padding-top: 1px; padding-bottom: 1px; }
+
+    .msg-av {
+      width: 38px; height: 38px; border-radius: 50%; background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; overflow: hidden;
+      margin-top: 2px;
+    }
+    .msg-av img { width: 100%; height: 100%; object-fit: cover; }
+    .msg-av-spacer { width: 38px; flex-shrink: 0; }
+    .msg-content { flex: 1; min-width: 0; }
+    .msg-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+    .msg-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .msg-time { font-size: 11px; color: var(--text-3); }
+    .msg-text { font-size: 14px; color: var(--text-2); line-height: 1.55; word-break: break-word; }
+    .msg-actions {
+      opacity: 0; transition: opacity .1s; margin-left: auto; flex-shrink: 0;
+      display: flex; gap: 2px; background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: 6px; padding: 2px; position: relative; top: -2px;
+    }
+    .msg-del-btn {
+      background: none; border: none; cursor: pointer; color: var(--text-3);
+      font-size: 15px; padding: 4px 6px; border-radius: 4px; transition: var(--transition);
+    }
+    .msg-del-btn:hover { color: #EF4444; background: rgba(239,68,68,.1); }
+
     /* Input */
-    .ch-input-wrap {
-      padding: 12px 20px 16px; border-top: 0.5px solid var(--border); background: var(--surface);
-    }
+    .ch-input-wrap { padding: 0 16px 16px; background: var(--surface); flex-shrink: 0; }
     .ch-input-box {
-      display: flex; gap: 8px; align-items: flex-end;
+      display: flex; gap: 10px; align-items: flex-end;
       background: var(--surface-2); border: 0.5px solid var(--border);
-      border-radius: var(--r-lg); padding: 10px 14px;
+      border-radius: 10px; padding: 10px 14px;
+      transition: border-color .15s;
     }
+    .ch-input-box:focus-within { border-color: var(--accent); }
     .ch-input-box textarea {
       flex: 1; background: none; border: none; outline: none; resize: none;
       font-size: 14px; color: var(--text); font-family: inherit; line-height: 1.5;
-      max-height: 120px; overflow-y: auto;
+      max-height: 150px; overflow-y: auto;
     }
+    .ch-input-box textarea::placeholder { color: var(--text-3); }
     .ch-send-btn {
       background: var(--accent); border: none; border-radius: 8px; color: #fff;
       width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center;
       justify-content: center; font-size: 16px; flex-shrink: 0; transition: var(--transition);
     }
-    .ch-send-btn:hover { opacity: .85; }
+    .ch-send-btn:hover { background: var(--accent-hover); }
     .ch-send-btn:disabled { opacity: .4; cursor: default; }
 
-    /* Empty state */
+    /* Placeholder */
     .ch-placeholder {
       flex: 1; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 10px; color: var(--text-3);
+      justify-content: center; gap: 12px; color: var(--text-3); background: var(--surface);
     }
-    .ch-placeholder i { font-size: 48px; opacity: .3; }
+    .ch-placeholder-icon {
+      width: 80px; height: 80px; border-radius: 50%; background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; color: var(--text-3);
+    }
+    .ch-placeholder h3 { font-size: 18px; font-weight: 700; color: var(--text); margin: 0; }
+    .ch-placeholder p { font-size: 13px; margin: 0; }
 
     /* Modal */
-    .modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center; }
-    .modal-box { background:var(--surface);border-radius:var(--r-lg);padding:24px;width:420px;max-width:94vw;display:flex;flex-direction:column;gap:14px; }
-    .modal-title { font-size:16px;font-weight:700;color:var(--text);margin:0; }
-    .field { display:flex;flex-direction:column;gap:5px; }
+    .modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px); }
+    .modal-box { background:var(--surface);border-radius:var(--r-lg);padding:24px;width:440px;max-width:94vw;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow-lg); }
+    .modal-title { font-size:17px;font-weight:800;color:var(--text);margin:0; }
+    .modal-sub { font-size:12px;color:var(--text-3);margin-top:-8px; }
+    .field { display:flex;flex-direction:column;gap:6px; }
     .field label { font-size:12px;font-weight:600;color:var(--text-2); }
-    .field input,.field textarea { background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:14px;color:var(--text);outline:none;width:100%;font-family:inherit; }
+    .field input,.field textarea {
+      background:var(--surface-2);border:0.5px solid var(--border);
+      border-radius:var(--r-sm);padding:10px 12px;font-size:14px;color:var(--text);
+      outline:none;width:100%;font-family:inherit;transition:border-color .15s;
+    }
     .field input:focus,.field textarea:focus { border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim); }
-    .toggle-row { display:flex;align-items:center;gap:10px; }
-    .toggle-row input[type=checkbox] { width:auto;accent-color:var(--accent); }
+    .toggle-row { display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--surface-2);border-radius:var(--r-sm);cursor:pointer; }
+    .toggle-row input[type=checkbox] { width:16px;height:16px;accent-color:var(--accent);margin-top:1px;flex-shrink:0; }
 
-    /* Voice panel */
-    .voice-panel {
-      border-top: 0.5px solid var(--border); background: var(--surface);
-      padding: 10px 14px; display: none; flex-direction: column; gap: 8px;
-    }
-    .voice-panel.active { display: flex; }
-    .voice-header {
-      display: flex; align-items: center; justify-content: space-between;
-      font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .5px;
-    }
-    .voice-participants { display: flex; flex-wrap: wrap; gap: 6px; }
-    .voice-participant {
-      display: flex; align-items: center; gap: 6px; padding: 4px 8px;
-      background: var(--surface-2); border-radius: 100px; font-size: 12px;
-      border: 0.5px solid var(--border);
-    }
-    .voice-participant .vp-av {
-      width: 20px; height: 20px; border-radius: 50%; background: var(--accent);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 9px; font-weight: 700; color: #fff; overflow: hidden; flex-shrink: 0;
-    }
-    .voice-participant .vp-av img { width: 100%; height: 100%; object-fit: cover; }
-    .voice-participant .vp-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .voice-participant .vp-icons { display: flex; gap: 2px; color: var(--text-3); font-size: 11px; }
-    .voice-participant.muted .vp-icons .ic-mic { color: var(--red-text); }
-
-    /* Voice controls bar */
-    .voice-controls {
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 900;
-      background: var(--surface); border-top: 0.5px solid var(--border);
-      padding: 10px 20px; display: none; align-items: center; justify-content: center; gap: 10px;
-    }
-    .voice-controls.active { display: flex; }
-    .vc-btn {
-      width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; font-size: 18px;
-      transition: var(--transition); flex-shrink: 0;
-    }
-    .vc-btn.normal { background: var(--surface-2); color: var(--text); border: 0.5px solid var(--border); }
-    .vc-btn.normal:hover { background: var(--surface-3, var(--border)); }
-    .vc-btn.active-state { background: var(--accent); color: #fff; }
-    .vc-btn.danger { background: #EF4444; color: #fff; }
-    .vc-btn.danger:hover { background: #DC2626; }
-    .vc-btn.off { background: #EF444420; color: #EF4444; border: 0.5px solid #EF444440; }
-    .vc-label { font-size: 10px; font-weight: 600; color: var(--text-3); margin-top: 3px; }
-    .vc-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-
-    /* Video grid overlay */
+    /* Video grid */
     #video-grid {
-      position: fixed; inset: 56px 0 66px 0; z-index: 800;
+      position: fixed; inset: 56px 0 0 var(--sidebar-w); z-index: 800;
       background: #111; display: none; flex-wrap: wrap; align-content: flex-start;
       padding: 8px; gap: 8px; overflow-y: auto;
     }
@@ -181,28 +261,28 @@
     .video-tile {
       background: #1e1e1e; border-radius: 12px; overflow: hidden;
       position: relative; display: flex; align-items: center; justify-content: center;
-      min-height: 180px;
+      min-height: 200px; flex: 1 1 300px;
     }
     .video-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
     .video-tile .vt-name {
       position: absolute; bottom: 8px; left: 10px;
       background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600;
-      padding: 2px 8px; border-radius: 100px;
+      padding: 3px 10px; border-radius: 100px; backdrop-filter: blur(4px);
     }
     .video-tile .vt-muted {
       position: absolute; top: 8px; right: 8px;
-      background: rgba(239,68,68,.8); color: #fff; border-radius: 50%;
-      width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-      font-size: 12px;
+      background: rgba(239,68,68,.85); color: #fff; border-radius: 50%;
+      width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 13px;
     }
     .video-tile .vt-no-video {
-      width: 60px; height: 60px; border-radius: 50%; background: var(--accent);
+      width: 70px; height: 70px; border-radius: 50%; background: var(--accent);
       display: flex; align-items: center; justify-content: center;
-      font-size: 22px; font-weight: 800; color: #fff;
+      font-size: 26px; font-weight: 800; color: #fff;
     }
 
     @media(max-width:640px) {
-      .ch-list-panel { width: 200px; }
+      .ch-list-panel { width: 180px; }
+      #video-grid { inset: 56px 0 0 0; }
     }
   </style>
 </head>
@@ -212,61 +292,79 @@
   <div class="main" style="padding:0;overflow:hidden">
 
     <div class="ch-layout">
-      <!-- Panel kiri: daftar channel -->
+
+      <!-- ── Panel kiri ── -->
       <div class="ch-list-panel">
         <div class="ch-list-head">
-          <h3><i class="ti ti-messages" style="margin-right:6px"></i>Channel</h3>
-          <button class="btn-icon" title="Buat Channel Baru" onclick="openCreateModal()" style="width:28px;height:28px">
+          <span>Channel</span>
+          <button class="ch-list-head-btn" title="Buat Channel Baru" onclick="openCreateModal()">
             <i class="ti ti-plus"></i>
           </button>
         </div>
-        <div class="ch-items" id="channel-list">
-          <div style="padding:20px;text-align:center;color:var(--text-3);font-size:13px">Memuat...</div>
+
+        <div class="ch-items">
+          <!-- Text channels -->
+          <div class="ch-section-label">
+            <span>Text</span>
+            <button class="ch-section-add" title="Buat channel" onclick="openCreateModal()"><i class="ti ti-plus"></i></button>
+          </div>
+          <div id="channel-list">
+            <div style="padding:12px 8px;color:var(--text-3);font-size:12px">Memuat...</div>
+          </div>
+
+          <!-- Voice channels -->
+          <div class="ch-section-label" style="margin-top:8px">
+            <span>Voice</span>
+            <button class="ch-section-add" title="Gabung voice" onclick="joinVoice()"><i class="ti ti-phone"></i></button>
+          </div>
+          <div id="voice-ch-item" class="ch-voice-item" onclick="joinVoice()">
+            <i class="ti ti-volume" style="font-size:18px;width:20px;text-align:center"></i>
+            <span style="font-size:13px;font-weight:500">General Voice</span>
+          </div>
+          <div id="voice-ch-participants" class="ch-voice-participants-list"></div>
+        </div>
+
+        <!-- Voice status bar — muncul saat sedang di voice (seperti Discord) -->
+        <div class="ch-voice-bar" id="ch-voice-bar">
+          <div style="width:36px;height:36px;border-radius:50%;background:#3BA55C;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="ti ti-phone" style="color:#fff;font-size:16px"></i>
+          </div>
+          <div class="ch-voice-bar-info">
+            <div class="ch-voice-bar-status"><i class="ti ti-circle-filled" style="font-size:8px;margin-right:3px"></i>Terhubung</div>
+            <div class="ch-voice-bar-name" id="voice-bar-ch-name">General Voice</div>
+          </div>
+          <div class="ch-voice-bar-btns">
+            <button class="vc-mini-btn" id="vc-mute" onclick="toggleMute()" title="Mute/Unmute">
+              <i class="ti ti-microphone"></i>
+            </button>
+            <button class="vc-mini-btn" id="vc-deafen" onclick="toggleDeafen()" title="Deafen">
+              <i class="ti ti-headphones"></i>
+            </button>
+            <button class="vc-mini-btn" id="vc-video" onclick="toggleVideo()" title="Kamera On/Off">
+              <i class="ti ti-video-off"></i>
+            </button>
+            <button class="vc-mini-btn danger" onclick="leaveVoice()" title="Putuskan voice" style="color:#EF4444">
+              <i class="ti ti-phone-off"></i>
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Area chat -->
+      <!-- ── Area chat utama ── -->
       <div class="ch-main" id="ch-main">
         <div class="ch-placeholder">
-          <i class="ti ti-messages"></i>
-          <div>Pilih channel untuk mulai chat</div>
+          <div class="ch-placeholder-icon"><i class="ti ti-messages"></i></div>
+          <h3>Selamat datang!</h3>
+          <p>Pilih channel di sebelah kiri untuk mulai chat, atau buat channel baru.</p>
         </div>
       </div>
-    </div>
 
+    </div>
   </div>
 </div>
 
 <!-- Video Grid Overlay -->
 <div id="video-grid"></div>
-
-<!-- Voice Controls Bar -->
-<div class="voice-controls" id="voice-controls">
-  <div class="vc-item">
-    <button class="vc-btn normal" id="vc-mute" onclick="toggleMute()" title="Mute/Unmute">
-      <i class="ti ti-microphone"></i>
-    </button>
-    <span class="vc-label" id="vc-mute-label">Mute</span>
-  </div>
-  <div class="vc-item">
-    <button class="vc-btn normal" id="vc-deafen" onclick="toggleDeafen()" title="Deafen">
-      <i class="ti ti-headphones"></i>
-    </button>
-    <span class="vc-label">Deafen</span>
-  </div>
-  <div class="vc-item">
-    <button class="vc-btn normal" id="vc-video" onclick="toggleVideo()" title="Video On/Off">
-      <i class="ti ti-video"></i>
-    </button>
-    <span class="vc-label" id="vc-video-label">Video</span>
-  </div>
-  <div class="vc-item">
-    <button class="vc-btn danger" onclick="leaveVoice()" title="Keluar voice">
-      <i class="ti ti-phone-off"></i>
-    </button>
-    <span class="vc-label">Keluar</span>
-  </div>
-</div>
 
 <!-- Modal Buat Channel -->
 <div id="modal-create" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeCreateModal()">
@@ -384,11 +482,7 @@ async function openChannel(id) {
         <div class="ch-topbar-name" id="ch-topbar-name">Memuat...</div>
         <div class="ch-topbar-desc" id="ch-topbar-desc"></div>
       </div>
-      <div style="margin-left:auto;display:flex;gap:6px;align-items:center" id="ch-topbar-actions">
-        <button class="btn" id="btn-join-voice" style="font-size:12px;gap:6px" onclick="joinVoice()">
-          <i class="ti ti-phone" style="color:var(--accent)"></i> Gabung Voice
-        </button>
-      </div>
+      <div class="ch-topbar-actions" id="ch-topbar-actions"></div>
     </div>
     <div class="voice-panel" id="voice-panel">
       <div class="voice-header">
@@ -710,7 +804,8 @@ let voiceParticipants = {}; // { userId: { name, photo, socketId, muted, deafene
 function getSocket() {
   if (socket && socket.connected) return socket;
   const token = localStorage.getItem('wt_token');
-  socket = io({ auth: { token } });
+  const _u = getUser();
+  socket = io({ auth: { token, photo: _u?.fotoProfil || null } });
 
   socket.on('voice:participants', async (list) => {
     voiceParticipants = {};
@@ -862,25 +957,35 @@ async function toggleVideo() {
 }
 
 function updateVoiceUI() {
-  // Mute button
-  const muteBtn   = document.getElementById('vc-mute');
-  const muteLabel = document.getElementById('vc-mute-label');
-  if (muteBtn) {
-    muteBtn.className = 'vc-btn ' + (isMuted ? 'off' : 'normal');
-    muteBtn.innerHTML = `<i class="ti ${isMuted ? 'ti-microphone-off' : 'ti-microphone'}"></i>`;
-    muteLabel.textContent = isMuted ? 'Unmute' : 'Mute';
-  }
-  // Deafen button
-  const deafBtn = document.getElementById('vc-deafen');
-  if (deafBtn) deafBtn.className = 'vc-btn ' + (isDeafened ? 'off' : 'normal');
-  // Video button
+  const bar = document.getElementById('ch-voice-bar');
+  if (bar) bar.classList.toggle('active', inVoice);
+
+  const muteBtn  = document.getElementById('vc-mute');
+  const deafBtn  = document.getElementById('vc-deafen');
   const vidBtn   = document.getElementById('vc-video');
-  const vidLabel = document.getElementById('vc-video-label');
-  if (vidBtn) {
-    vidBtn.className = 'vc-btn ' + (isVideoOn ? 'active-state' : 'normal');
-    vidBtn.innerHTML = `<i class="ti ${isVideoOn ? 'ti-video' : 'ti-video-off'}"></i>`;
-    vidLabel.textContent = isVideoOn ? 'Stop Video' : 'Video';
+  const voiceChItem = document.getElementById('voice-ch-item');
+
+  if (muteBtn) {
+    muteBtn.className = 'vc-mini-btn' + (isMuted ? ' off' : '');
+    muteBtn.innerHTML = `<i class="ti ${isMuted ? 'ti-microphone-off' : 'ti-microphone'}"></i>`;
+    muteBtn.title = isMuted ? 'Unmute' : 'Mute';
   }
+  if (deafBtn) {
+    deafBtn.className = 'vc-mini-btn' + (isDeafened ? ' off' : '');
+    deafBtn.title = isDeafened ? 'Undeafen' : 'Deafen';
+  }
+  if (vidBtn) {
+    vidBtn.className = 'vc-mini-btn' + (isVideoOn ? '' : '');
+    vidBtn.innerHTML = `<i class="ti ${isVideoOn ? 'ti-video' : 'ti-video-off'}"></i>`;
+    vidBtn.title = isVideoOn ? 'Matikan Kamera' : 'Nyalakan Kamera';
+  }
+  if (voiceChItem) {
+    voiceChItem.className = 'ch-voice-item' + (inVoice ? ' in-voice' : '');
+  }
+
+  // Update voice panel di dalam chat
+  const vPanel = document.getElementById('voice-panel');
+  if (vPanel) vPanel.classList.toggle('active', inVoice);
 }
 
 // ── WebRTC Peer ────────────────────────────────────────────────────────────────
@@ -985,33 +1090,47 @@ function removeVideoTile(socketId) {
 
 // ── Render voice participants ──────────────────────────────────────────────────
 function renderVoiceParticipants() {
-  const el    = document.getElementById('voice-participants');
-  const count = document.getElementById('voice-count');
-  if (!el) return;
-
   const list = Object.values(voiceParticipants);
-  // Tambahkan diri sendiri jika sedang di voice
   const allParts = inVoice
     ? [{ userId: me._id, name: me.namaLengkap, photo: me.fotoProfil, muted: isMuted, deafened: isDeafened, videoOn: isVideoOn, isSelf: true }, ...list.filter(p => p.userId !== me._id)]
     : list;
 
-  if (count) count.textContent = allParts.length + ' peserta';
+  // Render di voice-panel dalam chat area
+  const el    = document.getElementById('voice-participants');
+  const count = document.getElementById('voice-count');
+  if (el) {
+    if (count) count.textContent = allParts.length + ' peserta';
+    el.innerHTML = allParts.map(p => {
+      const inits    = (p.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
+      const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
+      const avHtml   = p.photo ? `<img src="${p.photo}" alt="">` : inits;
+      return `<div class="voice-participant${p.muted ? ' muted' : ''}">
+        <div class="vp-av" style="background:${avColor}">${avHtml}</div>
+        <span class="vp-name">${escHtml(p.name)}${p.isSelf ? ' (Anda)' : ''}</span>
+        <div class="vp-icons">
+          <i class="ti ${p.muted ? 'ti-microphone-off ic-mic' : 'ti-microphone ic-mic'}"></i>
+          ${p.videoOn ? '<i class="ti ti-video"></i>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
 
-  el.innerHTML = allParts.map(p => {
-    const inits   = (p.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-    const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
-    const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
-    const avHtml   = p.photo ? `<img src="${p.photo}" alt="">` : inits;
-
-    return `<div class="voice-participant${p.muted ? ' muted' : ''}">
-      <div class="vp-av" style="background:${avColor}">${avHtml}</div>
-      <span class="vp-name">${escHtml(p.name)}${p.isSelf ? ' (Anda)' : ''}</span>
-      <div class="vp-icons">
-        <i class="ti ${p.muted ? 'ti-microphone-off ic-mic' : 'ti-microphone ic-mic'}"></i>
-        ${p.videoOn ? '<i class="ti ti-video"></i>' : ''}
-      </div>
-    </div>`;
-  }).join('');
+  // Render di left panel (bawah voice channel item)
+  const lpEl = document.getElementById('voice-ch-participants');
+  if (lpEl) {
+    lpEl.innerHTML = allParts.map(p => {
+      const inits    = (p.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
+      const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
+      const avHtml   = p.photo ? `<img src="${p.photo}" alt="">` : inits;
+      return `<div class="ch-vp-row">
+        <div class="ch-vp-av" style="background:${avColor}">${avHtml}</div>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}${p.isSelf ? ' 🎤' : ''}</span>
+        ${p.muted ? '<i class="ti ti-microphone-off" style="font-size:11px;color:#EF4444"></i>' : ''}
+      </div>`;
+    }).join('');
+  }
 }
 </script>
 </body>
