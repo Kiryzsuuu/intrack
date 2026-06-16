@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
@@ -39,7 +39,6 @@
       gap: 18px;
       align-items: start;
     }
-    /* Donut chart */
     .donut-wrap { position:relative;width:160px;height:160px;margin:0 auto 20px }
     .donut-wrap svg { transform:rotate(-90deg) }
     .donut-center { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center }
@@ -48,7 +47,7 @@
     .donut-legend { display:flex;flex-direction:column;gap:8px }
     .donut-legend-row { display:flex;align-items:center;gap:8px;font-size:12px }
     .donut-legend-dot { width:10px;height:10px;border-radius:3px;flex-shrink:0 }
-    /* Upcoming deadlines */
+
     .upcoming-item {
       display:flex;align-items:center;gap:10px;padding:9px 0;
       border-bottom:0.5px solid var(--border);text-decoration:none;color:inherit;
@@ -60,7 +59,7 @@
       min-width:36px;text-align:center;font-size:11px;font-weight:700;
       border-radius:var(--r-sm);padding:3px 6px;
     }
-    /* Activity feed */
+
     .act-item { display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border) }
     .act-item:last-child { border-bottom:none }
     .act-av {
@@ -68,6 +67,7 @@
       background:var(--accent);display:flex;align-items:center;justify-content:center;
       color:#fff;font-size:10px;font-weight:700;
     }
+
     .section-card {
       background: var(--surface);
       border: 0.5px solid var(--border);
@@ -100,13 +100,90 @@
       display: flex; align-items: center; gap: 12px;
       font-size: 14px; color: var(--red-text);
     }
-    .approval-item {
-      display: flex; align-items: center; gap: 11px;
-      padding: 11px 0;
-      border-bottom: 0.5px solid var(--border);
+
+    /* ── Milestone widget ── */
+    .ms-item {
+      display:flex;align-items:center;gap:10px;padding:9px 0;
+      border-bottom:0.5px solid var(--border);text-decoration:none;color:inherit;
+      transition:var(--transition);
     }
-    .approval-item:last-child { border-bottom: none; }
-    .approval-actions { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
+    .ms-item:last-child { border-bottom:none }
+    .ms-item:hover { color:var(--accent) }
+    .ms-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0 }
+
+    /* ── KPI widget ── */
+    .kpi-row {
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px;
+    }
+    .kpi-row:last-child { border-bottom:none }
+    .kpi-bar-bg { height:6px;border-radius:3px;background:var(--border);flex:1;margin:0 12px }
+    .kpi-bar-fg { height:100%;border-radius:3px;transition:width .5s }
+
+    /* ── Customize panel ── */
+    .customize-btn {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      display: flex;align-items:center;justify-content:center;
+      box-shadow: 0 4px 14px rgba(0,0,0,.25);
+      z-index: 200;
+      font-size: 20px;
+      transition: transform .15s;
+    }
+    .customize-btn:hover { transform: scale(1.1); }
+
+    .cust-panel {
+      position: fixed;
+      bottom: 84px;
+      right: 28px;
+      width: 300px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+      z-index: 199;
+      padding: 16px;
+      display: none;
+    }
+    .cust-panel.open { display:block; }
+    .cust-panel-title { font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px }
+    .cust-item {
+      display:flex;align-items:center;gap:10px;
+      padding:8px 6px;border-radius:var(--r-sm);
+      cursor:grab;user-select:none;
+      border: 0.5px solid transparent;
+      transition: background .1s;
+    }
+    .cust-item:hover { background:var(--hover) }
+    .cust-item.drag-over { border-color:var(--accent);background:var(--accent-light) }
+    .cust-item.dragging { opacity:.4 }
+    .cust-drag { color:var(--text-3);font-size:16px;cursor:grab }
+    .cust-label { flex:1;font-size:13px }
+    .cust-icon { color:var(--text-3);font-size:16px;margin-right:2px }
+    /* toggle switch */
+    .tog { position:relative;display:inline-block;width:34px;height:19px;flex-shrink:0 }
+    .tog input { opacity:0;width:0;height:0;position:absolute }
+    .tog-sl {
+      position:absolute;inset:0;background:var(--border);border-radius:99px;cursor:pointer;
+      transition:.2s;
+    }
+    .tog-sl:before {
+      content:'';position:absolute;width:13px;height:13px;border-radius:50%;
+      background:#fff;bottom:3px;left:3px;transition:.2s;
+    }
+    .tog input:checked + .tog-sl { background:var(--accent) }
+    .tog input:checked + .tog-sl:before { transform:translateX(15px) }
+
+    /* ── Widget container ── */
+    .widget-block { animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
 
     @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 900px)  { .two-col { grid-template-columns: 1fr; } }
@@ -143,73 +220,29 @@
             <div class="dash-greeting" id="greeting">Selamat datang</div>
             <div class="dash-sub" id="dash-sub">Memuat data...</div>
           </div>
-          <a href="/pages/board.html" class="btn"><i class="ti ti-layout-kanban"></i> Buka Board</a>
-        </div>
-
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon" style="background:var(--purple-bg)"><i class="ti ti-clipboard-list" style="color:var(--purple-text)"></i></div>
-            <div class="stat-num" id="stat-aktif">—</div>
-            <div class="stat-label">Task aktif</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon" style="background:var(--orange-bg)"><i class="ti ti-loader" style="color:var(--orange-text)"></i></div>
-            <div class="stat-num" id="stat-approval">—</div>
-            <div class="stat-label">On Progress</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon" style="background:var(--red-bg)"><i class="ti ti-alert-triangle" style="color:var(--red-text)"></i></div>
-            <div class="stat-num" id="stat-overdue">—</div>
-            <div class="stat-label">Overdue</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon" style="background:var(--green-bg)"><i class="ti ti-circle-check" style="color:var(--green-text)"></i></div>
-            <div class="stat-num" id="stat-done">—</div>
-            <div class="stat-label">Done bulan ini</div>
+          <div style="display:flex;gap:8px">
+            <a href="/pages/board.html" class="btn"><i class="ti ti-layout-kanban"></i> Buka Board</a>
           </div>
         </div>
 
-        <div class="two-col">
-          <div style="display:flex;flex-direction:column;gap:18px">
-            <div class="section-card">
-              <div class="section-head">
-                <span class="section-title" id="my-task-title">Task Saya</span>
-                <a href="/pages/list.html" class="btn btn-ghost" style="font-size:12px">Lihat semua <i class="ti ti-arrow-right"></i></a>
-              </div>
-              <div id="my-tasks"><div class="empty"><i class="ti ti-loader" style="font-size:28px"></i><p>Memuat...</p></div></div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:18px">
-            <div class="section-card">
-              <div class="section-head"><span class="section-title">Distribusi Status</span></div>
-              <div class="donut-wrap">
-                <svg viewBox="0 0 160 160" width="160" height="160" id="donut-svg"></svg>
-                <div class="donut-center">
-                  <div class="donut-center-num" id="donut-total">—</div>
-                  <div class="donut-center-lbl">total task</div>
-                </div>
-              </div>
-              <div class="donut-legend" id="donut-legend"></div>
-            </div>
-            <div class="section-card">
-              <div class="section-head"><span class="section-title">Deadline Mendatang</span></div>
-              <div id="upcoming-list"><div class="empty"><i class="ti ti-calendar"></i><p>Memuat...</p></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Activity Feed -->
-        <div class="section-card">
-          <div class="section-head">
-            <span class="section-title">Aktivitas Terbaru</span>
-            <a href="/pages/inbox.html" class="btn btn-ghost" style="font-size:12px">Lihat notifikasi</a>
-          </div>
-          <div id="activity-feed"><div class="empty"><i class="ti ti-activity"></i><p>Memuat...</p></div></div>
-        </div>
+        <!-- Widget container — rendered dynamically -->
+        <div id="widget-root"></div>
 
       </div>
     </div>
   </div>
+</div>
+
+<!-- Customize FAB -->
+<button class="customize-btn" onclick="toggleCustPanel()" title="Sesuaikan Dashboard">
+  <i class="ti ti-layout-grid-add"></i>
+</button>
+
+<!-- Customize panel -->
+<div class="cust-panel" id="cust-panel">
+  <div class="cust-panel-title"><i class="ti ti-settings"></i> Sesuaikan Widget</div>
+  <div id="cust-list"></div>
+  <div style="margin-top:12px;font-size:11px;color:var(--text-3)">Drag untuk mengubah urutan</div>
 </div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -222,132 +255,415 @@
 if (!requireAuth()) throw 'redirect';
 const user = getUser();
 
-async function loadDashboard() {
-  const now   = new Date();
-  const salam = now.getHours() < 11 ? 'pagi' : now.getHours() < 15 ? 'siang' : 'sore';
-  document.getElementById('greeting').textContent = `Selamat ${salam}, ${user?.namaLengkap || ''} 👋`;
-  document.getElementById('dash-sub').textContent = now.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+/* ── Widget registry ───────────────────────────────────────────── */
+const WIDGET_DEFS = [
+  { id: 'stats',      label: 'Statistik Ringkas', icon: 'ti-chart-bar',      col: 'full', defaultOn: true  },
+  { id: 'my-tasks',   label: 'Task Saya',         icon: 'ti-clipboard-list', col: 'main', defaultOn: true  },
+  { id: 'donut',      label: 'Distribusi Status', icon: 'ti-chart-pie',      col: 'side', defaultOn: true  },
+  { id: 'upcoming',   label: 'Deadline Mendatang',icon: 'ti-calendar-event', col: 'side', defaultOn: true  },
+  { id: 'milestones', label: 'Milestones',        icon: 'ti-flag',           col: 'side', defaultOn: true  },
+  { id: 'kpi',        label: 'KPI Progress',      icon: 'ti-target',         col: 'main', defaultOn: false },
+  { id: 'activity',   label: 'Aktivitas Terbaru', icon: 'ti-activity',       col: 'full', defaultOn: true  },
+];
 
+const PREF_KEY = 'dash_widgets_v1';
+
+function getWidgetPrefs() {
   try {
-    const { tasks } = await Tasks.list({ limit: 100 });
-    const isDireksi  = user?.role === 'direksi';
-    const nowDate    = new Date();
-    const aktif      = tasks.filter(t => t.status !== 'complete').length;
-    const onProgress = tasks.filter(t => t.status === 'on_progress').length;
-    const overdue    = tasks.filter(t => isOverdue(t)).length;
-    const doneBulan  = tasks.filter(t => {
-      if (t.status !== 'complete' || !t.doneAt) return false;
-      const d = new Date(t.doneAt);
-      return d.getMonth() === nowDate.getMonth() && d.getFullYear() === nowDate.getFullYear();
-    }).length;
-
-    document.getElementById('stat-aktif').textContent    = aktif;
-    document.getElementById('stat-approval').textContent = onProgress;
-    document.getElementById('stat-overdue').textContent  = overdue;
-    document.getElementById('stat-done').textContent     = doneBulan;
-
-    if (overdue > 0) {
-      document.getElementById('overdue-banner').style.display = 'flex';
-      document.getElementById('overdue-text').textContent = `Anda memiliki ${overdue} task yang sudah melewati deadline.`;
+    const raw = localStorage.getItem(PREF_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      // merge with WIDGET_DEFS to pick up any new widgets
+      const merged = WIDGET_DEFS.map(def => {
+        const s = saved.find(x => x.id === def.id);
+        return s ? { id: def.id, on: s.on } : { id: def.id, on: def.defaultOn };
+      });
+      // respect saved order
+      const savedIds = saved.map(x => x.id);
+      merged.sort((a, b) => {
+        const ai = savedIds.indexOf(a.id), bi = savedIds.indexOf(b.id);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+      return merged;
     }
-    if (isDireksi) document.getElementById('my-task-title').textContent = 'Task Terbaru';
-
-    const myTasks = isDireksi
-      ? tasks.filter(t => t.status !== 'complete').slice(0, 7)
-      : tasks.filter(t => t.picUserId?._id === user?._id || t.picUserId === user?._id).slice(0, 7);
-    renderMyTasks(myTasks);
-    renderDonut(tasks);
-    renderUpcoming(tasks);
-    renderActivityFeed();
-  } catch {
-    showToast('Gagal memuat data dashboard', 'error');
-  }
+  } catch {}
+  return WIDGET_DEFS.map(d => ({ id: d.id, on: d.defaultOn }));
 }
 
-
-function renderMyTasks(tasks) {
-  const el = document.getElementById('my-tasks');
-  if (!tasks.length) { el.innerHTML = '<div class="empty"><i class="ti ti-clipboard"></i><p>Belum ada task</p></div>'; return; }
-  el.innerHTML = tasks.map(t => `
-    <a href="/pages/task.html?id=${t._id}" class="task-row">
-      <div class="prio-dot p-${t.prioritas}"></div>
-      <span style="flex:1;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.judul}</span>
-      <span class="badge ${statusBadgeClass(t.status)}">${statusLabel(t.status)}</span>
-      <span style="font-size:12px;color:${isOverdue(t)?'var(--red)':'var(--text-3)'};flex-shrink:0;margin-left:4px">${formatTanggal(t.deadline)}</span>
-    </a>`).join('');
+function saveWidgetPrefs(prefs) {
+  localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
 }
 
-function renderDonut(tasks) {
+/* ── Shared data store ─────────────────────────────────────────── */
+let _tasks = [], _milestones = [], _kpiData = [];
+
+/* ── Widget HTML builders ───────────────────────────────────────── */
+function buildStats() {
+  const aktif      = _tasks.filter(t => t.status !== 'complete').length;
+  const onProgress = _tasks.filter(t => t.status === 'on_progress').length;
+  const overdue    = _tasks.filter(t => isOverdue(t)).length;
+  const nowDate    = new Date();
+  const doneBulan  = _tasks.filter(t => {
+    if (t.status !== 'complete' || !t.doneAt) return false;
+    const d = new Date(t.doneAt);
+    return d.getMonth() === nowDate.getMonth() && d.getFullYear() === nowDate.getFullYear();
+  }).length;
+
+  return `
+    <div class="stats-grid widget-block" data-widget="stats">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:var(--purple-bg)"><i class="ti ti-clipboard-list" style="color:var(--purple-text)"></i></div>
+        <div class="stat-num">${aktif}</div>
+        <div class="stat-label">Task aktif</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:var(--orange-bg)"><i class="ti ti-loader" style="color:var(--orange-text)"></i></div>
+        <div class="stat-num">${onProgress}</div>
+        <div class="stat-label">On Progress</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:var(--red-bg)"><i class="ti ti-alert-triangle" style="color:var(--red-text)"></i></div>
+        <div class="stat-num">${overdue}</div>
+        <div class="stat-label">Overdue</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:var(--green-bg)"><i class="ti ti-circle-check" style="color:var(--green-text)"></i></div>
+        <div class="stat-num">${doneBulan}</div>
+        <div class="stat-label">Done bulan ini</div>
+      </div>
+    </div>`;
+}
+
+function buildMyTasks() {
+  const isDireksi = user?.role === 'direksi';
+  const myTasks = isDireksi
+    ? _tasks.filter(t => t.status !== 'complete').slice(0, 7)
+    : _tasks.filter(t => t.picUserId?._id === user?._id || t.picUserId === user?._id).slice(0, 7);
+
+  const title = isDireksi ? 'Task Terbaru' : 'Task Saya';
+  const inner = myTasks.length
+    ? myTasks.map(t => `
+        <a href="/pages/task.html?id=${t._id}" class="task-row">
+          <div class="prio-dot p-${t.prioritas}"></div>
+          <span style="flex:1;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.judul}</span>
+          <span class="badge ${statusBadgeClass(t.status)}">${statusLabel(t.status)}</span>
+          <span style="font-size:12px;color:${isOverdue(t)?'var(--red)':'var(--text-3)'};flex-shrink:0;margin-left:4px">${formatTanggal(t.deadline)}</span>
+        </a>`).join('')
+    : '<div class="empty"><i class="ti ti-clipboard"></i><p>Belum ada task</p></div>';
+
+  return `
+    <div class="section-card widget-block" data-widget="my-tasks">
+      <div class="section-head">
+        <span class="section-title">${title}</span>
+        <a href="/pages/list.html" class="btn btn-ghost" style="font-size:12px">Lihat semua <i class="ti ti-arrow-right"></i></a>
+      </div>
+      ${inner}
+    </div>`;
+}
+
+function buildDonut() {
   const SEGMENTS = [
     { key:'on_progress',        label:'On Progress',       color:'#3B82F6' },
     { key:'partially_complete', label:'Partially Complete', color:'#8B5CF6' },
     { key:'to_do',              label:'To Do',             color:'#6B7280' },
     { key:'complete',           label:'Complete',          color:'#10B981' },
   ];
-  const total  = tasks.length;
-  const cx     = 80, cy = 80, r = 60, stroke = 22;
-  const circ   = 2 * Math.PI * r;
-  let offset   = 0;
-  let svgPaths = '';
-
+  const total = _tasks.length;
+  const cx = 80, cy = 80, r = 60, stroke = 22;
+  const circ = 2 * Math.PI * r;
+  let offset = 0, svgPaths = '';
   SEGMENTS.forEach(s => {
-    const count = tasks.filter(t => t.status === s.key).length;
+    const count = _tasks.filter(t => t.status === s.key).length;
     if (!count) return;
-    const dash  = (count / total) * circ;
-    const gap   = circ - dash;
+    const dash = (count / total) * circ;
     svgPaths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${stroke}"
-      stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"
-      style="transition:stroke-dashoffset .4s"/>`;
+      stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"/>`;
     offset += dash;
   });
-
   if (!total) svgPaths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${stroke}"/>`;
-  document.getElementById('donut-svg').innerHTML = svgPaths;
-  document.getElementById('donut-total').textContent = total;
 
-  document.getElementById('donut-legend').innerHTML = SEGMENTS.map(s => {
-    const count = tasks.filter(t => t.status === s.key).length;
+  const legend = SEGMENTS.map(s => {
+    const count = _tasks.filter(t => t.status === s.key).length;
     if (!count) return '';
     const pct = Math.round(count / total * 100);
-    return `
-      <div class="donut-legend-row">
-        <div class="donut-legend-dot" style="background:${s.color}"></div>
-        <span style="flex:1;color:var(--text-2)">${s.label}</span>
-        <span style="font-weight:700;color:var(--text)">${count}</span>
-        <span style="color:var(--text-3);min-width:36px;text-align:right">${pct}%</span>
-      </div>`;
+    return `<div class="donut-legend-row">
+      <div class="donut-legend-dot" style="background:${s.color}"></div>
+      <span style="flex:1;color:var(--text-2)">${s.label}</span>
+      <span style="font-weight:700;color:var(--text)">${count}</span>
+      <span style="color:var(--text-3);min-width:36px;text-align:right">${pct}%</span>
+    </div>`;
   }).join('');
+
+  return `
+    <div class="section-card widget-block" data-widget="donut">
+      <div class="section-head"><span class="section-title">Distribusi Status</span></div>
+      <div class="donut-wrap">
+        <svg viewBox="0 0 160 160" width="160" height="160" style="transform:rotate(-90deg)">${svgPaths}</svg>
+        <div class="donut-center">
+          <div class="donut-center-num">${total}</div>
+          <div class="donut-center-lbl">total task</div>
+        </div>
+      </div>
+      <div class="donut-legend">${legend}</div>
+    </div>`;
 }
 
-function renderUpcoming(tasks) {
+function buildUpcoming() {
   const now = new Date();
-  const upcoming = tasks
-    .filter(t => !['done','ditolak'].includes(t.status) && t.deadline)
+  const upcoming = _tasks
+    .filter(t => t.status !== 'complete' && t.deadline)
     .map(t => ({ ...t, daysLeft: Math.ceil((new Date(t.deadline) - now) / 86400000) }))
     .filter(t => t.daysLeft <= 7)
     .sort((a, b) => a.daysLeft - b.daysLeft)
     .slice(0, 6);
 
-  const el = document.getElementById('upcoming-list');
-  if (!upcoming.length) { el.innerHTML = '<div class="empty"><i class="ti ti-calendar-check"></i><p>Tidak ada deadline minggu ini</p></div>'; return; }
-  el.innerHTML = upcoming.map(t => {
-    const d = t.daysLeft;
-    const dayBg  = d < 0 ? '#FEE2E2' : d === 0 ? '#FEF3C7' : d <= 2 ? '#FEF3C7' : '#EFF6FF';
-    const dayFg  = d < 0 ? '#991B1B' : d === 0 ? '#92400E' : d <= 2 ? '#92400E' : '#1E40AF';
-    const dayTxt = d < 0 ? `${Math.abs(d)}h lalu` : d === 0 ? 'Hari ini' : `${d}h lagi`;
-    return `
-      <a href="/pages/task.html?id=${t._id}" class="upcoming-item">
-        <span class="prio-dot p-${t.prioritas}"></span>
-        <span style="flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.judul}</span>
-        <span class="upcoming-days" style="background:${dayBg};color:${dayFg}">${dayTxt}</span>
-      </a>`;
-  }).join('');
+  const inner = upcoming.length
+    ? upcoming.map(t => {
+        const d = t.daysLeft;
+        const dayBg = d < 0 ? '#FEE2E2' : d === 0 ? '#FEF3C7' : d <= 2 ? '#FEF3C7' : '#EFF6FF';
+        const dayFg = d < 0 ? '#991B1B' : d === 0 ? '#92400E' : d <= 2 ? '#92400E' : '#1E40AF';
+        const dayTxt = d < 0 ? `${Math.abs(d)}h lalu` : d === 0 ? 'Hari ini' : `${d}h lagi`;
+        return `<a href="/pages/task.html?id=${t._id}" class="upcoming-item">
+          <span class="prio-dot p-${t.prioritas}"></span>
+          <span style="flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.judul}</span>
+          <span class="upcoming-days" style="background:${dayBg};color:${dayFg}">${dayTxt}</span>
+        </a>`;
+      }).join('')
+    : '<div class="empty"><i class="ti ti-calendar-check"></i><p>Tidak ada deadline minggu ini</p></div>';
+
+  return `
+    <div class="section-card widget-block" data-widget="upcoming">
+      <div class="section-head"><span class="section-title">Deadline Mendatang</span></div>
+      ${inner}
+    </div>`;
 }
 
+function buildMilestones() {
+  const now = new Date();
+  const items = _milestones
+    .filter(m => m.status !== 'selesai')
+    .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
+    .slice(0, 5);
+
+  const inner = items.length
+    ? items.map(m => {
+        const d = Math.ceil((new Date(m.tanggal) - now) / 86400000);
+        const dTxt = d < 0 ? `${Math.abs(d)}h lalu` : d === 0 ? 'Hari ini' : `${d}h lagi`;
+        const dClr = d < 0 ? 'var(--red)' : d <= 3 ? 'var(--orange)' : 'var(--text-3)';
+        return `<a href="/pages/milestones.html" class="ms-item">
+          <div class="ms-dot" style="background:${m.warna||'#6366F1'}"></div>
+          <span style="flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.judul}</span>
+          <span style="font-size:11px;color:${dClr};flex-shrink:0">${dTxt}</span>
+        </a>`;
+      }).join('')
+    : '<div class="empty"><i class="ti ti-flag"></i><p>Belum ada milestone</p></div>';
+
+  return `
+    <div class="section-card widget-block" data-widget="milestones">
+      <div class="section-head">
+        <span class="section-title">Milestones</span>
+        <a href="/pages/milestones.html" class="btn btn-ghost" style="font-size:12px">Lihat semua <i class="ti ti-arrow-right"></i></a>
+      </div>
+      ${inner}
+    </div>`;
+}
+
+function buildKpi() {
+  if (!_kpiData) {
+    return `
+      <div class="section-card widget-block" data-widget="kpi">
+        <div class="section-head"><span class="section-title">KPI Saya</span>
+          <a href="/pages/stats.html" class="btn btn-ghost" style="font-size:12px">Detail <i class="ti ti-arrow-right"></i></a>
+        </div>
+        <div class="empty"><i class="ti ti-target"></i><p>Tidak ada data KPI</p></div>
+      </div>`;
+  }
+  const k = _kpiData;
+  const metrics = [
+    { label: 'Ketepatan Waktu (40%)', pct: k.skorWaktu },
+    { label: 'Volume Selesai (35%)',  pct: k.skorVolume },
+    { label: 'Kualitas (25%)',        pct: k.skorKualitas },
+  ];
+  const totalClr = k.skorTotal >= 85 ? '#10B981' : k.skorTotal >= 70 ? '#3B82F6' : k.skorTotal >= 50 ? '#F59E0B' : '#EF4444';
+  const rows = metrics.map(m => {
+    const pct = Math.min(100, Math.round(m.pct));
+    const clr = pct >= 85 ? '#10B981' : pct >= 70 ? '#3B82F6' : pct >= 50 ? '#F59E0B' : '#EF4444';
+    return `<div class="kpi-row">
+      <span style="flex:0 0 160px;font-size:12px;color:var(--text-2)">${m.label}</span>
+      <div class="kpi-bar-bg"><div class="kpi-bar-fg" style="width:${pct}%;background:${clr}"></div></div>
+      <span style="font-size:12px;font-weight:700;color:${clr};min-width:36px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="section-card widget-block" data-widget="kpi">
+      <div class="section-head">
+        <span class="section-title">KPI Saya</span>
+        <a href="/pages/stats.html" class="btn btn-ghost" style="font-size:12px">Detail <i class="ti ti-arrow-right"></i></a>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+        <div style="text-align:center;flex-shrink:0">
+          <div style="font-size:36px;font-weight:800;letter-spacing:-1px;color:${totalClr}">${k.skorTotal}</div>
+          <div style="font-size:11px;color:var(--text-3)">Skor Total</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:18px;font-weight:700;color:${totalClr}">${k.grade} — ${k.label}</div>
+          <div style="font-size:12px;color:var(--text-3);margin-top:3px">${k.totalDone} dari ${k.totalAssigned} task selesai</div>
+        </div>
+      </div>
+      ${rows}
+    </div>`;
+}
+
+function buildActivity() {
+  return `
+    <div class="section-card widget-block" data-widget="activity">
+      <div class="section-head">
+        <span class="section-title">Aktivitas Terbaru</span>
+        <a href="/pages/inbox.html" class="btn btn-ghost" style="font-size:12px">Lihat notifikasi</a>
+      </div>
+      <div id="activity-feed"><div class="empty"><i class="ti ti-activity"></i><p>Memuat...</p></div></div>
+    </div>`;
+}
+
+/* ── Layout render ─────────────────────────────────────────────── */
+function renderLayout() {
+  const prefs = getWidgetPrefs();
+  const active = prefs.filter(p => p.on).map(p => p.id);
+
+  // Separate into full-width vs two-col widgets
+  let html = '';
+  // Track which side widgets have been used to build two-col pairs
+  const sideWidgets   = ['donut','upcoming','milestones'];
+  const mainWidgets   = ['my-tasks','kpi'];
+  const fullWidgets   = ['stats','activity'];
+
+  const activeMain = active.filter(id => mainWidgets.includes(id));
+  const activeSide = active.filter(id => sideWidgets.includes(id));
+  const activeFull = active.filter(id => fullWidgets.includes(id));
+
+  // stats always first if on
+  if (active.includes('stats')) html += buildStats();
+
+  // two-col section: main left, side right
+  if (activeMain.length || activeSide.length) {
+    let mainCol = activeMain.map(id => {
+      if (id === 'my-tasks') return buildMyTasks();
+      if (id === 'kpi')      return buildKpi();
+      return '';
+    }).join('<div style="height:18px"></div>');
+
+    let sideCol = activeSide.map(id => {
+      if (id === 'donut')      return buildDonut();
+      if (id === 'upcoming')   return buildUpcoming();
+      if (id === 'milestones') return buildMilestones();
+      return '';
+    }).join('<div style="height:18px"></div>');
+
+    if (activeMain.length && activeSide.length) {
+      html += `<div class="two-col">${mainCol ? `<div>${mainCol}</div>` : '<div></div>'}<div style="display:flex;flex-direction:column;gap:18px">${sideCol}</div></div>`;
+    } else if (activeMain.length) {
+      html += mainCol;
+    } else {
+      html += `<div>${sideCol}</div>`;
+    }
+  }
+
+  // activity always last
+  if (active.includes('activity')) {
+    html += buildActivity();
+    // async load after render
+    setTimeout(renderActivityFeed, 50);
+  }
+
+  document.getElementById('widget-root').innerHTML = html;
+}
+
+/* ── Customize panel ────────────────────────────────────────────── */
+let custOpen = false;
+function toggleCustPanel() {
+  custOpen = !custOpen;
+  document.getElementById('cust-panel').classList.toggle('open', custOpen);
+  if (custOpen) renderCustPanel();
+}
+
+document.addEventListener('click', e => {
+  if (custOpen && !e.target.closest('#cust-panel') && !e.target.closest('.customize-btn')) {
+    custOpen = false;
+    document.getElementById('cust-panel').classList.remove('open');
+  }
+});
+
+let dragSrc = null;
+
+function renderCustPanel() {
+  const prefs = getWidgetPrefs();
+  const list  = document.getElementById('cust-list');
+  list.innerHTML = prefs.map((p, i) => {
+    const def = WIDGET_DEFS.find(d => d.id === p.id);
+    if (!def) return '';
+    return `
+      <div class="cust-item" draggable="true" data-id="${p.id}" data-idx="${i}">
+        <span class="cust-drag ti ti-grip-vertical"></span>
+        <i class="ti ${def.icon} cust-icon"></i>
+        <span class="cust-label">${def.label}</span>
+        <label class="tog">
+          <input type="checkbox" ${p.on ? 'checked' : ''} onchange="toggleWidget('${p.id}',this.checked)">
+          <span class="tog-sl"></span>
+        </label>
+      </div>`;
+  }).join('');
+
+  // drag-and-drop reorder
+  list.querySelectorAll('.cust-item').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      dragSrc = el;
+      setTimeout(() => el.classList.add('dragging'), 0);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      list.querySelectorAll('.cust-item').forEach(x => x.classList.remove('drag-over'));
+    });
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (el !== dragSrc) {
+        list.querySelectorAll('.cust-item').forEach(x => x.classList.remove('drag-over'));
+        el.classList.add('drag-over');
+      }
+    });
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragSrc && dragSrc !== el) {
+        const prefs = getWidgetPrefs();
+        const fromId = dragSrc.dataset.id;
+        const toId   = el.dataset.id;
+        const fi = prefs.findIndex(p => p.id === fromId);
+        const ti = prefs.findIndex(p => p.id === toId);
+        const [moved] = prefs.splice(fi, 1);
+        prefs.splice(ti, 0, moved);
+        saveWidgetPrefs(prefs);
+        renderCustPanel();
+        renderLayout();
+      }
+    });
+  });
+}
+
+function toggleWidget(id, on) {
+  const prefs = getWidgetPrefs();
+  const p = prefs.find(x => x.id === id);
+  if (p) p.on = on;
+  saveWidgetPrefs(prefs);
+  renderLayout();
+}
+
+/* ── Activity feed (async) ──────────────────────────────────────── */
 async function renderActivityFeed() {
+  const el = document.getElementById('activity-feed');
+  if (!el) return;
   try {
     const { logs } = await apiFetch('/timelog?limit=10');
-    const el = document.getElementById('activity-feed');
     if (!logs?.length) { el.innerHTML = '<div class="empty"><i class="ti ti-activity"></i><p>Belum ada aktivitas</p></div>'; return; }
     el.innerHTML = logs.map(l => {
       const inits = (l.userId?.namaLengkap || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
@@ -359,14 +675,46 @@ async function renderActivityFeed() {
         <div class="act-item">
           <div class="act-av">${inits}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:600">${l.userId?.namaLengkap || '—'} <span style="color:var(--text-3);font-weight:400">mencatat</span> <span style="color:var(--accent)">${dur}</span></div>
-            <div style="font-size:11px;color:var(--text-3)">${tgl}${l.catatan ? ' · ' + l.catatan : ''}</div>
+            <div style="font-size:12px;font-weight:600">${l.userId?.namaLengkap||'—'} <span style="color:var(--text-3);font-weight:400">mencatat</span> <span style="color:var(--accent)">${dur}</span></div>
+            <div style="font-size:11px;color:var(--text-3)">${tgl}${l.catatan?' · '+l.catatan:''}</div>
           </div>
         </div>`;
     }).join('');
   } catch { /* silent */ }
 }
 
+/* ── Init ────────────────────────────────────────────────────────── */
+async function loadDashboard() {
+  const now   = new Date();
+  const salam = now.getHours() < 11 ? 'pagi' : now.getHours() < 15 ? 'siang' : 'sore';
+  document.getElementById('greeting').textContent = `Selamat ${salam}, ${user?.namaLengkap || ''} 👋`;
+  document.getElementById('dash-sub').textContent = now.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  try {
+    const [taskRes, msRes] = await Promise.all([
+      Tasks.list({ limit: 100 }).catch(() => ({ tasks: [] })),
+      Milestones.list().catch(() => ({ milestones: [] })),
+    ]);
+    _tasks      = taskRes.tasks || [];
+    _milestones = msRes.milestones || [];
+
+    // Try load KPI (personal KPI metrics)
+    try {
+      const kRes = await apiFetch('/kpi/me');
+      _kpiData = kRes && kRes.skorTotal !== undefined ? kRes : null;
+    } catch { _kpiData = null; }
+
+    const overdue = _tasks.filter(t => isOverdue(t)).length;
+    if (overdue > 0) {
+      document.getElementById('overdue-banner').style.display = 'flex';
+      document.getElementById('overdue-text').textContent = `Anda memiliki ${overdue} task yang sudah melewati deadline.`;
+    }
+
+    renderLayout();
+  } catch {
+    showToast('Gagal memuat data dashboard', 'error');
+  }
+}
 
 loadDashboard();
 </script>
