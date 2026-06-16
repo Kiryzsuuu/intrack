@@ -1,5 +1,6 @@
 const router    = require('express').Router();
 const Milestone = require('../models/Milestone');
+const Task      = require('../models/Task');
 const auth      = require('../middleware/auth');
 const { requireRole } = require('../middleware/roles');
 
@@ -64,6 +65,36 @@ router.put('/:id', auth, async (req, res) => {
 
   await ms.save();
   res.json({ message: 'Milestone diupdate', milestone: ms });
+});
+
+// POST /api/milestones/:id/tasks — tambah task ke milestone
+router.post('/:id/tasks', auth, async (req, res) => {
+  const { taskId } = req.body;
+  if (!taskId) return res.status(400).json({ message: 'taskId wajib' });
+
+  const ms = await Milestone.findById(req.params.id);
+  if (!ms) return res.status(404).json({ message: 'Milestone tidak ditemukan' });
+
+  if (!ms.taskIds.some(t => t.toString() === taskId)) {
+    ms.taskIds.push(taskId);
+    await ms.save();
+  }
+  // Sinkronisasi milestoneId di task
+  await Task.findByIdAndUpdate(taskId, { milestoneId: ms._id });
+
+  res.json({ message: 'Task ditambahkan ke milestone' });
+});
+
+// DELETE /api/milestones/:id/tasks/:taskId — hapus task dari milestone
+router.delete('/:id/tasks/:taskId', auth, async (req, res) => {
+  const ms = await Milestone.findById(req.params.id);
+  if (!ms) return res.status(404).json({ message: 'Milestone tidak ditemukan' });
+
+  ms.taskIds = ms.taskIds.filter(t => t.toString() !== req.params.taskId);
+  await ms.save();
+  await Task.findByIdAndUpdate(req.params.taskId, { milestoneId: null });
+
+  res.json({ message: 'Task dihapus dari milestone' });
 });
 
 // DELETE /api/milestones/:id

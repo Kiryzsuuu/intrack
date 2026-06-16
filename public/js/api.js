@@ -353,9 +353,11 @@ const Milestones = {
     const qs = new URLSearchParams(params).toString();
     return apiFetch('/milestones' + (qs ? '?' + qs : ''));
   },
-  async create(data)     { return apiFetch('/milestones', { method: 'POST', body: JSON.stringify(data) }); },
-  async update(id, data) { return apiFetch(`/milestones/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
-  async delete(id)       { return apiFetch(`/milestones/${id}`, { method: 'DELETE' }); },
+  async create(data)         { return apiFetch('/milestones', { method: 'POST', body: JSON.stringify(data) }); },
+  async update(id, data)     { return apiFetch(`/milestones/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
+  async delete(id)           { return apiFetch(`/milestones/${id}`, { method: 'DELETE' }); },
+  async addTask(id, taskId)  { return apiFetch(`/milestones/${id}/tasks`, { method: 'POST', body: JSON.stringify({ taskId }) }); },
+  async removeTask(id, taskId) { return apiFetch(`/milestones/${id}/tasks/${taskId}`, { method: 'DELETE' }); },
 };
 
 // ── Workload ──────────────────────────────────────────────────────────────────
@@ -400,21 +402,29 @@ function formatRelative(date) {
 
 function statusLabel(status) {
   const map = {
-    menunggu_approval: 'Menunggu Approval',
-    to_do:             'To Do',
-    in_progress:       'In Progress',
-    perlu_review:      'Perlu Review',
-    revisi:            'Revisi',
-    done:              'Done',
-    ditolak:           'Ditolak',
+    to_do:              'To Do',
+    on_progress:        'On Progress',
+    partially_complete: 'Partially Complete',
+    complete:           'Complete',
+    // legacy fallbacks
+    menunggu_approval: 'To Do',
+    in_progress:       'On Progress',
+    perlu_review:      'On Progress',
+    revisi:            'On Progress',
+    done:              'Complete',
+    ditolak:           'To Do',
   };
   return map[status] || status;
 }
 
 function statusBadgeClass(status) {
   const map = {
-    menunggu_approval: 'badge-waiting',
-    to_do:             'badge-todo',
+    to_do:              'badge-todo',
+    on_progress:        'badge-progress',
+    partially_complete: 'badge-review',
+    complete:           'badge-done',
+    // legacy
+    menunggu_approval: 'badge-todo',
     in_progress:       'badge-progress',
     perlu_review:      'badge-review',
     revisi:            'badge-revisi',
@@ -425,13 +435,18 @@ function statusBadgeClass(status) {
 }
 
 function prioritasLabel(p) {
-  const map = { low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' };
+  const map = { normal: 'Normal', moderate: 'Moderate', urgent: 'Urgent', low: 'Normal', medium: 'Moderate', high: 'Urgent', critical: 'Urgent' };
   return map[p] || p;
+}
+
+function prioritasBadgeClass(p) {
+  const map = { normal: 'badge-todo', moderate: 'badge-review', urgent: 'badge-rejected' };
+  return map[p] || 'badge-todo';
 }
 
 function isOverdue(task) {
   return task.deadline && new Date(task.deadline) < new Date() &&
-    !['done', 'ditolak'].includes(task.status);
+    task.status !== 'complete';
 }
 
 function initials(nama) {

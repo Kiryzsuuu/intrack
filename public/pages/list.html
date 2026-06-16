@@ -72,6 +72,8 @@
         <div class="view-sw">
           <a href="/pages/list.html" class="active"><i class="ti ti-list"></i> List</a>
           <a href="/pages/board.html"><i class="ti ti-layout-kanban"></i> Board</a>
+          <a href="/pages/gantt.html"><i class="ti ti-chart-gantt"></i> Gantt</a>
+          <a href="/pages/calendar.html"><i class="ti ti-calendar-month"></i> Kalender</a>
         </div>
         <a href="/pages/task-form.html" class="btn btn-primary"><i class="ti ti-plus"></i> <span>Buat Task</span></a>
       </div>
@@ -83,20 +85,16 @@
           <input type="text" id="f-search" class="input" placeholder="Cari judul task..." style="width:240px" oninput="debounceLoad()">
           <select id="f-status" class="sel" onchange="loadList()">
             <option value="">Semua Status</option>
-            <option value="menunggu_approval">Menunggu Approval</option>
             <option value="to_do">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="perlu_review">Perlu Review</option>
-            <option value="revisi">Revisi</option>
-            <option value="done">Done</option>
-            <option value="ditolak">Ditolak</option>
+            <option value="on_progress">On Progress</option>
+            <option value="partially_complete">Partially Complete</option>
+            <option value="complete">Complete</option>
           </select>
           <select id="f-prioritas" class="sel" onchange="loadList()">
             <option value="">Semua Prioritas</option>
-            <option value="critical">Kritis</option>
-            <option value="high">Tinggi</option>
-            <option value="medium">Sedang</option>
-            <option value="low">Rendah</option>
+            <option value="urgent">Urgent</option>
+            <option value="moderate">Moderate</option>
+            <option value="normal">Normal</option>
           </select>
           <select id="f-direktorat" class="sel" onchange="loadList()" style="display:none">
             <option value="">Semua Direktorat</option>
@@ -133,11 +131,10 @@
           <span class="bulk-count" id="bulk-count">0 dipilih</span>
           <span style="font-size:12px;color:var(--text-3)">Ubah status menjadi:</span>
           <select id="bulk-status-sel" class="sel" style="font-size:12px;padding:5px 10px">
-            <option value="in_progress">In Progress</option>
-            <option value="perlu_review">Perlu Review</option>
             <option value="to_do">To Do</option>
-            <option value="done">Done</option>
-            <option value="ditolak">Ditolak</option>
+            <option value="on_progress">On Progress</option>
+            <option value="partially_complete">Partially Complete</option>
+            <option value="complete">Complete</option>
           </select>
           <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="doBulkStatus()"><i class="ti ti-check"></i> Terapkan</button>
           <button class="btn" style="font-size:12px;padding:6px 14px" onclick="clearSelection()"><i class="ti ti-x"></i> Batal</button>

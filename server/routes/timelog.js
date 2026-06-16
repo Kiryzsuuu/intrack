@@ -1,6 +1,7 @@
 const router  = require('express').Router();
 const TimeLog = require('../models/TimeLog');
 const Task    = require('../models/Task');
+const StatusLog = require('../models/StatusLog');
 const auth    = require('../middleware/auth');
 
 // GET /api/timelog?taskId=xxx
@@ -49,6 +50,14 @@ router.post('/', auth, async (req, res) => {
   });
 
   await log.populate('userId', 'namaLengkap fotoProfil');
+
+  // Auto-set status ke on_progress saat pertama kali catat waktu
+  if (task.status === 'to_do') {
+    task.status = 'on_progress';
+    await task.save();
+    await StatusLog.create({ taskId, userId: req.user._id, statusLama: 'to_do', statusBaru: 'on_progress', catatan: 'Auto: time tracking dimulai' });
+  }
+
   res.status(201).json(log);
 });
 

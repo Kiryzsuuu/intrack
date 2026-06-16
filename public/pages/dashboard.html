@@ -153,9 +153,9 @@
             <div class="stat-label">Task aktif</div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon" style="background:var(--orange-bg)"><i class="ti ti-clock-check" style="color:var(--orange-text)"></i></div>
+            <div class="stat-icon" style="background:var(--orange-bg)"><i class="ti ti-loader" style="color:var(--orange-text)"></i></div>
             <div class="stat-num" id="stat-approval">—</div>
-            <div class="stat-label">Menunggu approval</div>
+            <div class="stat-label">On Progress</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon" style="background:var(--red-bg)"><i class="ti ti-alert-triangle" style="color:var(--red-text)"></i></div>
@@ -171,13 +171,6 @@
 
         <div class="two-col">
           <div style="display:flex;flex-direction:column;gap:18px">
-            <div class="section-card" id="approval-card" style="display:none">
-              <div class="section-head">
-                <span class="section-title">Menunggu Persetujuan</span>
-                <a href="/pages/list.html?status=menunggu_approval" class="btn btn-ghost" style="font-size:12px">Lihat semua</a>
-              </div>
-              <div id="approval-list"><div class="empty"><i class="ti ti-checks"></i><p>Tidak ada task menunggu</p></div></div>
-            </div>
             <div class="section-card">
               <div class="section-head">
                 <span class="section-title" id="my-task-title">Task Saya</span>
@@ -239,32 +232,28 @@ async function loadDashboard() {
     const { tasks } = await Tasks.list({ limit: 100 });
     const isDireksi  = user?.role === 'direksi';
     const nowDate    = new Date();
-    const aktif      = tasks.filter(t => !['done','ditolak'].includes(t.status)).length;
-    const approval   = tasks.filter(t => t.status === 'menunggu_approval').length;
+    const aktif      = tasks.filter(t => t.status !== 'complete').length;
+    const onProgress = tasks.filter(t => t.status === 'on_progress').length;
     const overdue    = tasks.filter(t => isOverdue(t)).length;
     const doneBulan  = tasks.filter(t => {
-      if (t.status !== 'done' || !t.doneAt) return false;
+      if (t.status !== 'complete' || !t.doneAt) return false;
       const d = new Date(t.doneAt);
       return d.getMonth() === nowDate.getMonth() && d.getFullYear() === nowDate.getFullYear();
     }).length;
 
     document.getElementById('stat-aktif').textContent    = aktif;
-    document.getElementById('stat-approval').textContent = approval;
+    document.getElementById('stat-approval').textContent = onProgress;
     document.getElementById('stat-overdue').textContent  = overdue;
     document.getElementById('stat-done').textContent     = doneBulan;
 
-    if (!isDireksi && overdue > 0) {
+    if (overdue > 0) {
       document.getElementById('overdue-banner').style.display = 'flex';
       document.getElementById('overdue-text').textContent = `Anda memiliki ${overdue} task yang sudah melewati deadline.`;
     }
-    if (isDireksi) {
-      document.getElementById('approval-card').style.display = 'block';
-      document.getElementById('my-task-title').textContent = 'Task Terbaru';
-      renderApprovalList(tasks.filter(t => t.status === 'menunggu_approval').slice(0, 5));
-    }
+    if (isDireksi) document.getElementById('my-task-title').textContent = 'Task Terbaru';
 
     const myTasks = isDireksi
-      ? tasks.filter(t => !['done','ditolak'].includes(t.status)).slice(0, 7)
+      ? tasks.filter(t => t.status !== 'complete').slice(0, 7)
       : tasks.filter(t => t.picUserId?._id === user?._id || t.picUserId === user?._id).slice(0, 7);
     renderMyTasks(myTasks);
     renderDonut(tasks);
@@ -275,22 +264,6 @@ async function loadDashboard() {
   }
 }
 
-function renderApprovalList(tasks) {
-  const el = document.getElementById('approval-list');
-  if (!tasks.length) { el.innerHTML = '<div class="empty"><i class="ti ti-checks"></i><p>Tidak ada task menunggu</p></div>'; return; }
-  el.innerHTML = tasks.map(t => `
-    <div class="approval-item">
-      <div class="prio-dot p-${t.prioritas}"></div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.judul}</div>
-        <div style="font-size:12px;color:var(--text-3)">${t.picUserId?.namaLengkap || ''} · ${formatTanggal(t.deadline)}</div>
-      </div>
-      <div class="approval-actions">
-        <button class="btn" style="font-size:12px;background:var(--green-bg);color:var(--green-text);border-color:transparent" onclick="approveTask('${t._id}')">Setujui</button>
-        <button class="btn" style="font-size:12px;background:var(--red-bg);color:var(--red-text);border-color:transparent" onclick="rejectTask('${t._id}','${t.judul}')">Tolak</button>
-      </div>
-    </div>`).join('');
-}
 
 function renderMyTasks(tasks) {
   const el = document.getElementById('my-tasks');
@@ -306,13 +279,10 @@ function renderMyTasks(tasks) {
 
 function renderDonut(tasks) {
   const SEGMENTS = [
-    { key:'in_progress',       label:'In Progress',      color:'#3B82F6' },
-    { key:'perlu_review',      label:'Perlu Review',     color:'#8B5CF6' },
-    { key:'revisi',            label:'Revisi',           color:'#EF4444' },
-    { key:'menunggu_approval', label:'Menunggu Approval',color:'#F59E0B' },
-    { key:'to_do',             label:'To Do',            color:'#6B7280' },
-    { key:'done',              label:'Done',             color:'#10B981' },
-    { key:'ditolak',           label:'Ditolak',          color:'#9CA3AF' },
+    { key:'on_progress',        label:'On Progress',       color:'#3B82F6' },
+    { key:'partially_complete', label:'Partially Complete', color:'#8B5CF6' },
+    { key:'to_do',              label:'To Do',             color:'#6B7280' },
+    { key:'complete',           label:'Complete',          color:'#10B981' },
   ];
   const total  = tasks.length;
   const cx     = 80, cy = 80, r = 60, stroke = 22;
@@ -397,21 +367,6 @@ async function renderActivityFeed() {
   } catch { /* silent */ }
 }
 
-async function approveTask(id) {
-  try { await Tasks.updateStatus(id, 'to_do'); showToast('Task disetujui'); loadDashboard(); }
-  catch (e) { showToast(e.message, 'error'); }
-}
-
-async function rejectTask(id, judul) {
-  const catatan = await showPrompt(`Tolak "${judul}"`, {
-    title: 'Tolak Task', placeholder: 'Alasan penolakan...', hint: 'Minimal 10 karakter', okLabel: 'Tolak', type: 'danger'
-  });
-  if (catatan === null) return;
-  if (catatan.length < 10) { await showAlert('Alasan minimal 10 karakter', { type: 'warning', title: 'Terlalu Pendek' }); return; }
-  Tasks.updateStatus(id, 'ditolak', catatan)
-    .then(() => { showToast('Task ditolak'); loadDashboard(); })
-    .catch(e => showToast(e.message, 'error'));
-}
 
 loadDashboard();
 </script>

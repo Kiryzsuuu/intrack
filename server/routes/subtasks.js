@@ -2,6 +2,7 @@ const router  = require('express').Router();
 const Subtask = require('../models/Subtask');
 const Task    = require('../models/Task');
 const auth    = require('../middleware/auth');
+const { autoUpdateStatus } = require('./tasks');
 
 function isPIC(user, task) {
   return task.picUserId.toString() === user._id.toString();
@@ -66,6 +67,8 @@ router.put('/:id', auth, async (req, res) => {
   if (req.body.priority   !== undefined) sub.priority   = req.body.priority;
   await sub.save();
   await sub.populate('assignedTo', 'namaLengkap fotoProfil');
+  // Auto-update task status berdasarkan subtask progress
+  if (req.body.isDone !== undefined) autoUpdateStatus(sub.taskId).catch(() => {});
   res.json(sub);
 });
 

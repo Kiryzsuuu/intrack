@@ -9,18 +9,19 @@ function buildSidebar(user, activePage) {
   const avColors  = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
   const avColor   = avColors[inits.charCodeAt(0) % avColors.length];
 
+  // Task list pages share one sidebar entry
+  const taskListIds = ['tasks', 'board', 'gantt', 'calendar'];
+  const isTaskList  = taskListIds.includes(activePage);
+
   const pages = [
-    { id: 'dashboard', href: '/pages/dashboard.html',  icon: 'ti-layout-dashboard', label: 'Dashboard',     section: 'main' },
-    { id: 'my-tasks',  href: '/pages/my-tasks.html',   icon: 'ti-checkbox',         label: 'My Tasks',      section: 'main' },
-    { id: 'tasks',     href: '/pages/list.html',        icon: 'ti-clipboard-list',   label: 'Daftar Task',   section: 'main' },
-    { id: 'board',     href: '/pages/board.html',       icon: 'ti-layout-kanban',    label: 'Board Kanban',  section: 'main' },
-    { id: 'calendar',   href: '/pages/calendar.html',    icon: 'ti-calendar-month',   label: 'Kalender',      section: 'plan' },
-    { id: 'gantt',      href: '/pages/gantt.html',       icon: 'ti-chart-gantt',      label: 'Gantt Chart',   section: 'plan' },
-    { id: 'milestones', href: '/pages/milestones.html',  icon: 'ti-flag',             label: 'Milestones',    section: 'plan' },
-    { id: 'workload',   href: '/pages/workload.html',    icon: 'ti-users-group',      label: 'Workload',      section: 'plan' },
-    { id: 'channel',   href: '/pages/channel.html',     icon: 'ti-messages',         label: 'Channel',       section: 'main' },
-    { id: 'inbox',     href: '/pages/inbox.html',       icon: 'ti-bell',             label: 'Notifikasi',    section: 'main', badge: true },
-    { id: 'kpi',       href: '/pages/stats.html',       icon: 'ti-chart-bar',        label: 'KPI',           section: 'main' },
+    { id: 'dashboard',  href: '/pages/dashboard.html', icon: 'ti-layout-dashboard', label: 'Dashboard',  section: 'tasks' },
+    { id: 'my-tasks',   href: '/pages/my-tasks.html',  icon: 'ti-checkbox',         label: 'My Tasks',   section: 'tasks' },
+    { id: 'tasks',      href: '/pages/list.html',       icon: 'ti-clipboard-list',   label: 'Task List',  section: 'tasks', activeIds: taskListIds },
+    { id: 'inbox',      href: '/pages/inbox.html',      icon: 'ti-bell',             label: 'Notifikasi', section: 'tasks', badge: true },
+    { id: 'channel',    href: '/pages/channel.html',    icon: 'ti-messages',         label: 'Channel',    section: 'workspace' },
+    { id: 'kpi',        href: '/pages/stats.html',      icon: 'ti-chart-bar',        label: 'KPI',        section: 'workspace' },
+    { id: 'milestones', href: '/pages/milestones.html', icon: 'ti-flag',             label: 'Milestones', section: 'workspace' },
+    { id: 'workload',   href: '/pages/workload.html',   icon: 'ti-users-group',      label: 'Workload',   section: 'workspace' },
     ...(isDireksi || isSuperadmin ? [
       { id: 'users',  href: '/pages/settings.html', icon: 'ti-users',        label: 'Manajemen User', section: 'admin' },
       { id: 'audit',  href: '/pages/audit.html',    icon: 'ti-shield-check', label: 'Audit Trail',    section: 'admin' },
@@ -31,9 +32,9 @@ function buildSidebar(user, activePage) {
   ];
 
   const sections = [
-    { key: 'main',  label: 'Menu' },
-    { key: 'plan',  label: 'Perencanaan' },
-    { key: 'admin', label: 'Administrasi' },
+    { key: 'tasks',     label: 'Tasks' },
+    { key: 'workspace', label: 'Workspace' },
+    { key: 'admin',     label: 'Administrasi' },
   ];
 
   const navLinks = sections.map(sec => {
@@ -41,12 +42,14 @@ function buildSidebar(user, activePage) {
     if (!items.length) return '';
     return `<div class="sb-section">
       <div class="sb-section-label">${sec.label}</div>
-      ${items.map(p => `
-        <a href="${p.href}" class="sb-link${activePage === p.id ? ' active' : ''}" data-page="${p.id}">
+      ${items.map(p => {
+        const isActive = p.activeIds ? p.activeIds.includes(activePage) : activePage === p.id;
+        return `<a href="${p.href}" class="sb-link${isActive ? ' active' : ''}" data-page="${p.id}">
           <i class="ti ${p.icon}" aria-hidden="true"></i>
           ${p.label}
           ${p.badge ? `<span class="sb-badge" id="sb-notif-badge" style="display:none">0</span>` : ''}
-        </a>`).join('')}
+        </a>`;
+      }).join('')}
     </div>`;
   }).join('');
 

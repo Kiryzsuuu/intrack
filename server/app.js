@@ -53,6 +53,7 @@ app.use('/api/milestones',   require('./routes/milestones'));
 app.use('/api/push',         require('./routes/push'));
 app.use('/api/audit',        require('./routes/audit'));
 app.use('/api/channels',     require('./routes/channels'));
+app.use('/api/tasks/:taskId/messages', require('./routes/task-messages'));
 
 // Root → redirect ke login
 app.get('/', (req, res) => {

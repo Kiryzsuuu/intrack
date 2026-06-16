@@ -4,6 +4,7 @@ const User      = require('../models/User');
 const Subtask   = require('../models/Subtask');
 const Evidence  = require('../models/Evidence');
 const StatusLog = require('../models/StatusLog');
+const Timelog   = require('../models/Timelog');
 const auth      = require('../middleware/auth');
 const { requireRole } = require('../middleware/roles');
 const notifSvc  = require('../services/notifikasi');
@@ -12,6 +13,49 @@ const wa        = require('../services/whatsapp');
 const { simpanSnapshot } = require('../services/kpi');
 const push      = require('../services/push');
 const audit     = require('../services/audit');
+
+// Auto-compute status berdasarkan subtask progress (dipanggil dari timelog & subtask routes)
+async function autoUpdateStatus(taskId) {
+  const task = await Task.findById(taskId);
+  if (!task || task.status === 'complete') return;
+
+  const subtasks = await Subtask.find({ taskId });
+  const total    = subtasks.length;
+  const done     = subtasks.filter(s => s.isDone).length;
+
+  let newStatus = task.status;
+
+  if (total > 0) {
+    const ratio = done / total;
+    if (ratio >= 1)        newStatus = 'complete';
+    else if (ratio >= 0.5) newStatus = 'partially_complete';
+    else if (done > 0)     newStatus = 'on_progress';
+    else                   newStatus = task.status === 'on_progress' ? 'on_progress' : task.status;
+  }
+
+  if (newStatus !== task.status) {
+    const statusLama = task.status;
+    task.status = newStatus;
+    if (newStatus === 'complete') task.doneAt = new Date();
+    await task.save();
+    await StatusLog.create({ taskId, userId: task.picUserId, statusLama, statusBaru: newStatus, catatan: 'Auto-update dari progress subtask' });
+
+    if (newStatus === 'complete') {
+      const pic = await User.findById(task.picUserId);
+      if (pic) {
+        await notifSvc.notifTaskDone(pic, task).catch(() => {});
+        push.sendPush(pic._id, { title: 'Task Selesai!', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
+        const now = new Date();
+        await simpanSnapshot(pic._id, now.getMonth() + 1, now.getFullYear()).catch(() => {});
+        if (task.dibuatOleh.toString() !== pic._id.toString()) {
+          push.sendPush(task.dibuatOleh, { title: 'Task Selesai!', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
+        }
+      }
+    }
+  }
+}
+
+module.exports.autoUpdateStatus = autoUpdateStatus;
 
 // ── Helper: cek apakah user bisa lihat task ───────────────────────────────────
 function canView(user, task) {
@@ -77,12 +121,11 @@ router.put('/bulk-status', auth, async (req, res) => {
   if (!taskIds?.length || !statusBaru)
     return res.status(400).json({ message: 'taskIds dan statusBaru wajib diisi' });
 
-  const validStatus = ['to_do','in_progress','perlu_review','revisi','done','ditolak','menunggu_approval'];
+  const validStatus = ['to_do','on_progress','partially_complete','complete'];
   if (!validStatus.includes(statusBaru))
     return res.status(400).json({ message: 'Status tidak valid' });
 
-  const isDireksi   = req.user.role === 'direksi' || req.user.role === 'superadmin';
-  const isPICChange = ['in_progress','perlu_review'].includes(statusBaru);
+  const isDireksi = ['direksi','superadmin'].includes(req.user.role);
 
   let updated = 0;
   for (const id of taskIds) {
@@ -90,15 +133,12 @@ router.put('/bulk-status', auth, async (req, res) => {
       const task = await Task.findById(id).populate('picUserId');
       if (!task) continue;
 
-      // Permission check: direksi bisa approve/reject, PIC bisa ubah progress
-      const isPIC = task.picUserId?._id?.toString() === req.user._id.toString();
-      if (!isDireksi && !isPIC) continue;
-      if (['to_do','ditolak'].includes(statusBaru) && !isDireksi) continue;
+      const isPIC   = task.picUserId?._id?.toString() === req.user._id.toString();
+      const isCollab = (task.collaborators || []).some(c => c.toString() === req.user._id.toString());
+      if (!isDireksi && !isPIC && !isCollab) continue;
 
-      const prev = task.status;
       task.status = statusBaru;
-      if (statusBaru === 'done') task.doneAt = new Date();
-      if (statusBaru === 'to_do' && prev === 'menunggu_approval') task.approvedAt = new Date();
+      if (statusBaru === 'complete') task.doneAt = new Date();
       await task.save();
       updated++;
     } catch {}
@@ -112,8 +152,8 @@ router.post('/', auth, async (req, res) => {
   const { judul, deskripsi, picUserId, prioritas, deadline, tags, collaborators } = req.body;
 
   // Validasi field wajib
-  if (!judul || !deskripsi || !picUserId || !prioritas || !deadline)
-    return res.status(400).json({ message: 'Judul, deskripsi, PIC, prioritas, dan deadline wajib diisi' });
+  if (!judul || !deskripsi || !picUserId || !deadline)
+    return res.status(400).json({ message: 'Judul, deskripsi, PIC, dan deadline wajib diisi' });
   if (new Date(deadline) < new Date())
     return res.status(400).json({ message: 'Deadline tidak boleh di masa lalu' });
   if (judul.length > 150)
@@ -144,43 +184,24 @@ router.post('/', auth, async (req, res) => {
   });
   if (dup) warningDuplikasi = 'Terdapat task dengan judul serupa dan deadline berdekatan';
 
-  // Status awal
-  const statusAwal = req.user.role === 'direksi' ? 'to_do' : 'menunggu_approval';
-  const approvedAt = req.user.role === 'direksi' ? new Date() : null;
-
   const task = await Task.create({
     judul: judul.trim(),
     deskripsi,
     picUserId,
     dibuatOleh: req.user._id,
     direktoratId: pic.direktoratId?._id || pic.direktoratId,
-    prioritas,
-    status: statusAwal,
+    prioritas: prioritas || 'normal',
+    status: 'to_do',
     deadline: new Date(deadline),
     tags: tags ? tags.slice(0, 5) : [],
     collaborators: collaborators || [],
-    approvedAt,
   });
 
-  // Log status
-  await StatusLog.create({
-    taskId:     task._id,
-    userId:     req.user._id,
-    statusLama: null,
-    statusBaru: statusAwal,
-    catatan:    'Task dibuat',
-  });
+  await StatusLog.create({ taskId: task._id, userId: req.user._id, statusLama: null, statusBaru: 'to_do', catatan: 'Task dibuat' });
 
-  // Notifikasi
-  if (req.user.role === 'manager') {
-    const direksi = await User.find({ role: 'direksi', statusAktif: true });
-    await notifSvc.notifTaskMenungguApproval(direksi, task, req.user);
-    if (req.user.notifEmail) await mailer.mailTaskApproved(req.user, task).catch(() => {});
-  } else {
-    // Direksi buat task — notif ke PIC
-    if (pic._id.toString() !== req.user._id.toString()) {
-      await notifSvc.notifTaskApproved(pic, task);
-    }
+  // Notif ke PIC jika beda dengan pembuat
+  if (pic._id.toString() !== req.user._id.toString()) {
+    await notifSvc.notifTaskApproved(pic, task).catch(() => {});
   }
 
   await task.populate(['picUserId', 'dibuatOleh', 'direktoratId']);
@@ -194,7 +215,8 @@ router.get('/:id', auth, async (req, res) => {
     .populate('picUserId', 'namaLengkap email fotoProfil direktoratId')
     .populate('dibuatOleh', 'namaLengkap email')
     .populate('direktoratId', 'nama kode')
-    .populate('collaborators', 'namaLengkap email fotoProfil');
+    .populate('collaborators', 'namaLengkap email fotoProfil')
+    .populate('milestoneId', 'judul warna');
 
   if (!task || (task.isDeleted && req.user.role !== 'direksi'))
     return res.status(404).json({ message: 'Task tidak ditemukan' });
@@ -269,102 +291,46 @@ router.post('/:id/cover', auth, async (req, res) => {
 
 // ── PUT /api/tasks/:id/status ─────────────────────────────────────────────────
 router.put('/:id/status', auth, async (req, res) => {
-  const { statusBaru, catatan } = req.body;
-  if (!statusBaru) return res.status(400).json({ message: 'Status baru wajib diisi' });
+  const { statusBaru } = req.body;
+  const validStatuses = ['to_do', 'on_progress', 'partially_complete', 'complete'];
+  if (!statusBaru || !validStatuses.includes(statusBaru))
+    return res.status(400).json({ message: 'Status tidak valid' });
 
   const task = await Task.findById(req.params.id).populate('picUserId').populate('dibuatOleh');
   if (!task || task.isDeleted)
     return res.status(404).json({ message: 'Task tidak ditemukan' });
 
-  const isDireksi = req.user.role === 'direksi';
-  const isPIC     = task.picUserId._id.toString() === req.user._id.toString();
+  const isDireksi    = ['direksi', 'superadmin'].includes(req.user.role);
+  const isPIC        = task.picUserId._id.toString() === req.user._id.toString();
+  const isCollab     = (task.collaborators || []).some(c => c.toString() === req.user._id.toString());
+  const isPembuat    = task.dibuatOleh._id.toString() === req.user._id.toString();
 
-  // Alur transisi yang valid
-  const transitions = {
-    menunggu_approval: { to_do: 'direksi', ditolak: 'direksi' },
-    to_do:             { in_progress: 'pic' },
-    in_progress:       { perlu_review: 'pic' },
-    perlu_review:      { done: 'direksi', revisi: 'direksi' },
-    revisi:            { in_progress: 'pic' },
-  };
-
-  const allowedNext = transitions[task.status];
-  if (!allowedNext || !allowedNext[statusBaru])
-    return res.status(400).json({ message: `Transisi status dari "${task.status}" ke "${statusBaru}" tidak diizinkan` });
-
-  const requiredRole = allowedNext[statusBaru];
-  if (requiredRole === 'direksi' && !isDireksi)
-    return res.status(403).json({ message: 'Hanya Direksi yang dapat melakukan aksi ini' });
-  if (requiredRole === 'pic' && !isPIC && !isDireksi)
-    return res.status(403).json({ message: 'Hanya PIC yang dapat mengubah status ini' });
-
-  // Validasi reject wajib catatan
-  if ((statusBaru === 'ditolak' || statusBaru === 'revisi') && (!catatan || catatan.length < 10))
-    return res.status(400).json({ message: 'Catatan alasan wajib diisi minimal 10 karakter' });
-
-  // Validasi upload evidence sebelum submit review
-  if (statusBaru === 'perlu_review') {
-    const evCount = await Evidence.countDocuments({ taskId: task._id });
-    if (evCount === 0)
-      return res.status(400).json({ message: 'Wajib upload minimal 1 evidence sebelum mengajukan review' });
-  }
+  if (!isDireksi && !isPIC && !isCollab && !isPembuat)
+    return res.status(403).json({ message: 'Akses ditolak' });
 
   const statusLama = task.status;
   task.status = statusBaru;
-  if (catatan) task.catatanDireksi = catatan;
-  if (statusBaru === 'done') {
-    task.doneAt = new Date();
-    task.approvedAt = new Date();
-  }
-  if (statusBaru === 'revisi') task.revisiCount = (task.revisiCount || 0) + 1;
+  if (statusBaru === 'complete') task.doneAt = new Date();
 
   await task.save();
 
-  await StatusLog.create({
-    taskId:     task._id,
-    userId:     req.user._id,
-    statusLama,
-    statusBaru,
-    catatan:    catatan || null,
-  });
+  await StatusLog.create({ taskId: task._id, userId: req.user._id, statusLama, statusBaru });
 
-  // Notifikasi & email & WA
-  const pic    = task.picUserId;
-  const pembuat= task.dibuatOleh;
-  const direksi = await User.find({ role: 'direksi', statusAktif: true });
-
-  if (statusBaru === 'to_do' && statusLama === 'menunggu_approval') {
-    await notifSvc.notifTaskApproved(pic, task);
-    if (pic.notifEmail) await mailer.mailTaskApproved(pic, task).catch(() => {});
-    await wa.sendWATaskApproved(pic, task);
-    push.sendPush(pic._id, { title: '✅ Task Disetujui', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
-  }
-  if (statusBaru === 'ditolak') {
-    const target = pembuat._id.toString() !== pic._id.toString() ? pembuat : pic;
-    await notifSvc.notifTaskRejected(target, task, catatan);
-    if (target.notifEmail) await mailer.mailTaskRejected(target, task, catatan).catch(() => {});
-    await wa.sendWATaskRejected(target, task, catatan);
-    push.sendPush(target._id, { title: '❌ Task Ditolak', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
-  }
-  if (statusBaru === 'perlu_review') {
-    await notifSvc.notifSubmitReview(direksi, task, pic);
-    push.sendPushMany(direksi.map(d => d._id), { title: '👀 Task Perlu Review', body: `${pic.namaLengkap}: ${task.judul}`, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
-  }
-  if (statusBaru === 'done') {
-    await notifSvc.notifTaskDone(pic, task);
+  // Notifikasi jika complete
+  if (statusBaru === 'complete') {
+    const pic = task.picUserId;
+    await notifSvc.notifTaskDone(pic, task).catch(() => {});
     if (pic.notifEmail) await mailer.mailTaskDone(pic, task).catch(() => {});
     const now = new Date();
     await simpanSnapshot(pic._id, now.getMonth() + 1, now.getFullYear()).catch(() => {});
-    push.sendPush(pic._id, { title: '🎉 Task Selesai!', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
-  }
-  if (statusBaru === 'revisi') {
-    await notifSvc.notifTaskRevisi(pic, task, catatan);
-    if (pic.notifEmail) await mailer.mailTaskRevisi(pic, task, catatan).catch(() => {});
-    await wa.sendWATaskRejected(pic, task, catatan);
-    push.sendPush(pic._id, { title: '🔄 Task Perlu Revisi', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
+    push.sendPush(pic._id, { title: 'Task Selesai!', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
+    // Notif pembuat task jika berbeda
+    if (task.dibuatOleh._id.toString() !== pic._id.toString()) {
+      push.sendPush(task.dibuatOleh._id, { title: 'Task Selesai!', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
+    }
   }
 
-  audit.log(req, `task.${statusBaru}`, { target:'Task', targetId: task._id, detail: { judul: task.judul, statusLama, catatan } });
+  audit.log(req, `task.status`, { target:'Task', targetId: task._id, detail: { judul: task.judul, statusLama, statusBaru } });
   res.json({ message: 'Status berhasil diubah', task });
 });
 

@@ -29,6 +29,14 @@ function initSocket(server) {
   io.on('connection', (socket) => {
     socket.join(`user:${socket.userId}`);
 
+    // ── Task chat room ────────────────────────────────────────────────────────
+    socket.on('task:join', ({ taskId }) => {
+      if (taskId) socket.join(`task:${taskId}`);
+    });
+    socket.on('task:leave', ({ taskId }) => {
+      if (taskId) socket.leave(`task:${taskId}`);
+    });
+
     // ── Voice: join room ──────────────────────────────────────────────────────
     socket.on('voice:join', ({ channelId, name, photo }) => {
       if (!channelId) return;

@@ -6,11 +6,11 @@ const taskSchema = new mongoose.Schema({
   picUserId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   dibuatOleh:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   direktoratId: { type: mongoose.Schema.Types.ObjectId, ref: 'Direktorat', required: true },
-  prioritas:    { type: String, enum: ['low', 'medium', 'high', 'critical'], required: true },
+  prioritas:    { type: String, enum: ['normal', 'moderate', 'urgent'], default: 'normal' },
   status: {
     type: String,
-    enum: ['menunggu_approval', 'to_do', 'in_progress', 'perlu_review', 'revisi', 'done', 'ditolak'],
-    default: 'menunggu_approval',
+    enum: ['to_do', 'on_progress', 'partially_complete', 'complete'],
+    default: 'to_do',
   },
   deadline:        { type: Date, required: true },
   tags:            { type: [String], default: [], validate: v => v.length <= 5 },
@@ -23,6 +23,7 @@ const taskSchema = new mongoose.Schema({
   doneAt:          { type: Date, default: null },
   revisiCount:     { type: Number, default: 0 },
   coverImage:      { type: String, default: null },
+  milestoneId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Milestone', default: null },
   dependencies:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'Task' }],
   recurrence: {
     tipe:    { type: String, enum: ['none','daily','weekly','monthly'], default: 'none' },

@@ -10,6 +10,14 @@
   <link rel="stylesheet" href="/styles/base.css">
   <style>
     .task-body{padding:20px;display:grid;grid-template-columns:1fr 320px;gap:16px}
+    .chat-msg { display:flex; gap:10px; align-items:flex-start; }
+    .chat-msg.mine { flex-direction:row-reverse; }
+    .chat-av { width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden; }
+    .chat-av img { width:100%;height:100%;object-fit:cover; }
+    .chat-bubble { max-width:75%;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.5;position:relative; }
+    .chat-msg.mine .chat-bubble { background:var(--accent-dim);border-color:var(--accent); }
+    .chat-meta { font-size:10px;color:var(--text-3);margin-top:4px;display:flex;gap:6px;align-items:center; }
+    .chat-del { cursor:pointer;color:var(--text-3); } .chat-del:hover { color:#EF4444; }
     .task-main{display:flex;flex-direction:column;gap:14px}
     .task-side{display:flex;flex-direction:column;gap:14px}
     .section-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:16px}
@@ -203,6 +211,19 @@
           </div>
           <div id="mention-popup"></div>
 
+          <!-- Direct Message / Task Chat -->
+          <div class="section-card" id="task-chat-section">
+            <div class="section-head">
+              <span class="section-title"><i class="ti ti-message-circle" style="font-size:14px;margin-right:4px"></i>Direct Message</span>
+              <span style="font-size:11px;color:var(--text-3)">Hanya creator, PIC, dan collaborator</span>
+            </div>
+            <div id="task-chat-messages" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;padding:4px 0 8px"></div>
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:flex-end">
+              <textarea id="task-chat-input" class="input" rows="2" placeholder="Tulis pesan..." style="resize:none;width:100%;font-size:13px" onkeydown="onChatKeydown(event)"></textarea>
+              <button class="btn btn-primary" onclick="sendTaskMessage()" style="height:fit-content"><i class="ti ti-send"></i></button>
+            </div>
+          </div>
+
           <!-- Time Tracking -->
           <div class="section-card" id="timelog-section" style="display:none">
             <div class="section-head">
@@ -302,6 +323,10 @@
             <div class="meta-row"><i class="ti ti-flag" style="font-size:14px"></i> Prioritas: <strong id="m-prio">—</strong></div>
             <div class="meta-row"><i class="ti ti-user-plus" style="font-size:14px"></i> Dibuat oleh: <strong id="m-creator">—</strong></div>
             <div class="meta-row"><i class="ti ti-clock" style="font-size:14px"></i> Dibuat: <strong id="m-created">—</strong></div>
+            <div class="meta-row"><i class="ti ti-flag" style="font-size:14px"></i> Milestone:
+              <strong id="m-milestone" style="flex:1">—</strong>
+              <button id="m-milestone-btn" class="btn" style="font-size:11px;padding:2px 8px;display:none" onclick="openMilestoneModal()">Set</button>
+            </div>
             <div id="m-collaborators-wrap" style="display:none">
               <div class="divider"></div>
               <div class="section-lbl">Collaborators</div>
@@ -350,6 +375,7 @@ async function loadTask() {
     renderEvidence(evidences);
     renderLogs(logs);
     loadKomentar();
+    loadTaskChat();
     loadTimeLog();
     loadDependencies();
     initRecurringUI(task);
@@ -372,6 +398,11 @@ function renderTask(t) {
   document.getElementById('m-prio').textContent    = prioritasLabel(t.prioritas);
   document.getElementById('m-creator').textContent = t.dibuatOleh?.namaLengkap || '—';
   document.getElementById('m-created').textContent = formatTanggal(t.createdAt);
+  // Milestone
+  const msEl  = document.getElementById('m-milestone');
+  const msBtn = document.getElementById('m-milestone-btn');
+  msEl.textContent = t.milestoneId?.judul || '—';
+  if (msBtn) msBtn.style.display = ['direksi','superadmin'].includes(user?.role) || t.picUserId?._id === user?._id ? '' : 'none';
 
   // Tags
   const tagsEl = document.getElementById('task-tags');
@@ -394,14 +425,12 @@ function renderTask(t) {
       </div>`).join('');
   }
 
-  // Tombol edit / delete (Direksi atau pembuat saat menunggu_approval/to_do)
-  const isDireksi = user?.role === 'direksi';
+  const isDireksi = ['direksi','superadmin'].includes(user?.role);
   const isPembuat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
-  const editableStatuses = ['menunggu_approval', 'to_do'];
-  if (isDireksi || (isPembuat && editableStatuses.includes(t.status) && t.status !== 'done')) {
+  if (isDireksi || (isPembuat && t.status !== 'complete')) {
     document.getElementById('btn-edit').style.display = '';
   }
-  if (isDireksi) document.getElementById('btn-delete').style.display = '';
+  if (isDireksi || isPembuat) document.getElementById('btn-delete').style.display = '';
 
   // Status action buttons
   renderStatusActions(t);
@@ -409,32 +438,31 @@ function renderTask(t) {
 
 function renderStatusActions(t) {
   const el        = document.getElementById('status-actions');
-  const isDireksi = user?.role === 'direksi';
+  const isDireksi = ['direksi','superadmin'].includes(user?.role);
   const isPIC     = t.picUserId?._id === user?._id || t.picUserId === user?._id;
-  let html = '';
+  const isCollab  = (t.collaborators || []).some(c => (c._id || c) === user?._id);
+  const canAct    = isDireksi || isPIC || isCollab;
 
-  if (isDireksi && t.status === 'menunggu_approval') {
-    html += `<button class="btn" style="background:var(--green-bg);color:var(--green-text);border-color:transparent" onclick="changeStatus('to_do')">✓ Setujui</button>`;
-    html += `<button class="btn btn-danger" onclick="promptReject('ditolak')">✗ Tolak</button>`;
-  }
-  if (isPIC && t.status === 'to_do') {
-    html += `<button class="btn btn-primary" onclick="changeStatus('in_progress')"><i class="ti ti-play"></i> Mulai Kerjakan</button>`;
-  }
-  if (isPIC && t.status === 'in_progress') {
-    html += `<button class="btn btn-primary" onclick="changeStatus('perlu_review')"><i class="ti ti-send"></i> Minta Review</button>`;
-  }
-  if (isDireksi && t.status === 'perlu_review') {
-    html += `<button class="btn" style="background:var(--green-bg);color:var(--green-text);border-color:transparent" onclick="changeStatus('done')">✓ Approve & Done</button>`;
-    html += `<button class="btn btn-danger" onclick="promptReject('revisi')">↩ Kembalikan Revisi</button>`;
-  }
-  if (isPIC && t.status === 'revisi') {
-    html += `<button class="btn btn-primary" onclick="changeStatus('in_progress')"><i class="ti ti-refresh"></i> Kerjakan Ulang</button>`;
+  const statuses = [
+    { key: 'to_do',              label: 'To Do',              icon: 'ti-circle' },
+    { key: 'on_progress',        label: 'On Progress',        icon: 'ti-player-play' },
+    { key: 'partially_complete', label: 'Partially Complete', icon: 'ti-circle-half' },
+    { key: 'complete',           label: 'Complete',           icon: 'ti-circle-check' },
+  ];
+
+  if (canAct && t.status !== 'complete') {
+    const next = statuses.find(s => s.key !== t.status);
+    const html = statuses
+      .filter(s => s.key !== t.status)
+      .map(s => `<button class="btn${s.key === 'complete' ? ' btn-primary' : ''}" onclick="changeStatus('${s.key}')">
+        <i class="ti ${s.icon}"></i> ${s.label}
+      </button>`).join('');
+    el.innerHTML = html;
+  } else {
+    el.innerHTML = '';
   }
 
-  el.innerHTML = html;
-
-  // Tombol add subtask & upload evidence (PIC atau Direksi)
-  if ((isPIC || isDireksi) && t.status !== 'done') {
+  if (canAct && t.status !== 'complete') {
     document.getElementById('add-subtask-form').style.display = '';
     document.getElementById('upload-ev-btn').style.display    = '';
     populateSubtaskAssignee(t);
@@ -569,17 +597,6 @@ async function changeStatus(statusBaru) {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
-async function promptReject(statusBaru) {
-  const label = statusBaru === 'ditolak' ? 'Tolak Task' : 'Kembalikan Revisi';
-  const catatan = await showPrompt('Masukkan catatan alasan (min. 10 karakter)', {
-    title: label, placeholder: 'Ketik alasan...', hint: 'Minimal 10 karakter', okLabel: 'Kirim', type: 'danger'
-  });
-  if (catatan === null) return;
-  if (catatan.length < 10) { showToast('Catatan minimal 10 karakter', 'error'); return; }
-  Tasks.updateStatus(taskId, statusBaru, catatan)
-    .then(() => { showToast('Status berhasil diubah'); loadTask(); })
-    .catch(e => showToast(e.message, 'error'));
-}
 
 async function addSubtask() {
   const judul      = document.getElementById('new-subtask').value.trim();
@@ -1049,7 +1066,122 @@ async function saveAsTemplate() {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+// ── Milestone linking ─────────────────────────────────────────────────────────
+async function openMilestoneModal() {
+  const { milestones } = await Milestones.list().catch(() => ({ milestones: [] }));
+  const opts = milestones.map(m => `<option value="${m._id}">${m.judul}</option>`).join('');
+  const currentMs = taskData?.milestoneId?._id || taskData?.milestoneId || '';
+
+  const sel = await showPrompt('Pilih Milestone untuk task ini', {
+    title: 'Set Milestone',
+    inputHtml: `<select class="input" id="ms-sel" style="width:100%">
+      <option value="">— Tidak ada —</option>
+      ${opts}
+    </select>`,
+    okLabel: 'Simpan',
+  });
+  if (sel === null) return;
+
+  const msId = document.getElementById('ms-sel')?.value || '';
+  try {
+    if (currentMs) await Milestones.removeTask(currentMs, taskId).catch(() => {});
+    if (msId) await Milestones.addTask(msId, taskId);
+    showToast('Milestone diupdate');
+    loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
 loadTask();
+
+// ── Task Direct Message / Chat ────────────────────────────────────────────────
+let chatSocket = null;
+
+async function loadTaskChat() {
+  try {
+    const msgs = await apiFetch(`/tasks/${taskId}/messages`);
+    renderChatMessages(msgs);
+    initChatSocket();
+  } catch { /* user mungkin tidak punya akses */ }
+}
+
+function initChatSocket() {
+  if (chatSocket) return;
+  const token = getToken();
+  chatSocket = io(window.location.origin, { auth: { token } });
+  chatSocket.emit('task:join', { taskId });
+  chatSocket.on('task:message', (msg) => appendChatMessage(msg));
+  chatSocket.on('task:message-deleted', ({ _id }) => {
+    document.getElementById(`chat-msg-${_id}`)?.remove();
+  });
+}
+
+function renderChatMessages(msgs) {
+  const el = document.getElementById('task-chat-messages');
+  if (!el) return;
+  if (!msgs.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text-3);font-size:13px;padding:20px">Belum ada pesan. Mulai percakapan!</div>';
+    return;
+  }
+  el.innerHTML = '';
+  msgs.forEach(m => appendChatMessage(m, false));
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendChatMessage(msg, scroll = true) {
+  const el = document.getElementById('task-chat-messages');
+  if (!el) return;
+  const isMine = msg.userId?._id === user?._id || msg.userId === user?._id;
+  const inits  = (msg.userId?.namaLengkap || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
+  const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
+  const avHtml   = msg.userId?.fotoProfil
+    ? `<img src="${msg.userId.fotoProfil}" alt="">`
+    : inits;
+
+  const existing = document.getElementById(`chat-msg-${msg._id}`);
+  if (existing) return;
+
+  const div = document.createElement('div');
+  div.className = `chat-msg${isMine ? ' mine' : ''}`;
+  div.id = `chat-msg-${msg._id}`;
+  div.innerHTML = `
+    <div class="chat-av" style="background:${avColor}">${avHtml}</div>
+    <div>
+      <div class="chat-bubble">${escHtml(msg.isi)}</div>
+      <div class="chat-meta">
+        ${!isMine ? `<span>${msg.userId?.namaLengkap || ''}</span>` : ''}
+        <span>${new Date(msg.createdAt).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' })}</span>
+        ${isMine ? `<i class="ti ti-trash chat-del" onclick="deleteChatMessage('${msg._id}')"></i>` : ''}
+      </div>
+    </div>`;
+  el.appendChild(div);
+  if (scroll) el.scrollTop = el.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+async function sendTaskMessage() {
+  const input = document.getElementById('task-chat-input');
+  const isi = input.value.trim();
+  if (!isi) return;
+  try {
+    input.value = '';
+    await apiFetch(`/tasks/${taskId}/messages`, { method: 'POST', body: JSON.stringify({ isi }) });
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteChatMessage(msgId) {
+  if (!await showConfirm('Hapus pesan ini?', { title: 'Hapus Pesan' })) return;
+  try {
+    await apiFetch(`/tasks/${taskId}/messages/${msgId}`, { method: 'DELETE' });
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function onChatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTaskMessage(); }
+}
 </script>
 </body>
 </html>

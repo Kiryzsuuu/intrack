@@ -171,7 +171,7 @@ async function init() {
   // Render color swatches
   document.getElementById('ms-colors').innerHTML = COLORS.map(c => `
     <div class="ms-color-swatch${c === selectedColor ? ' selected' : ''}"
-      style="background:${c}" onclick="pickColor('${c}')"></div>
+      data-color="${c}" style="background:${c}" onclick="pickColor('${c}')"></div>
   `).join('');
 
   await loadMilestones();
@@ -180,7 +180,7 @@ async function init() {
 function pickColor(c) {
   selectedColor = c;
   document.querySelectorAll('.ms-color-swatch').forEach(el => {
-    el.classList.toggle('selected', el.style.background === c || el.style.backgroundColor === c);
+    el.classList.toggle('selected', el.dataset.color === c);
   });
 }
 
@@ -211,7 +211,10 @@ function renderTimeline(milestones) {
     const badgeTxt= ms.status === 'tercapai' ? '✓ Tercapai' : (isOver ? '⚠ Overdue' : '○ Pending');
 
     const taskChips = (ms.taskIds || []).map(t =>
-      `<div class="ms-task-chip" onclick="window.location='/pages/task.html?id=${t._id}'">${t.judul}</div>`
+      `<div class="ms-task-chip" style="display:flex;align-items:center;gap:4px">
+        <span onclick="window.location='/pages/task.html?id=${t._id}'" style="cursor:pointer;flex:1">${t.judul}</span>
+        ${canEdit ? `<i class="ti ti-x" style="font-size:11px;cursor:pointer;color:var(--text-3)" onclick="removeTaskFromMs('${ms._id}','${t._id}')"></i>` : ''}
+      </div>`
     ).join('');
 
     const curUser = getUser();
@@ -238,6 +241,7 @@ function renderTimeline(milestones) {
         ${canEdit ? `
         <div class="ms-actions">
           ${ms.status === 'pending' ? `<button class="ms-btn primary" onclick="markTercapai('${ms._id}')"><i class="ti ti-check"></i> Tandai Tercapai</button>` : ''}
+          <button class="ms-btn" onclick="addTaskToMs('${ms._id}')"><i class="ti ti-plus"></i> Tambah Task</button>
           <button class="ms-btn" onclick="openEdit('${ms._id}')"><i class="ti ti-pencil"></i> Edit</button>
           <button class="ms-btn danger" onclick="deleteMilestone('${ms._id}')"><i class="ti ti-trash"></i> Hapus</button>
         </div>` : ''}
@@ -272,8 +276,7 @@ async function openEdit(id) {
   document.getElementById('ms-dir').value       = ms.direktoratId?._id || '';
   selectedColor = ms.warna || COLORS[0];
   document.querySelectorAll('.ms-color-swatch').forEach(el => {
-    const c = el.style.background || el.style.backgroundColor;
-    el.classList.toggle('selected', c === selectedColor);
+    el.classList.toggle('selected', el.dataset.color === selectedColor);
   });
   document.getElementById('ms-modal-overlay').classList.add('open');
 }
@@ -310,6 +313,32 @@ async function markTercapai(id) {
   try {
     await Milestones.update(id, { status: 'tercapai' });
     showToast('Milestone ditandai tercapai');
+    loadMilestones();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function addTaskToMs(msId) {
+  try {
+    const { tasks } = await Tasks.list({ limit: 200 });
+    const opts = tasks.map(t => `<option value="${t._id}">${t.judul}</option>`).join('');
+    const sel = await showPrompt('Pilih task yang ingin ditambahkan ke milestone ini', {
+      title: 'Tambah Task ke Milestone',
+      inputHtml: `<select class="input" id="task-sel-ms" style="width:100%">${opts}</select>`,
+      okLabel: 'Tambahkan',
+    });
+    if (sel === null) return;
+    const taskId = document.getElementById('task-sel-ms')?.value;
+    if (!taskId) return;
+    await Milestones.addTask(msId, taskId);
+    showToast('Task ditambahkan ke milestone');
+    loadMilestones();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function removeTaskFromMs(msId, taskId) {
+  try {
+    await Milestones.removeTask(msId, taskId);
+    showToast('Task dihapus dari milestone');
     loadMilestones();
   } catch (e) { showToast(e.message, 'error'); }
 }

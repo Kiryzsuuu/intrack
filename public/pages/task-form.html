@@ -155,11 +155,9 @@
             <div class="field">
               <label>Prioritas <span style="color:var(--red)">*</span></label>
               <select id="f-prioritas">
-                <option value="">Pilih prioritas...</option>
-                <option value="low">Rendah</option>
-                <option value="medium">Sedang</option>
-                <option value="high">Tinggi</option>
-                <option value="critical">Kritis</option>
+                <option value="normal">Normal</option>
+                <option value="moderate">Moderate</option>
+                <option value="urgent">Urgent</option>
               </select>
             </div>
             <div class="field">
@@ -364,7 +362,6 @@ async function submitForm() {
   if (!judul)    { showToast('Judul task wajib diisi', 'error'); return; }
   if (!deskripsi){ showToast('Deskripsi wajib diisi', 'error'); return; }
   if (!picUserId){ showToast('PIC wajib dipilih', 'error'); return; }
-  if (!prioritas){ showToast('Prioritas wajib dipilih', 'error'); return; }
   if (!deadline) { showToast('Deadline wajib diisi', 'error'); return; }
 
   const btn = document.getElementById('btn-submit');
