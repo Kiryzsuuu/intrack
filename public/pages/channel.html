@@ -279,6 +279,41 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 26px; font-weight: 800; color: #fff;
     }
+    .video-tile .vt-stop-share {
+      position: absolute; top: 8px; left: 10px;
+      background: rgba(239,68,68,.9); color: #fff; border: none; cursor: pointer;
+      border-radius: 6px; padding: 3px 10px; font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    /* Voice settings modal */
+    .voice-settings-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 2000;
+      display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px);
+    }
+    .voice-settings-modal.active { display: flex; }
+    .vsm-box {
+      background: var(--surface); border-radius: var(--r-lg); padding: 24px;
+      width: 420px; max-width: 95vw; display: flex; flex-direction: column; gap: 18px;
+      box-shadow: var(--shadow-lg);
+    }
+    .vsm-title { font-size: 16px; font-weight: 800; color: var(--text); display: flex; align-items: center; justify-content: space-between; }
+    .vsm-close { background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 20px; padding: 0; display: flex; }
+    .vsm-close:hover { color: var(--text); }
+    .vsm-section { display: flex; flex-direction: column; gap: 8px; }
+    .vsm-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .7px; }
+    .vsm-select {
+      background: var(--surface-2); border: 0.5px solid var(--border);
+      border-radius: var(--r-sm); padding: 9px 12px; font-size: 13px; color: var(--text);
+      outline: none; width: 100%; cursor: pointer;
+    }
+    .vsm-select:focus { border-color: var(--accent); }
+    .vsm-preview { width: 100%; aspect-ratio: 16/9; background: #111; border-radius: 8px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
+    .vsm-preview video { width: 100%; height: 100%; object-fit: cover; }
+    .vsm-preview-placeholder { font-size: 36px; color: #444; }
+    .vsm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .vsm-vol-bar { height: 4px; background: var(--border); border-radius: 2px; position: relative; overflow: hidden; }
+    .vsm-vol-fill { height: 100%; background: #3BA55C; border-radius: 2px; width: 0%; transition: width .1s; }
 
     @media(max-width:640px) {
       .ch-list-panel { width: 180px; }
@@ -345,6 +380,12 @@
             <button class="vc-mini-btn" id="vc-video" onclick="toggleVideo()" title="Kamera On/Off">
               <i class="ti ti-video-off"></i>
             </button>
+            <button class="vc-mini-btn" id="vc-screen" onclick="toggleScreenShare()" title="Share Screen">
+              <i class="ti ti-screen-share"></i>
+            </button>
+            <button class="vc-mini-btn" onclick="openVoiceSettings()" title="Pengaturan Audio/Video">
+              <i class="ti ti-settings"></i>
+            </button>
             <button class="vc-mini-btn" onclick="leaveVoice()" title="Putuskan voice" style="color:#EF4444;background:rgba(239,68,68,0.15)">
               <i class="ti ti-phone-off"></i>
             </button>
@@ -367,6 +408,41 @@
 
 <!-- Video Grid Overlay -->
 <div id="video-grid"></div>
+
+<!-- Voice Settings Modal -->
+<div class="voice-settings-modal" id="voice-settings-modal" onclick="if(event.target===this)closeVoiceSettings()">
+  <div class="vsm-box">
+    <div class="vsm-title">
+      <span><i class="ti ti-settings" style="margin-right:8px;color:var(--accent)"></i>Pengaturan Audio & Video</span>
+      <button class="vsm-close" onclick="closeVoiceSettings()"><i class="ti ti-x"></i></button>
+    </div>
+
+    <div class="vsm-section">
+      <div class="vsm-label">Mikrofon (Input)</div>
+      <select class="vsm-select" id="vsm-mic"></select>
+      <div class="vsm-vol-bar"><div class="vsm-vol-fill" id="vsm-vol-fill"></div></div>
+      <div style="font-size:11px;color:var(--text-3)">Level input mikrofon</div>
+    </div>
+
+    <div class="vsm-section">
+      <div class="vsm-label">Speaker (Output)</div>
+      <select class="vsm-select" id="vsm-spk"></select>
+    </div>
+
+    <div class="vsm-section">
+      <div class="vsm-label">Kamera</div>
+      <select class="vsm-select" id="vsm-cam"></select>
+      <div class="vsm-preview" id="vsm-preview">
+        <span class="vsm-preview-placeholder"><i class="ti ti-video-off"></i></span>
+      </div>
+    </div>
+
+    <div class="vsm-actions">
+      <button class="btn btn-ghost" onclick="closeVoiceSettings()">Tutup</button>
+      <button class="btn btn-primary" onclick="applyVoiceSettings()">Terapkan</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal Buat Channel -->
 <div id="modal-create" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeCreateModal()">
@@ -949,6 +1025,7 @@ function leaveVoice() {
   peerConns = {};
 
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (isScreenSharing) stopScreenShare();
 
   inVoice = false; isMuted = false; isDeafened = false; isVideoOn = false;
   voiceParticipants = {};
@@ -1015,9 +1092,10 @@ function updateVoiceUI() {
   const bar = document.getElementById('ch-voice-bar');
   if (bar) bar.classList.toggle('active', inVoice);
 
-  const muteBtn  = document.getElementById('vc-mute');
-  const deafBtn  = document.getElementById('vc-deafen');
-  const vidBtn   = document.getElementById('vc-video');
+  const muteBtn   = document.getElementById('vc-mute');
+  const deafBtn   = document.getElementById('vc-deafen');
+  const vidBtn    = document.getElementById('vc-video');
+  const screenBtn = document.getElementById('vc-screen');
   const voiceChItem = document.getElementById('voice-ch-item');
 
   if (muteBtn) {
@@ -1030,9 +1108,14 @@ function updateVoiceUI() {
     deafBtn.title = isDeafened ? 'Undeafen' : 'Deafen';
   }
   if (vidBtn) {
-    vidBtn.className = 'vc-mini-btn' + (isVideoOn ? '' : '');
+    vidBtn.className = 'vc-mini-btn' + (isVideoOn ? ' off' : '');
     vidBtn.innerHTML = `<i class="ti ${isVideoOn ? 'ti-video' : 'ti-video-off'}"></i>`;
     vidBtn.title = isVideoOn ? 'Matikan Kamera' : 'Nyalakan Kamera';
+  }
+  if (screenBtn) {
+    screenBtn.className = 'vc-mini-btn' + (isScreenSharing ? ' off' : '');
+    screenBtn.innerHTML = `<i class="ti ${isScreenSharing ? 'ti-screen-share-off' : 'ti-screen-share'}"></i>`;
+    screenBtn.title = isScreenSharing ? 'Hentikan Share Screen' : 'Share Screen';
   }
   if (voiceChItem) {
     voiceChItem.className = 'ch-voice-item' + (inVoice ? ' in-voice' : '');
@@ -1040,6 +1123,220 @@ function updateVoiceUI() {
 
   // voice-panel ada di dalam area chat, mungkin belum dirender
   document.getElementById('voice-panel')?.classList.toggle('active', inVoice);
+}
+
+// ── Screen Share ──────────────────────────────────────────────────────────────
+let screenStream = null;
+let isScreenSharing = false;
+
+async function toggleScreenShare() {
+  if (!inVoice) return;
+  if (isScreenSharing) {
+    stopScreenShare();
+  } else {
+    await startScreenShare();
+  }
+}
+
+async function startScreenShare() {
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'always' },
+      audio: false,
+    });
+  } catch(e) {
+    if (e.name !== 'NotAllowedError') showToast('Gagal share screen: ' + e.message, 'error');
+    return;
+  }
+
+  isScreenSharing = true;
+  const screenTrack = screenStream.getVideoTracks()[0];
+
+  // Kirim ke semua peer
+  for (const [sid, pc] of Object.entries(peerConns)) {
+    pc.addTrack(screenTrack, screenStream);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('voice:offer', { targetSocketId: sid, offer });
+  }
+
+  // Tampilkan tile lokal dengan label "Layar Anda"
+  addScreenTile('me', screenStream);
+
+  // Saat user stop dari browser (klik Stop Sharing)
+  screenTrack.onended = () => stopScreenShare();
+
+  updateVoiceUI();
+}
+
+function stopScreenShare() {
+  if (!isScreenSharing) return;
+  isScreenSharing = false;
+
+  if (screenStream) {
+    screenStream.getTracks().forEach(t => {
+      t.stop();
+      // Hapus dari semua peer
+      for (const pc of Object.values(peerConns)) {
+        const sender = pc.getSenders().find(s => s.track === t);
+        if (sender) pc.removeTrack(sender);
+      }
+    });
+    screenStream = null;
+  }
+
+  // Hapus tile layar lokal
+  document.getElementById('vtile-screen-me')?.remove();
+
+  const hasVideo = isVideoOn || Object.values(voiceParticipants).some(p => p.videoOn);
+  if (!hasVideo) document.getElementById('video-grid')?.classList.remove('active');
+
+  updateVoiceUI();
+}
+
+function addScreenTile(id, stream) {
+  const grid = document.getElementById('video-grid');
+  const tileId = 'vtile-screen-' + id;
+  let tile = document.getElementById(tileId);
+  if (!tile) {
+    tile = document.createElement('div');
+    tile.className = 'video-tile';
+    tile.id = tileId;
+    tile.style.flex = '1 1 500px';
+    tile.innerHTML = `
+      <video autoplay muted playsinline></video>
+      <div class="vt-name"><i class="ti ti-screen-share" style="margin-right:4px"></i>${id === 'me' ? 'Layar Anda' : 'Screen Share'}</div>
+      ${id === 'me' ? '<button class="vt-stop-share" onclick="stopScreenShare()"><i class="ti ti-x"></i> Hentikan</button>' : ''}`;
+    grid.appendChild(tile);
+  }
+  tile.querySelector('video').srcObject = stream;
+  grid.classList.add('active');
+}
+
+// ── Voice Settings ────────────────────────────────────────────────────────────
+let vsm = { micId: null, spkId: null, camId: null };
+let vsmStream = null; // preview stream
+let vsmAnalyser = null; let vsmAnimFrame = null;
+
+async function openVoiceSettings() {
+  const modal = document.getElementById('voice-settings-modal');
+  modal.classList.add('active');
+  await populateDevices();
+  startMicPreview();
+  startCamPreview();
+}
+
+function closeVoiceSettings() {
+  document.getElementById('voice-settings-modal')?.classList.remove('active');
+  stopVsmPreview();
+}
+
+async function populateDevices() {
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true }); // ensure permission
+    const devices = await navigator.mediaDevices.enumerateDevices();
+
+    const mics  = devices.filter(d => d.kind === 'audioinput');
+    const spks  = devices.filter(d => d.kind === 'audiooutput');
+    const cams  = devices.filter(d => d.kind === 'videoinput');
+
+    const micSel = document.getElementById('vsm-mic');
+    const spkSel = document.getElementById('vsm-spk');
+    const camSel = document.getElementById('vsm-cam');
+
+    micSel.innerHTML = mics.map(d => `<option value="${d.deviceId}" ${d.deviceId===vsm.micId?'selected':''}>${d.label||'Mikrofon '+d.deviceId.slice(0,6)}</option>`).join('');
+    spkSel.innerHTML = spks.length
+      ? spks.map(d => `<option value="${d.deviceId}" ${d.deviceId===vsm.spkId?'selected':''}>${d.label||'Speaker '+d.deviceId.slice(0,6)}</option>`).join('')
+      : '<option value="">Default</option>';
+    camSel.innerHTML = '<option value="">Tidak ada / Nonaktif</option>' + cams.map(d => `<option value="${d.deviceId}" ${d.deviceId===vsm.camId?'selected':''}>${d.label||'Kamera '+d.deviceId.slice(0,6)}</option>`).join('');
+
+    camSel.onchange = () => startCamPreview();
+  } catch(e) { showToast('Tidak dapat memuat daftar perangkat: ' + e.message, 'error'); }
+}
+
+async function startMicPreview() {
+  const micId = document.getElementById('vsm-mic')?.value;
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: micId ? { deviceId: { exact: micId } } : true });
+    const ctx = new AudioContext();
+    const src = ctx.createMediaStreamSource(s);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    vsmAnalyser = analyser;
+    vsmStream = s;
+
+    const fill = document.getElementById('vsm-vol-fill');
+    const buf  = new Uint8Array(analyser.frequencyBinCount);
+    function tick() {
+      if (!vsmAnalyser) return;
+      analyser.getByteFrequencyData(buf);
+      const avg = buf.reduce((a, b) => a + b, 0) / buf.length;
+      if (fill) fill.style.width = Math.min(100, avg * 3) + '%';
+      vsmAnimFrame = requestAnimationFrame(tick);
+    }
+    tick();
+  } catch(e) {}
+}
+
+async function startCamPreview() {
+  const camId = document.getElementById('vsm-cam')?.value;
+  const preview = document.getElementById('vsm-preview');
+  if (!preview) return;
+
+  if (!camId) {
+    preview.innerHTML = '<span class="vsm-preview-placeholder"><i class="ti ti-video-off"></i></span>';
+    return;
+  }
+
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: camId } } });
+    preview.innerHTML = '<video autoplay muted playsinline style="transform:scaleX(-1);width:100%;height:100%;object-fit:cover"></video>';
+    preview.querySelector('video').srcObject = s;
+    if (vsmStream) { vsmStream.getVideoTracks().forEach(t => t.stop()); }
+    vsmStream = s;
+  } catch(e) {
+    preview.innerHTML = '<span class="vsm-preview-placeholder"><i class="ti ti-video-off"></i></span>';
+  }
+}
+
+function stopVsmPreview() {
+  if (vsmAnimFrame) { cancelAnimationFrame(vsmAnimFrame); vsmAnimFrame = null; }
+  vsmAnalyser = null;
+  if (vsmStream) { vsmStream.getTracks().forEach(t => t.stop()); vsmStream = null; }
+}
+
+async function applyVoiceSettings() {
+  vsm.micId = document.getElementById('vsm-mic')?.value || null;
+  vsm.spkId = document.getElementById('vsm-spk')?.value || null;
+  vsm.camId = document.getElementById('vsm-cam')?.value || null;
+
+  // Apply speaker output to all existing audio elements
+  if (vsm.spkId) {
+    document.querySelectorAll('audio').forEach(async el => {
+      if (el.setSinkId) try { await el.setSinkId(vsm.spkId); } catch(e) {}
+    });
+  }
+
+  // Ganti mic jika sedang di voice
+  if (inVoice && vsm.micId) {
+    try {
+      const newAudio = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: vsm.micId } }, video: false });
+      const newAudioTrack = newAudio.getAudioTracks()[0];
+      // Replace di localStream
+      const oldAudio = localStream?.getAudioTracks()[0];
+      if (oldAudio) { localStream.removeTrack(oldAudio); oldAudio.stop(); }
+      localStream.addTrack(newAudioTrack);
+      // Replace di semua peer sender
+      for (const pc of Object.values(peerConns)) {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+        if (sender) await sender.replaceTrack(newAudioTrack);
+      }
+    } catch(e) { showToast('Gagal mengganti mikrofon: ' + e.message, 'error'); }
+  }
+
+  closeVoiceSettings();
+  showToast('Pengaturan audio & video diterapkan');
 }
 
 // ── WebRTC Peer ────────────────────────────────────────────────────────────────
@@ -1070,7 +1367,13 @@ function createPeer(socketId, userId) {
       document.body.appendChild(audio);
     }
     if (track.kind === 'video') {
-      addRemoteVideoTile(socketId, userId, streams[0]);
+      // Jika ada >1 video track dari peer, yg kedua biasanya screen share
+      const existingVid = document.getElementById('vtile-' + socketId);
+      if (existingVid) {
+        addScreenTile(socketId + '-screen', streams[0]);
+      } else {
+        addRemoteVideoTile(socketId, userId, streams[0]);
+      }
     }
   };
 
