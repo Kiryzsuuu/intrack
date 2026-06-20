@@ -455,20 +455,16 @@ function renderStatusActions(t) {
   const canAct    = isDireksi || isPIC || isCollab || isPembuat;
 
   const statuses = [
-    { key: 'to_do',              label: 'To Do',              icon: 'ti-circle' },
-    { key: 'on_progress',        label: 'On Progress',        icon: 'ti-player-play' },
-    { key: 'partially_complete', label: 'Partially Complete', icon: 'ti-circle-half' },
-    { key: 'complete',           label: 'Complete',           icon: 'ti-circle-check' },
+    { key: 'to_do',              label: 'To Do' },
+    { key: 'on_progress',        label: 'On Progress' },
+    { key: 'partially_complete', label: 'Partially Complete' },
+    { key: 'complete',           label: 'Complete' },
   ];
 
-  if (canAct && t.status !== 'complete') {
-    const next = statuses.find(s => s.key !== t.status);
-    const html = statuses
-      .filter(s => s.key !== t.status)
-      .map(s => `<button class="btn${s.key === 'complete' ? ' btn-primary' : ''}" onclick="changeStatus('${s.key}')">
-        <i class="ti ${s.icon}"></i> ${s.label}
-      </button>`).join('');
-    el.innerHTML = html;
+  if (canAct) {
+    el.innerHTML = `<select class="input" style="font-size:13px;padding:6px 10px;width:auto;min-width:170px" onchange="changeStatus(this.value);this.value='${t.status}'">
+      ${statuses.map(s => `<option value="${s.key}" ${s.key === t.status ? 'selected' : ''}>${s.label}</option>`).join('')}
+    </select>`;
   } else {
     el.innerHTML = '';
   }
@@ -601,11 +597,17 @@ function renderLogs(logs) {
 }
 
 async function changeStatus(statusBaru) {
+  if (!statusBaru || statusBaru === taskData?.status) return;
   try {
     await Tasks.updateStatus(taskId, statusBaru);
     showToast('Status berhasil diubah');
     await loadTask();
-  } catch (e) { showToast(e.message, 'error'); }
+  } catch (e) {
+    showToast(e.message || 'Gagal mengubah status', 'error');
+    // reset dropdown ke status sebelumnya
+    const sel = document.querySelector('#status-actions select');
+    if (sel && taskData?.status) sel.value = taskData.status;
+  }
 }
 
 

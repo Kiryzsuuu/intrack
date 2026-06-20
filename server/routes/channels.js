@@ -3,6 +3,7 @@ const Channel        = require('../models/Channel');
 const ChannelMessage = require('../models/ChannelMessage');
 const User           = require('../models/User');
 const auth           = require('../middleware/auth');
+const { getIO }      = require('../socket');
 
 // GET /api/channels — list channel yang bisa diakses user
 router.get('/', auth, async (req, res) => {
@@ -171,6 +172,10 @@ router.post('/:id/messages', auth, async (req, res) => {
   // Update channel updatedAt
   ch.updatedAt = new Date();
   await ch.save();
+
+  // Real-time ke semua member di channel room
+  const io = getIO();
+  if (io) io.to(`ch:${req.params.id}`).emit('channel:message', msg);
 
   res.status(201).json(msg);
 });

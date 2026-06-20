@@ -55,8 +55,6 @@ async function autoUpdateStatus(taskId) {
   }
 }
 
-module.exports.autoUpdateStatus = autoUpdateStatus;
-
 // ── Helper: cek apakah user bisa lihat task ───────────────────────────────────
 function canView(user, task) {
   if (user.role === 'superadmin' || user.role === 'direksi' || user.role === 'komisaris') return true;
@@ -409,3 +407,4 @@ router.delete('/:id', auth, requireRole('direksi'), async (req, res) => {
 });
 
 module.exports = router;
+module.exports.autoUpdateStatus = autoUpdateStatus;
