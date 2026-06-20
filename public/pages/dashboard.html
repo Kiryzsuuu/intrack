@@ -226,7 +226,7 @@
         </div>
 
         <!-- Widget container — rendered dynamically -->
-        <div id="widget-root"></div>
+        <div id="widget-root" style="display:flex;flex-direction:column;gap:18px"></div>
 
       </div>
     </div>
@@ -558,25 +558,28 @@ function renderLayout() {
 
   // two-col section: main left, side right
   if (activeMain.length || activeSide.length) {
-    let mainCol = activeMain.map(id => {
+    const mainCol = activeMain.map(id => {
       if (id === 'my-tasks') return buildMyTasks();
       if (id === 'kpi')      return buildKpi();
       return '';
-    }).join('<div style="height:18px"></div>');
+    }).join('');
 
-    let sideCol = activeSide.map(id => {
+    const sideCol = activeSide.map(id => {
       if (id === 'donut')      return buildDonut();
       if (id === 'upcoming')   return buildUpcoming();
       if (id === 'milestones') return buildMilestones();
       return '';
-    }).join('<div style="height:18px"></div>');
+    }).join('');
 
     if (activeMain.length && activeSide.length) {
-      html += `<div class="two-col">${mainCol ? `<div>${mainCol}</div>` : '<div></div>'}<div style="display:flex;flex-direction:column;gap:18px">${sideCol}</div></div>`;
+      html += `<div class="two-col">
+        <div style="display:flex;flex-direction:column;gap:18px">${mainCol}</div>
+        <div style="display:flex;flex-direction:column;gap:18px">${sideCol}</div>
+      </div>`;
     } else if (activeMain.length) {
-      html += mainCol;
+      html += `<div style="display:flex;flex-direction:column;gap:18px">${mainCol}</div>`;
     } else {
-      html += `<div>${sideCol}</div>`;
+      html += `<div style="display:flex;flex-direction:column;gap:18px">${sideCol}</div>`;
     }
   }
 
