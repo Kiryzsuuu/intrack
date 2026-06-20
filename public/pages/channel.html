@@ -258,33 +258,43 @@
     .toggle-row { display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--surface-2);border-radius:var(--r-sm);cursor:pointer; }
     .toggle-row input[type=checkbox] { width:16px;height:16px;accent-color:var(--accent);margin-top:1px;flex-shrink:0; }
 
-    /* Video grid */
+    /* Video grid — panel di dalam ch-main, bukan fullscreen overlay */
     #video-grid {
-      position: fixed; inset: 56px 0 0 var(--sidebar-w); z-index: 800;
       background: #111; display: none; flex-wrap: wrap; align-content: flex-start;
       padding: 8px; gap: 8px; overflow-y: auto;
+      height: 260px; flex-shrink: 0;
+      border-bottom: 0.5px solid #222;
+      position: relative;
     }
     #video-grid.active { display: flex; }
+    #video-grid-close {
+      position: absolute; top: 6px; right: 8px; z-index: 10;
+      background: rgba(0,0,0,.55); border: none; cursor: pointer;
+      color: #fff; border-radius: 6px; width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; backdrop-filter: blur(4px); transition: background .15s;
+    }
+    #video-grid-close:hover { background: rgba(239,68,68,.75); }
     .video-tile {
-      background: #1e1e1e; border-radius: 12px; overflow: hidden;
+      background: #1e1e1e; border-radius: 10px; overflow: hidden;
       position: relative; display: flex; align-items: center; justify-content: center;
-      min-height: 200px; flex: 1 1 300px;
+      flex: 1 1 200px; min-height: 0;
     }
     .video-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
     .video-tile .vt-name {
-      position: absolute; bottom: 8px; left: 10px;
-      background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600;
-      padding: 3px 10px; border-radius: 100px; backdrop-filter: blur(4px);
+      position: absolute; bottom: 6px; left: 8px;
+      background: rgba(0,0,0,.6); color: #fff; font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 100px; backdrop-filter: blur(4px);
     }
     .video-tile .vt-muted {
-      position: absolute; top: 8px; right: 8px;
+      position: absolute; top: 6px; right: 6px;
       background: rgba(239,68,68,.85); color: #fff; border-radius: 50%;
-      width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 13px;
+      width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px;
     }
     .video-tile .vt-no-video {
-      width: 70px; height: 70px; border-radius: 50%; background: var(--accent);
+      width: 56px; height: 56px; border-radius: 50%; background: var(--accent);
       display: flex; align-items: center; justify-content: center;
-      font-size: 26px; font-weight: 800; color: #fff;
+      font-size: 22px; font-weight: 800; color: #fff;
     }
     .video-tile .vt-stop-share {
       position: absolute; top: 8px; left: 10px;
@@ -324,7 +334,6 @@
 
     @media(max-width:640px) {
       .ch-list-panel { width: 180px; }
-      #video-grid { inset: 56px 0 0 0; }
     }
   </style>
 </head>
@@ -412,9 +421,6 @@
     </div>
   </div>
 </div>
-
-<!-- Video Grid Overlay -->
-<div id="video-grid"></div>
 
 <!-- Voice Settings Modal -->
 <div class="voice-settings-modal" id="voice-settings-modal" onclick="if(event.target===this)closeVoiceSettings()">
@@ -580,6 +586,9 @@ async function openChannel(id) {
         <span id="voice-count" style="color:var(--text-3);font-size:11px;font-weight:400">0 peserta</span>
       </div>
       <div class="voice-participants" id="voice-participants"></div>
+    </div>
+    <div id="video-grid">
+      <button id="video-grid-close" onclick="hideVideoGrid()" title="Tutup panel video"><i class="ti ti-chevron-up"></i></button>
     </div>
     <div class="ch-messages" id="ch-messages">
       <div style="text-align:center;color:var(--text-3);font-size:13px;padding:20px">Memuat pesan...</div>
@@ -1046,7 +1055,7 @@ function leaveVoice() {
   document.getElementById('voice-panel')?.classList.remove('active');
   document.getElementById('ch-voice-bar').classList.remove('active');
   document.getElementById('video-grid')?.classList.remove('active');
-  if (document.getElementById('video-grid')) document.getElementById('video-grid').innerHTML = '';
+  clearVideoGrid();
   renderVoiceParticipants();
   updateVoiceUI();
 }
@@ -1466,6 +1475,19 @@ function closePeer(socketId) {
   if (pc) { pc.close(); delete peerConns[socketId]; }
   const audio = document.getElementById('audio-' + socketId);
   if (audio) audio.remove();
+}
+
+// ── Video grid helpers ─────────────────────────────────────────────────────────
+function clearVideoGrid() {
+  const grid = document.getElementById('video-grid');
+  if (!grid) return;
+  // Hapus semua tile tapi pertahankan tombol close
+  [...grid.children].forEach(el => { if (el.id !== 'video-grid-close') el.remove(); });
+}
+
+function hideVideoGrid() {
+  const grid = document.getElementById('video-grid');
+  if (grid) grid.classList.remove('active');
 }
 
 // ── Video tiles ────────────────────────────────────────────────────────────────
