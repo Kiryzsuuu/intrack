@@ -335,12 +335,13 @@ function buildStats() {
 }
 
 function buildMyTasks() {
-  const isDireksi = user?.role === 'direksi';
-  const myTasks = isDireksi
-    ? _tasks.filter(t => t.status !== 'complete').slice(0, 7)
-    : _tasks.filter(t => t.picUserId?._id === user?._id || t.picUserId === user?._id).slice(0, 7);
+  const isAdmin = ['direksi', 'superadmin'].includes(user?.role);
+  const myTasksRaw = isAdmin
+    ? _tasks.filter(t => t.status !== 'complete')
+    : _tasks.filter(t => t.picUserId?._id === user?._id || t.picUserId === user?._id);
+  const myTasks = myTasksRaw.slice(0, 7);
 
-  const title = isDireksi ? 'Task Terbaru' : 'Task Saya';
+  const title = isAdmin ? 'Task Terbaru' : 'Task Saya';
   const inner = myTasks.length
     ? myTasks.map(t => `
         <a href="/pages/task.html?id=${t._id}" class="task-row">
@@ -363,15 +364,16 @@ function buildMyTasks() {
 
 function buildDonut() {
   const SEGMENTS = [
-    { key:'on_progress',        label:'On Progress',       color:'#3B82F6' },
-    { key:'partially_complete', label:'Partially Complete', color:'#8B5CF6' },
-    { key:'to_do',              label:'To Do',             color:'#6B7280' },
-    { key:'complete',           label:'Complete',          color:'#10B981' },
+    { key:'on_progress',        label:'On Progress',        color:'#3B82F6' },
+    { key:'partially_complete', label:'Partially Complete',  color:'#8B5CF6' },
+    { key:'to_do',              label:'To Do',              color:'#6B7280' },
+    { key:'complete',           label:'Complete',           color:'#10B981' },
   ];
   const total = _tasks.length;
   const cx = 80, cy = 80, r = 60, stroke = 22;
   const circ = 2 * Math.PI * r;
   let offset = 0, svgPaths = '';
+
   SEGMENTS.forEach(s => {
     const count = _tasks.filter(t => t.status === s.key).length;
     if (!count) return;
@@ -380,12 +382,21 @@ function buildDonut() {
       stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"/>`;
     offset += dash;
   });
-  if (!total) svgPaths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${stroke}"/>`;
 
-  const legend = SEGMENTS.map(s => {
-    const count = _tasks.filter(t => t.status === s.key).length;
+  // jika semua tasks punya status lama/unknown, tampilkan ring abu-abu
+  if (!svgPaths) svgPaths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#6B7280" stroke-width="${stroke}"/>`;
+
+  const knownCount = SEGMENTS.reduce((acc, s) => acc + _tasks.filter(t => t.status === s.key).length, 0);
+  const unknownCount = total - knownCount;
+  const legendItems = [
+    ...SEGMENTS,
+    ...(unknownCount > 0 ? [{ key: '__other', label: 'Status Lama', color: '#6B7280' }] : []),
+  ];
+
+  const legend = legendItems.map(s => {
+    const count = s.key === '__other' ? unknownCount : _tasks.filter(t => t.status === s.key).length;
     if (!count) return '';
-    const pct = Math.round(count / total * 100);
+    const pct = Math.round(count / (total || 1) * 100);
     return `<div class="donut-legend-row">
       <div class="donut-legend-dot" style="background:${s.color}"></div>
       <span style="flex:1;color:var(--text-2)">${s.label}</span>
