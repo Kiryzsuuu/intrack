@@ -260,84 +260,132 @@
 
     /* ── Call View (Zoom/Meet style) ── */
     #call-view {
-      position: fixed; inset: 56px 0 0 196px; z-index: 900;
-      background: #1a1a2e; display: none; flex-direction: column;
+      position: fixed;
+      top: 56px; bottom: 0;
+      left: calc(var(--sidebar-w) + 240px); right: 0;
+      z-index: 900;
+      background: #16161e; display: none; flex-direction: column;
     }
     #call-view.active { display: flex; }
 
+    /* Grid mode (no spotlight) */
     .call-grid {
       flex: 1; display: flex; flex-wrap: wrap; gap: 8px;
-      padding: 16px; align-content: center; justify-content: center;
-      overflow-y: auto;
+      padding: 12px; align-content: center; justify-content: center;
+      overflow: hidden;
     }
+    /* Spotlight mode */
+    .call-grid.spotlight-mode {
+      flex-direction: column; flex-wrap: nowrap; padding: 0; gap: 0;
+    }
+    .call-spotlight-main {
+      flex: 1; min-height: 0; padding: 10px;
+    }
+    .call-spotlight-main .video-tile {
+      width: 100%; height: 100%; max-width: 100%; border-radius: 14px;
+    }
+    .call-strip {
+      height: 130px; flex-shrink: 0;
+      display: flex; gap: 8px; padding: 8px 12px;
+      background: rgba(0,0,0,.3); overflow-x: auto; align-items: center;
+      border-top: 0.5px solid rgba(255,255,255,.06);
+    }
+    .call-strip .video-tile {
+      width: 180px; height: 110px; flex-shrink: 0; flex: none;
+      max-width: none; border-radius: 10px; cursor: pointer;
+    }
+    .call-strip .video-tile:hover { border-color: rgba(255,255,255,.3); }
+
+    /* Video tile */
     .video-tile {
       background: #1e1e2e; border-radius: 14px; overflow: hidden;
       position: relative; display: flex; align-items: center; justify-content: center;
-      flex: 1 1 280px; min-height: 180px; max-width: calc(50% - 4px);
-      border: 2px solid transparent; transition: border-color .2s;
+      flex: 1 1 260px; min-height: 160px; max-width: calc(50% - 4px);
+      border: 2px solid transparent; transition: border-color .2s, box-shadow .2s;
+      cursor: pointer; user-select: none;
     }
-    .video-tile.speaking-tile { border-color: #3BA55C; }
+    .video-tile:hover .vt-pin-btn { opacity: 1; }
+    .video-tile.speaking-tile { border-color: #3BA55C; box-shadow: 0 0 0 3px rgba(59,165,92,.25); }
+    .video-tile.pinned-tile { border-color: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.2); }
     .video-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
     .video-tile .vt-name {
-      position: absolute; bottom: 10px; left: 12px;
+      position: absolute; bottom: 10px; left: 10px;
       background: rgba(0,0,0,.65); color: #fff; font-size: 12px; font-weight: 600;
       padding: 3px 10px; border-radius: 100px; backdrop-filter: blur(6px);
-      display: flex; align-items: center; gap: 5px;
+      display: flex; align-items: center; gap: 5px; pointer-events: none;
     }
     .video-tile .vt-mic-off {
       position: absolute; bottom: 10px; right: 10px;
       background: rgba(239,68,68,.85); color: #fff; border-radius: 50%;
       width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 12px;
+      pointer-events: none;
     }
     .video-tile .vt-avatar {
-      width: 80px; height: 80px; border-radius: 50%; background: var(--accent);
+      width: 80px; height: 80px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 30px; font-weight: 800; color: #fff; flex-shrink: 0;
+      font-size: 28px; font-weight: 800; color: #fff; flex-shrink: 0; overflow: hidden;
     }
-    .video-tile .vt-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .video-tile .vt-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .video-tile .vt-stop-share {
-      position: absolute; top: 10px; left: 12px;
+      position: absolute; top: 10px; left: 10px;
       background: rgba(239,68,68,.9); color: #fff; border: none; cursor: pointer;
-      border-radius: 8px; padding: 4px 12px; font-size: 12px; font-weight: 600;
-      display: flex; align-items: center; gap: 5px;
+      border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 5px; z-index: 2;
     }
+    .vt-pin-btn {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(0,0,0,.55); color: #fff; border: none; cursor: pointer;
+      border-radius: 6px; width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center; font-size: 13px;
+      opacity: 0; transition: opacity .15s, background .15s; z-index: 2;
+      backdrop-filter: blur(4px);
+    }
+    .vt-pin-btn:hover { background: rgba(245,158,11,.7); }
+    .video-tile.pinned-tile .vt-pin-btn { opacity: 1; color: #F59E0B; }
+    .vt-pin-label {
+      position: absolute; top: 8px; left: 10px;
+      background: rgba(245,158,11,.85); color: #fff; font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 100px; pointer-events: none;
+      display: none;
+    }
+    .video-tile.pinned-tile .vt-pin-label { display: block; }
 
-    /* Call bottom control bar */
+    /* Call bottom bar */
     .call-bar {
-      height: 80px; background: rgba(0,0,0,.5); backdrop-filter: blur(12px);
-      border-top: 0.5px solid rgba(255,255,255,.08);
+      height: 76px; background: rgba(0,0,0,.55); backdrop-filter: blur(16px);
+      border-top: 0.5px solid rgba(255,255,255,.07);
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 24px; flex-shrink: 0; gap: 16px;
+      padding: 0 20px; flex-shrink: 0; gap: 12px;
     }
-    .call-bar-info { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+    .call-bar-info { min-width: 160px; }
     .call-bar-room { font-size: 13px; font-weight: 700; color: #fff; }
-    .call-bar-status { font-size: 11px; color: #3BA55C; display: flex; align-items: center; gap: 4px; }
-    .call-bar-controls { display: flex; align-items: center; gap: 10px; }
-    .call-bar-extras { display: flex; align-items: center; gap: 8px; min-width: 180px; justify-content: flex-end; }
+    .call-bar-status { font-size: 11px; color: #3BA55C; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+    .call-bar-controls { display: flex; align-items: center; gap: 8px; }
+    .call-bar-extras { display: flex; align-items: center; gap: 6px; min-width: 160px; justify-content: flex-end; }
 
     .cb-btn {
-      width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer;
-      background: rgba(255,255,255,.12); color: #fff; font-size: 20px;
+      width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
+      background: rgba(255,255,255,.12); color: #fff; font-size: 19px;
       display: flex; align-items: center; justify-content: center;
       transition: background .15s, transform .1s;
     }
-    .cb-btn:hover { background: rgba(255,255,255,.22); transform: scale(1.06); }
-    .cb-btn.active { background: rgba(255,255,255,.9); color: #111; }
+    .cb-btn:hover { background: rgba(255,255,255,.22); transform: scale(1.07); }
+    .cb-btn.on  { background: rgba(255,255,255,.9); color: #111; }
     .cb-btn.off { background: rgba(239,68,68,.25); color: #EF4444; }
     .cb-btn.end { background: #EF4444; color: #fff; }
     .cb-btn.end:hover { background: #dc2626; }
-    .cb-btn-label { font-size: 10px; color: rgba(255,255,255,.6); margin-top: 3px; text-align: center; }
-    .cb-btn-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .cb-btn-label { font-size: 10px; color: rgba(255,255,255,.55); margin-top: 2px; text-align: center; }
+    .cb-btn-wrap { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 
     .cb-small {
-      height: 36px; padding: 0 14px; border-radius: 8px; border: none; cursor: pointer;
-      background: rgba(255,255,255,.1); color: rgba(255,255,255,.8); font-size: 12px; font-weight: 600;
-      display: flex; align-items: center; gap: 6px; transition: background .15s;
+      height: 34px; padding: 0 12px; border-radius: 8px; border: none; cursor: pointer;
+      background: rgba(255,255,255,.1); color: rgba(255,255,255,.75); font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 5px; transition: background .15s; white-space: nowrap;
     }
-    .cb-small:hover { background: rgba(255,255,255,.2); }
-    .cb-small.active { background: rgba(59,165,92,.25); color: #3BA55C; }
+    .cb-small:hover { background: rgba(255,255,255,.18); }
+    .cb-small.on { background: rgba(59,165,92,.3); color: #3BA55C; }
 
-    /* #video-grid kept for backward compat but hidden */
+    /* #video-grid compat */
     #video-grid { display: none !important; }
 
     /* Voice settings modal */
@@ -1005,14 +1053,19 @@ function getSocket() {
     ensureParticipantTile(p);
     renderVoiceParticipants();
     createOffer(p.socketId);
+    if (inVoice) playJoinSound();
   });
 
   socket.on('voice:user-left', ({ userId, socketId }) => {
+    const wasIn = !!voiceParticipants[userId];
     delete voiceParticipants[userId];
     closePeer(socketId);
     renderVoiceParticipants();
     removeVideoTile(socketId);
     document.getElementById('vtile-p-' + userId)?.remove();
+    // Jika tile yg di-pin keluar, keluar dari spotlight
+    if (pinnedTileId && !document.getElementById(pinnedTileId)) unpinTile();
+    if (inVoice && wasIn) playLeaveSound();
   });
 
   socket.on('voice:user-status', ({ userId, muted, deafened, videoOn }) => {
@@ -1381,10 +1434,12 @@ function addScreenTile(id, stream) {
     tile.className = 'video-tile';
     tile.id = tileId;
     tile.style.flex = '1 1 500px';
+    tile.onclick = () => pinTile(tileId);
     tile.innerHTML = `
       <video autoplay muted playsinline></video>
       <div class="vt-name"><i class="ti ti-screen-share" style="margin-right:4px"></i>${id === 'me' ? 'Layar Anda' : 'Screen Share'}</div>
-      ${id === 'me' ? '<button class="vt-stop-share" onclick="stopScreenShare()"><i class="ti ti-x"></i> Hentikan</button>' : ''}`;
+      ${id === 'me' ? '<button class="vt-stop-share" onclick="event.stopPropagation();stopScreenShare()"><i class="ti ti-x"></i> Hentikan</button>' : ''}
+      ${makePinBtn(tileId)}`;
     grid.appendChild(tile);
   }
   tile.querySelector('video').srcObject = stream;
@@ -1582,9 +1637,129 @@ function getCallGrid() { return document.getElementById('call-grid'); }
 function clearCallGrid() {
   const grid = getCallGrid();
   if (grid) grid.innerHTML = '';
+  pinnedTileId = null;
+  exitSpotlight();
+}
+
+// ── Pin / Spotlight ────────────────────────────────────────────────────────────
+let pinnedTileId = null;
+
+function pinTile(tileId) {
+  if (pinnedTileId === tileId) {
+    unpinTile(); return;
+  }
+  // Unpin previous
+  if (pinnedTileId) {
+    document.getElementById(pinnedTileId)?.classList.remove('pinned-tile');
+  }
+  pinnedTileId = tileId;
+  document.getElementById(tileId)?.classList.add('pinned-tile');
+  enterSpotlight(tileId);
+}
+
+function unpinTile() {
+  if (pinnedTileId) {
+    document.getElementById(pinnedTileId)?.classList.remove('pinned-tile');
+    pinnedTileId = null;
+  }
+  exitSpotlight();
+}
+
+function enterSpotlight(tileId) {
+  const grid = getCallGrid();
+  if (!grid) return;
+  const pinnedEl = document.getElementById(tileId);
+  if (!pinnedEl) return;
+
+  grid.classList.add('spotlight-mode');
+  grid.innerHTML = '';
+
+  // Main slot
+  const mainWrap = document.createElement('div');
+  mainWrap.className = 'call-spotlight-main';
+  mainWrap.id = 'spotlight-main';
+  mainWrap.appendChild(pinnedEl);
+  grid.appendChild(mainWrap);
+
+  // Strip of others
+  const strip = document.createElement('div');
+  strip.className = 'call-strip';
+  strip.id = 'call-strip';
+  // Move remaining tiles into strip — re-read from voiceParticipants + self
+  rebuildStripTiles(strip, tileId);
+  grid.appendChild(strip);
+}
+
+function rebuildStripTiles(strip, excludeId) {
+  // Self tile (if not pinned)
+  if (excludeId !== 'vtile-me') {
+    const t = document.getElementById('vtile-me');
+    if (t) strip.appendChild(t);
+  }
+  Object.values(voiceParticipants).forEach(p => {
+    const id = 'vtile-p-' + p.userId;
+    const vId = 'vtile-' + (p.socketId || '');
+    const el  = document.getElementById(id) || document.getElementById(vId);
+    if (el && el.id !== excludeId) strip.appendChild(el);
+  });
+}
+
+function exitSpotlight() {
+  const grid = getCallGrid();
+  if (!grid) return;
+  grid.classList.remove('spotlight-mode');
+
+  // Gather all tiles back to flat grid
+  const tiles = [...document.querySelectorAll('.video-tile')];
+  grid.innerHTML = '';
+  tiles.forEach(t => grid.appendChild(t));
+}
+
+// ── Join/Leave sound notifications ────────────────────────────────────────────
+function playJoinSound() {
+  try {
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+    // Two ascending tones
+    [440, 550].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.12 + 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.15);
+      osc.start(now + i * 0.12);
+      osc.stop(now + i * 0.12 + 0.2);
+    });
+  } catch(e) {}
+}
+
+function playLeaveSound() {
+  try {
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+    // Two descending tones
+    [550, 400].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.18, now + i * 0.12 + 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.15);
+      osc.start(now + i * 0.12);
+      osc.stop(now + i * 0.12 + 0.2);
+    });
+  } catch(e) {}
 }
 
 // ── Video tiles ────────────────────────────────────────────────────────────────
+function makePinBtn(tileId) {
+  return `<button class="vt-pin-btn" onclick="event.stopPropagation();pinTile('${tileId}')" title="Pin / Spotlight"><i class="ti ti-pin"></i></button>
+          <div class="vt-pin-label"><i class="ti ti-pin" style="font-size:9px"></i> Pinned</div>`;
+}
+
 function addMyVideoTile() {
   const grid = getCallGrid();
   if (!grid || document.getElementById('vtile-me')) return;
@@ -1596,10 +1771,12 @@ function addMyVideoTile() {
   tile.className = 'video-tile';
   tile.id = 'vtile-me';
   tile.dataset.uid = me._id;
+  tile.onclick = () => pinTile('vtile-me');
   tile.innerHTML = `
     <video id="local-video" autoplay muted playsinline style="display:none;transform:scaleX(-1);width:100%;height:100%;object-fit:cover"></video>
     <div class="vt-avatar" id="vtile-me-avatar" style="background:${avColor}">${avHtml}</div>
-    <div class="vt-name"><i class="ti ti-microphone" id="vtile-me-mic-icon" style="font-size:11px"></i>${escHtml(me.namaLengkap)} (Anda)</div>`;
+    <div class="vt-name"><i class="ti ti-microphone" style="font-size:11px"></i>${escHtml(me.namaLengkap)} (Anda)</div>
+    ${makePinBtn('vtile-me')}`;
   grid.appendChild(tile);
 }
 
@@ -1630,18 +1807,23 @@ function addRemoteVideoTile(socketId, userId, stream) {
   const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
   const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
   const avHtml   = p.photo ? `<img src="${p.photo}" alt="">` : inits;
+  const tileId   = 'vtile-' + socketId;
   const tile = document.createElement('div');
   tile.className = 'video-tile';
-  tile.id = 'vtile-' + socketId;
+  tile.id = tileId;
   tile.dataset.uid = userId || '';
+  tile.onclick = () => pinTile(tileId);
   tile.innerHTML = `
     <video autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>
-    <div class="vt-avatar" style="background:${avColor};display:none">${avHtml}</div>
-    <div class="vt-name">${escHtml(name)}</div>`;
+    <div class="vt-avatar" style="background:${avColor}">${avHtml}</div>
+    <div class="vt-name">${escHtml(name)}</div>
+    ${makePinBtn(tileId)}`;
   const vid = tile.querySelector('video');
   vid.srcObject = stream;
   vid.onloadedmetadata = () => { tile.querySelector('.vt-avatar').style.display = 'none'; };
-  grid.appendChild(tile);
+  // Replace avatar-only tile if exists
+  document.getElementById('vtile-p-' + userId)?.replaceWith(tile);
+  if (!document.getElementById(tileId)) grid.appendChild(tile);
 }
 
 // Tile peserta yg tidak ada video (avatar-only) — dibuat saat mereka join
@@ -1658,11 +1840,16 @@ function ensureParticipantTile(p) {
   tile.className = 'video-tile';
   tile.id = id;
   tile.dataset.uid = p.userId;
+  tile.onclick = () => pinTile(id);
   tile.innerHTML = `
     <div class="vt-avatar" style="background:${avColor}">${avHtml}</div>
     <div class="vt-name">${escHtml(p.name)}</div>
-    ${p.muted ? '<div class="vt-mic-off"><i class="ti ti-microphone-off"></i></div>' : ''}`;
-  grid.appendChild(tile);
+    ${p.muted ? '<div class="vt-mic-off"><i class="ti ti-microphone-off"></i></div>' : ''}
+    ${makePinBtn(id)}`;
+  // Masukkan ke strip jika spotlight aktif, jika tidak ke grid biasa
+  const strip = document.getElementById('call-strip');
+  if (strip) strip.appendChild(tile);
+  else grid.appendChild(tile);
 }
 
 function removeVideoTile(socketId) {
