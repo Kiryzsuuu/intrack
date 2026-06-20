@@ -101,6 +101,15 @@ function initSocket(server) {
       });
     });
 
+    // ── Voice: speaking indicator ─────────────────────────────────────────────
+    socket.on('voice:speaking', ({ speaking }) => {
+      const channelId = socket.voiceChannel;
+      if (!channelId) return;
+      socket.to(`voice:${channelId}`).emit('voice:speaking', {
+        userId: socket.userId, speaking: !!speaking,
+      });
+    });
+
     // ── Voice: status update (mute/deafen/video) ──────────────────────────────
     socket.on('voice:status', ({ muted, deafened, videoOn }) => {
       const channelId = socket.voiceChannel;

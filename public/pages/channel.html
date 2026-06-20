@@ -79,8 +79,15 @@
     .ch-voice-item.in-voice { color: #3BA55C; }
     .ch-voice-participants-list { padding: 0 8px 4px 34px; display: flex; flex-direction: column; gap: 3px; }
     .ch-vp-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); }
-    .ch-vp-av { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #fff; overflow: hidden; flex-shrink: 0; }
+    .ch-vp-av { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #fff; overflow: hidden; flex-shrink: 0; transition: box-shadow .15s; }
     .ch-vp-av img { width: 100%; height: 100%; object-fit: cover; }
+    /* Speaking indicator */
+    .ch-vp-row.speaking .ch-vp-av { box-shadow: 0 0 0 2px #3BA55C; }
+    .ch-vp-row.speaking > span { color: #3BA55C; }
+    .voice-participant.speaking .vp-av { box-shadow: 0 0 0 3px #3BA55C; }
+    .voice-participant.speaking .vp-name { color: #3BA55C; font-weight: 700; }
+    .voice-participant { transition: background .15s; }
+    .voice-participant.speaking { background: rgba(59,165,92,.12); }
 
     /* Voice status bar (bottom of left panel, like Discord) */
     .ch-voice-bar {
@@ -931,6 +938,10 @@ function getSocket() {
     }
   });
 
+  socket.on('voice:speaking', ({ userId, speaking }) => {
+    setParticipantSpeaking(userId, speaking);
+  });
+
   socket.on('voice:offer', async ({ fromSocketId, fromUserId, offer }) => {
     const pc = getOrCreatePeer(fromSocketId, fromUserId);
     await pc.setRemoteDescription(offer);
@@ -1014,6 +1025,7 @@ async function joinVoice() {
   });
 
   updateVoiceUI();
+  startVAD();
 }
 
 function leaveVoice() {
@@ -1024,6 +1036,7 @@ function leaveVoice() {
   Object.keys(peerConns).forEach(sid => closePeer(sid));
   peerConns = {};
 
+  stopVAD();
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   if (isScreenSharing) stopScreenShare();
 
@@ -1038,9 +1051,66 @@ function leaveVoice() {
   updateVoiceUI();
 }
 
+// ── Voice Activity Detection ──────────────────────────────────────────────────
+let vadCtx = null; let vadAnalyser = null; let vadFrame = null;
+let isSpeaking = false; let speakTimeout = null;
+const SPEAK_THRESHOLD = 8; // RMS threshold (0-255 scale)
+
+function startVAD() {
+  if (!localStream || vadCtx) return;
+  try {
+    vadCtx = new AudioContext();
+    const src = vadCtx.createMediaStreamSource(localStream);
+    vadAnalyser = vadCtx.createAnalyser();
+    vadAnalyser.fftSize = 512;
+    src.connect(vadAnalyser);
+    const buf = new Uint8Array(vadAnalyser.frequencyBinCount);
+
+    function tick() {
+      vadFrame = requestAnimationFrame(tick);
+      if (!vadAnalyser || isMuted) {
+        if (isSpeaking) setSpeaking(false);
+        return;
+      }
+      vadAnalyser.getByteFrequencyData(buf);
+      const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
+      if (rms > SPEAK_THRESHOLD) {
+        clearTimeout(speakTimeout);
+        if (!isSpeaking) setSpeaking(true);
+        speakTimeout = setTimeout(() => setSpeaking(false), 350);
+      }
+    }
+    tick();
+  } catch(e) {}
+}
+
+function stopVAD() {
+  if (vadFrame) { cancelAnimationFrame(vadFrame); vadFrame = null; }
+  if (speakTimeout) { clearTimeout(speakTimeout); speakTimeout = null; }
+  if (vadCtx) { vadCtx.close(); vadCtx = null; }
+  vadAnalyser = null;
+  if (isSpeaking) setSpeaking(false);
+}
+
+function setSpeaking(val) {
+  isSpeaking = val;
+  // Update UI for self
+  setParticipantSpeaking(me._id, val);
+  // Broadcast to others
+  if (socket) socket.emit('voice:speaking', { speaking: val });
+}
+
+function setParticipantSpeaking(userId, speaking) {
+  const uid = userId?.toString();
+  document.querySelectorAll(`[data-uid="${uid}"]`).forEach(el => {
+    el.classList.toggle('speaking', speaking);
+  });
+}
+
 function toggleMute() {
   isMuted = !isMuted;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+  if (isMuted && isSpeaking) setSpeaking(false);
   updateVoiceUI();
   if (socket) socket.emit('voice:status', { muted: isMuted });
 }
@@ -1462,7 +1532,7 @@ function renderVoiceParticipants() {
       const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
       const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
       const avHtml   = p.photo ? `<img src="${p.photo}" alt="">` : inits;
-      return `<div class="voice-participant${p.muted ? ' muted' : ''}">
+      return `<div class="voice-participant${p.muted ? ' muted' : ''}" data-uid="${p.userId}">
         <div class="vp-av" style="background:${avColor}">${avHtml}</div>
         <span class="vp-name">${escHtml(p.name)}${p.isSelf ? ' (Anda)' : ''}</span>
         <div class="vp-icons">
@@ -1481,9 +1551,9 @@ function renderVoiceParticipants() {
       const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
       const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
       const avHtml   = p.photo ? `<img src="${p.photo}" alt="">` : inits;
-      return `<div class="ch-vp-row">
+      return `<div class="ch-vp-row" data-uid="${p.userId}">
         <div class="ch-vp-av" style="background:${avColor}">${avHtml}</div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}${p.isSelf ? ' 🎤' : ''}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color .15s">${escHtml(p.name)}${p.isSelf ? ' 🎤' : ''}</span>
         ${p.muted ? '<i class="ti ti-microphone-off" style="font-size:11px;color:#EF4444"></i>' : ''}
       </div>`;
     }).join('');
