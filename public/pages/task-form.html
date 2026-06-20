@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
@@ -39,45 +39,33 @@
     .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 
-    /* Tags */
-    .tag-box {
-      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-      background: var(--surface-2); border: 0.5px solid var(--border);
-      border-radius: var(--r-sm); padding: 8px 12px; min-height: 44px; cursor: text;
-    }
-    .tag-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); background: var(--surface); }
-    .tag-chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      background: var(--accent-light); color: var(--accent);
-      font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 100px;
-    }
-    .tag-chip button { background: none; border: none; cursor: pointer; color: var(--accent); font-size: 14px; padding: 0; line-height: 1; }
-    .tag-input { border: none; background: none; outline: none; font-size: 13px; color: var(--text); min-width: 100px; flex: 1; }
-    .tag-input::placeholder { color: var(--text-3); }
-
-    /* Collaborators */
-    .collab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; }
-    .collab-item {
+    /* Assignees */
+    .assignee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; }
+    .assignee-item {
       display: flex; align-items: center; gap: 8px;
       padding: 9px 12px; border: 0.5px solid var(--border);
       border-radius: var(--r-sm); cursor: pointer; transition: var(--transition);
       background: var(--surface-2); user-select: none;
     }
-    .collab-item:hover { border-color: var(--accent); background: var(--accent-light); }
-    .collab-item.selected { border-color: var(--accent); background: var(--accent-light); }
-    .collab-check {
+    .assignee-item:hover { border-color: var(--accent); background: var(--accent-light); }
+    .assignee-item.selected { border-color: var(--accent); background: var(--accent-light); }
+    .assignee-check {
       width: 16px; height: 16px; border-radius: 4px;
       border: 1.5px solid var(--border); flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
     }
-    .collab-item.selected .collab-check { background: var(--accent); border-color: var(--accent); }
-    .collab-item.selected .collab-check::after { content: '✓'; font-size: 10px; color: white; font-weight: 700; }
+    .assignee-item.selected .assignee-check { background: var(--accent); border-color: var(--accent); }
+    .assignee-item.selected .assignee-check::after { content: '✓'; font-size: 10px; color: white; font-weight: 700; }
 
-    .warn-dup {
-      display: none; align-items: center; gap: 10px;
-      background: var(--orange-bg); border: 0.5px solid rgba(234,88,12,.2);
-      color: var(--orange-text); border-radius: var(--r-sm); padding: 12px 16px; font-size: 13px;
-    }
+    /* Subtasks */
+    .st-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:0.5px dashed var(--border); }
+    .st-row input.st-judul { flex:1; }
+    .st-mini { font-size:11px; color:var(--text-3); }
+    .st-assignees { display:flex; flex-wrap:wrap; gap:4px; }
+    .st-chip { background:var(--accent-light); color:var(--accent); font-size:11px; padding:2px 8px; border-radius:100px; }
+    .icon-btn { background:none; border:0.5px solid var(--border); border-radius:var(--r-sm); cursor:pointer; color:var(--text-2); padding:6px 8px; font-size:13px; }
+    .icon-btn:hover { border-color:var(--accent); color:var(--accent); }
+
     @media(max-width:700px){ .row-2,.row-3{ grid-template-columns:1fr } }
     @keyframes spin { to { transform:rotate(360deg) } }
   </style>
@@ -107,11 +95,6 @@
           <div style="font-size:20px;font-weight:800;letter-spacing:-.4px" id="form-heading">Buat Task Baru</div>
         </div>
 
-        <div class="warn-dup" id="warn-dup">
-          <i class="ti ti-alert-triangle" style="font-size:18px;flex-shrink:0"></i>
-          <span id="warn-dup-text"></span>
-        </div>
-
         <!-- Template Picker -->
         <div class="card" id="template-picker-card">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -138,20 +121,10 @@
           </div>
         </div>
 
-        <!-- Penugasan -->
+        <!-- Jadwal -->
         <div class="card">
-          <div class="card-title">Penugasan & Jadwal</div>
-          <div class="row-3" id="row-penugasan">
-            <div class="field" id="f-direktorat-wrap" style="display:none">
-              <label>Direktorat</label>
-              <select id="f-direktorat" onchange="onDirChange()">
-                <option value="">Semua Direktorat</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>PIC (Person In Charge) <span style="color:var(--red)">*</span></label>
-              <select id="f-pic"><option value="">Pilih PIC...</option></select>
-            </div>
+          <div class="card-title">Prioritas & Jadwal</div>
+          <div class="row-2">
             <div class="field">
               <label>Prioritas <span style="color:var(--red)">*</span></label>
               <select id="f-prioritas">
@@ -167,22 +140,20 @@
           </div>
         </div>
 
-        <!-- Tags -->
+        <!-- Assignees -->
         <div class="card">
-          <div class="card-title">Tags <span style="text-transform:none;font-weight:400;color:var(--text-3)">(opsional, maks. 5)</span></div>
-          <div class="field">
-            <div class="tag-box" id="tag-box" onclick="document.getElementById('f-tag-input').focus()">
-              <input type="text" class="tag-input" id="f-tag-input" placeholder="Ketik tag lalu tekan Enter...">
-            </div>
+          <div class="card-title">Assignee <span style="text-transform:none;font-weight:400;color:var(--text-3)">(bisa lebih dari satu)</span> <span style="color:var(--red)">*</span></div>
+          <input type="text" id="assignee-search" placeholder="Cari nama..." style="margin-bottom:12px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--text);outline:none;width:100%">
+          <div class="assignee-grid" id="assignee-grid">
+            <div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Memuat daftar pengguna...</div>
           </div>
         </div>
 
-        <!-- Collaborators -->
-        <div class="card">
-          <div class="card-title">Collaborators <span style="text-transform:none;font-weight:400;color:var(--text-3)">(opsional)</span></div>
-          <div class="collab-grid" id="collab-grid">
-            <div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Memuat daftar pengguna...</div>
-          </div>
+        <!-- Subtasks (hanya saat edit, req #11) -->
+        <div class="card" id="subtask-card" style="display:none">
+          <div class="card-title">Subtask <span style="text-transform:none;font-weight:400;color:var(--text-3)">(bisa bersarang & di-assign)</span></div>
+          <div id="subtask-tree"></div>
+          <button class="btn" style="margin-top:12px" onclick="addSubtask(null)"><i class="ti ti-plus"></i> Tambah Subtask</button>
         </div>
 
       </div>
@@ -199,9 +170,9 @@
 if (!requireAuth()) throw 'redirect';
 const user   = getUser();
 const editId = new URLSearchParams(window.location.search).get('id');
-const tags   = [];
-let selectedCollabs = new Set();
-let allManagers = [];
+let selectedAssignees = new Set();
+let allUsers = [];
+let subtasks = [];   // flat list dari API (saat edit)
 
 document.getElementById('f-deadline').min = new Date().toISOString().split('T')[0];
 
@@ -209,77 +180,36 @@ document.getElementById('f-judul').addEventListener('input', function () {
   document.getElementById('char-count').textContent = this.value.length;
 });
 
-document.getElementById('f-tag-input').addEventListener('keydown', e => {
-  if (e.key === 'Backspace' && !e.target.value && tags.length) { tags.pop(); renderTags(); return; }
-  if (e.key !== 'Enter' && e.key !== ',') return;
-  e.preventDefault();
-  const val = e.target.value.trim();
-  if (!val || tags.length >= 5 || tags.includes(val)) { e.target.value = ''; return; }
-  tags.push(val); e.target.value = ''; renderTags();
+document.getElementById('assignee-search').addEventListener('input', function () {
+  renderAssigneeGrid(this.value.toLowerCase());
 });
 
-function renderTags() {
-  const box = document.getElementById('tag-box');
-  box.querySelectorAll('.tag-chip').forEach(c => c.remove());
-  const inp = document.getElementById('f-tag-input');
-  tags.forEach((t, i) => {
-    const chip = document.createElement('span');
-    chip.className = 'tag-chip';
-    chip.innerHTML = `${t}<button type="button" onclick="removeTag(${i})">×</button>`;
-    box.insertBefore(chip, inp);
-  });
-  inp.disabled   = tags.length >= 5;
-  inp.placeholder = tags.length >= 5 ? 'Maks. 5 tag' : 'Ketik tag lalu tekan Enter...';
-}
-
-function removeTag(i) { tags.splice(i, 1); renderTags(); }
-
-function renderCollabGrid() {
-  const grid = document.getElementById('collab-grid');
-  if (!allManagers.length) {
-    grid.innerHTML = '<div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Tidak ada pengguna tersedia</div>';
+function renderAssigneeGrid(q = '') {
+  const grid = document.getElementById('assignee-grid');
+  const list = allUsers.filter(u => !q || u.namaLengkap.toLowerCase().includes(q));
+  if (!list.length) {
+    grid.innerHTML = '<div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Tidak ada pengguna</div>';
     return;
   }
-  grid.innerHTML = allManagers.map(m => `
-    <div class="collab-item${selectedCollabs.has(m._id) ? ' selected' : ''}" onclick="toggleCollab('${m._id}')">
-      <div class="collab-check"></div>
+  grid.innerHTML = list.map(m => `
+    <div class="assignee-item${selectedAssignees.has(m._id) ? ' selected' : ''}" onclick="toggleAssignee('${m._id}')">
+      <div class="assignee-check"></div>
       <span style="font-size:13px">${m.namaLengkap}</span>
     </div>`).join('');
 }
 
-function toggleCollab(id) {
-  selectedCollabs.has(id) ? selectedCollabs.delete(id) : selectedCollabs.add(id);
-  document.querySelector(`.collab-item[onclick*="${id}"]`)?.classList.toggle('selected', selectedCollabs.has(id));
-  // re-render to update all
-  renderCollabGrid();
+function toggleAssignee(id) {
+  selectedAssignees.has(id) ? selectedAssignees.delete(id) : selectedAssignees.add(id);
+  renderAssigneeGrid(document.getElementById('assignee-search').value.toLowerCase());
 }
 
-async function loadPICOptions(direktoratId) {
-  const sel = document.getElementById('f-pic');
-  sel.innerHTML = '<option value="">Memuat...</option>';
-  let managers;
-  if (user.role === 'direksi' && !direktoratId) {
-    const data = await Users.list({ role: 'manager' }).catch(() => ({}));
-    managers = data.users || data || [];
-  } else {
-    const dirId = direktoratId || user.direktoratId?._id || user.direktoratId;
-    managers = await Users.managersByDirektorat(dirId).catch(() => []);
-  }
-  allManagers = managers;
-  sel.innerHTML = '<option value="">Pilih PIC...</option>';
-  managers.forEach(m => {
-    const o = document.createElement('option'); o.value = m._id; o.textContent = m.namaLengkap;
-    sel.appendChild(o);
-  });
-  renderCollabGrid();
-}
-
-async function onDirChange() {
-  await loadPICOptions(document.getElementById('f-direktorat').value);
+async function loadUsers() {
+  const data = await Users.selectable().catch(() => []);
+  allUsers = (data || []).filter(u => u.statusAktif !== false);
+  renderAssigneeGrid();
 }
 
 let allTemplates = [];
-
 async function loadTemplates() {
   try {
     const { templates } = await TaskTemplates.list();
@@ -296,90 +226,137 @@ async function loadTemplates() {
   } catch {}
 }
 
-async function applyTemplate() {
+function applyTemplate() {
   const id = document.getElementById('tpl-picker').value;
   if (!id) return;
   const tpl = allTemplates.find(t => t._id === id);
   if (!tpl) return;
-
   document.getElementById('f-judul').value     = tpl.nama;
   document.getElementById('char-count').textContent = tpl.nama.length;
   document.getElementById('f-deskripsi').value = tpl.deskripsi || '';
-  document.getElementById('f-prioritas').value = tpl.prioritas || 'medium';
+  document.getElementById('f-prioritas').value = tpl.prioritas || 'normal';
   if (tpl.durasiHari) {
-    const d = new Date();
-    d.setDate(d.getDate() + tpl.durasiHari);
+    const d = new Date(); d.setDate(d.getDate() + tpl.durasiHari);
     document.getElementById('f-deadline').value = d.toISOString().slice(0, 10);
   }
-  tpl.tags?.forEach(t => { if (!tags.includes(t)) tags.push(t); });
-  renderTags();
   showToast(`Template "${tpl.nama}" diterapkan`);
+}
+
+// ── Subtask tree (edit mode) ──────────────────────────────────────────────────
+function childrenOf(parentId) {
+  return subtasks.filter(s => (s.parentId || null) === parentId).sort((a,b) => a.urutan - b.urutan);
+}
+
+function renderSubtaskTree() {
+  const root = document.getElementById('subtask-tree');
+  function nameOf(id) { const u = allUsers.find(x => x._id === id); return u ? u.namaLengkap : '?'; }
+  function buildNodes(parentId, depth) {
+    return childrenOf(parentId).map(s => {
+      const names = (s.assignees || []).map(a => `<span class="st-chip">${a.namaLengkap || nameOf(a)}</span>`).join('');
+      return `
+        <div class="st-row" style="margin-left:${depth * 22}px">
+          <i class="ti ti-corner-down-right st-mini" style="${depth ? '' : 'visibility:hidden'}"></i>
+          <input class="st-judul" value="${(s.judul||'').replace(/"/g,'&quot;')}" onchange="updateSubtask('${s._id}', this.value)">
+          <div class="st-assignees">${names}</div>
+          <button class="icon-btn" title="Assign" onclick="assignSubtask('${s._id}')"><i class="ti ti-user-plus"></i></button>
+          <button class="icon-btn" title="Tambah sub" onclick="addSubtask('${s._id}')"><i class="ti ti-plus"></i></button>
+          <button class="icon-btn" title="Hapus" onclick="deleteSubtask('${s._id}')"><i class="ti ti-trash"></i></button>
+        </div>
+        ${buildNodes(s._id, depth + 1)}`;
+    }).join('');
+  }
+  root.innerHTML = buildNodes(null, 0) || '<div style="color:var(--text-3);font-size:13px">Belum ada subtask.</div>';
+}
+
+async function addSubtask(parentId) {
+  const judul = prompt('Judul subtask:');
+  if (!judul || !judul.trim()) return;
+  try {
+    await Subtasks.create(editId, { judul: judul.trim(), parentId: parentId || null });
+    subtasks = await Subtasks.list(editId);
+    renderSubtaskTree();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function updateSubtask(id, judul) {
+  try { await Subtasks.update(id, { judul: judul.trim() }); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteSubtask(id) {
+  if (!confirm('Hapus subtask ini beserta turunannya?')) return;
+  try {
+    await Subtasks.delete(id);
+    subtasks = await Subtasks.list(editId);
+    renderSubtaskTree();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function assignSubtask(id) {
+  const sub = subtasks.find(s => s._id === id);
+  const current = new Set((sub.assignees || []).map(a => a._id || a));
+  const names = allUsers.map((u, i) => `${i+1}. ${u.namaLengkap}${current.has(u._id) ? ' ✓' : ''}`).join('\n');
+  const pick = prompt(`Masukkan nomor assignee (pisahkan koma) untuk subtask:\n${names}`,
+    allUsers.map((u,i) => current.has(u._id) ? i+1 : '').filter(Boolean).join(','));
+  if (pick === null) return;
+  const idxs = pick.split(',').map(x => parseInt(x.trim()) - 1).filter(i => i >= 0 && i < allUsers.length);
+  const assignees = idxs.map(i => allUsers[i]._id);
+  try {
+    await Subtasks.update(id, { assignees });
+    subtasks = await Subtasks.list(editId);
+    renderSubtaskTree();
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
 async function initForm() {
   loadTemplates();
-  if (user.role === 'direksi') {
-    const dirs = await Direktorat.list();
-    const wrap = document.getElementById('f-direktorat-wrap');
-    const sel  = document.getElementById('f-direktorat');
-    wrap.style.display = '';
-    // Jadikan row 4 kolom jika direktorat terlihat
-    document.getElementById('row-penugasan').style.gridTemplateColumns = 'repeat(4,1fr)';
-    dirs.forEach(d => {
-      const o = document.createElement('option'); o.value = d._id; o.textContent = d.nama;
-      sel.appendChild(o);
-    });
-    await loadPICOptions('');
-  } else {
-    await loadPICOptions(user.direktoratId?._id || user.direktoratId);
-  }
+  await loadUsers();
 
   if (editId) {
     document.getElementById('bc-title').textContent     = 'Edit Task';
     document.getElementById('form-heading').textContent = 'Edit Task';
     document.getElementById('btn-label').textContent    = 'Simpan Perubahan';
+    document.getElementById('template-picker-card').style.display = 'none';
     const { task } = await Tasks.get(editId);
     document.getElementById('f-judul').value     = task.judul;
     document.getElementById('char-count').textContent = task.judul.length;
     document.getElementById('f-deskripsi').value = task.deskripsi;
     document.getElementById('f-prioritas').value = task.prioritas;
     document.getElementById('f-deadline').value  = task.deadline?.split('T')[0] || '';
-    document.getElementById('f-pic').value       = task.picUserId?._id || task.picUserId || '';
-    task.tags?.forEach(t => { if (!tags.includes(t)) tags.push(t); });
-    renderTags();
-    task.collaborators?.forEach(c => selectedCollabs.add(c._id || c));
-    renderCollabGrid();
+    (task.assignees || []).forEach(a => selectedAssignees.add(a._id || a));
+    renderAssigneeGrid();
+
+    // Subtask editor (req #11)
+    document.getElementById('subtask-card').style.display = '';
+    subtasks = await Subtasks.list(editId);
+    renderSubtaskTree();
   }
 }
 
 async function submitForm() {
   const judul    = document.getElementById('f-judul').value.trim();
   const deskripsi= document.getElementById('f-deskripsi').value.trim();
-  const picUserId= document.getElementById('f-pic').value;
   const prioritas= document.getElementById('f-prioritas').value;
   const deadline = document.getElementById('f-deadline').value;
+  const assignees= [...selectedAssignees];
 
-  if (!judul)    { showToast('Judul task wajib diisi', 'error'); return; }
-  if (!deskripsi){ showToast('Deskripsi wajib diisi', 'error'); return; }
-  if (!picUserId){ showToast('PIC wajib dipilih', 'error'); return; }
-  if (!deadline) { showToast('Deadline wajib diisi', 'error'); return; }
+  if (!judul)         { showToast('Judul task wajib diisi', 'error'); return; }
+  if (!deskripsi)     { showToast('Deskripsi wajib diisi', 'error'); return; }
+  if (!assignees.length) { showToast('Pilih minimal satu assignee', 'error'); return; }
+  if (!deadline)      { showToast('Deadline wajib diisi', 'error'); return; }
 
   const btn = document.getElementById('btn-submit');
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> Menyimpan...';
 
   try {
-    const payload = { judul, deskripsi, picUserId, prioritas, deadline, tags, collaborators: [...selectedCollabs] };
+    const payload = { judul, deskripsi, prioritas, deadline, assignees };
     if (editId) {
       await Tasks.update(editId, payload);
       showToast('Task berhasil diupdate');
       setTimeout(() => window.location.href = `/pages/task.html?id=${editId}`, 700);
     } else {
-      const { task, warningDuplikasi } = await Tasks.create(payload);
-      if (warningDuplikasi) {
-        document.getElementById('warn-dup').style.display = 'flex';
-        document.getElementById('warn-dup-text').textContent = warningDuplikasi;
-      }
+      const { task } = await Tasks.create(payload);
       showToast('Task berhasil dibuat');
       setTimeout(() => window.location.href = `/pages/task.html?id=${task._id}`, 700);
     }

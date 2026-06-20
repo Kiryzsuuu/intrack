@@ -17,9 +17,9 @@ async function hitungKpiManager(userId, bulan, tahun) {
   const awalPeriode = new Date(tahun, bulan - 1, 1);
   const akhirPeriode = new Date(tahun, bulan, 0, 23, 59, 59);
 
-  // Task yang di-assign ke user ini (sebagai PIC) dalam periode
+  // Task yang di-assign ke user ini dalam periode
   const tasks = await Task.find({
-    picUserId: userId,
+    assignees: userId,
     isDeleted: false,
     // task dipertimbangkan jika dibuat dalam periode atau deadline dalam periode
     $or: [
@@ -29,7 +29,7 @@ async function hitungKpiManager(userId, bulan, tahun) {
   });
 
   const totalAssigned = tasks.length;
-  const doneTasks     = tasks.filter(t => t.status === 'done');
+  const doneTasks     = tasks.filter(t => t.status === 'complete');
   const totalDone     = doneTasks.length;
 
   // Ketepatan waktu: done sebelum/tepat deadline

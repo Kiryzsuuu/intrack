@@ -21,16 +21,16 @@ router.post('/', auth, async (req, res) => {
   const { taskId, isi } = req.body;
   if (!taskId || !isi) return res.status(400).json({ message: 'taskId dan isi wajib' });
 
-  const task = await Task.findById(taskId).populate('picUserId').populate('dibuatOleh');
+  const task = await Task.findById(taskId).populate('dibuatOleh');
   if (!task || task.isDeleted)
     return res.status(404).json({ message: 'Task tidak ditemukan' });
 
-  // Cek akses: Direksi, PIC, atau Collaborator
-  const isDireksi  = req.user.role === 'direksi';
-  const isPIC      = task.picUserId._id.toString() === req.user._id.toString();
-  const isCollab   = (task.collaborators || []).map(c => c.toString()).includes(req.user._id.toString());
-  if (!isDireksi && !isPIC && !isCollab)
-    return res.status(403).json({ message: 'Hanya Direksi, PIC, atau Collaborator yang dapat berkomentar' });
+  // Cek akses: Direksi, creator, atau assignee
+  const isDireksi  = ['direksi', 'superadmin'].includes(req.user.role);
+  const isCreator  = (task.dibuatOleh._id?.toString() || task.dibuatOleh.toString()) === req.user._id.toString();
+  const isAssignee = (task.assignees || []).map(c => c.toString()).includes(req.user._id.toString());
+  if (!isDireksi && !isCreator && !isAssignee)
+    return res.status(403).json({ message: 'Hanya Direksi, pembuat, atau assignee yang dapat menambah notes' });
 
   // Parse mentions @[nama] → cari user id
   const mentionMatches = [...isi.matchAll(/@\[([^\]]+)\]/g)];
@@ -42,9 +42,9 @@ router.post('/', auth, async (req, res) => {
 
   const kom = await Komentar.create({ taskId, userId: req.user._id, isi, mentions });
 
-  // Notifikasi ke PIC, pembuat, dan mention
+  // Notifikasi ke assignee, pembuat, dan mention
   const notifTargets = new Set([
-    task.picUserId._id.toString(),
+    ...(task.assignees || []).map(a => a.toString()),
     task.dibuatOleh._id?.toString() || task.dibuatOleh.toString(),
     ...mentions.map(m => m.toString()),
   ]);
@@ -53,7 +53,7 @@ router.post('/', auth, async (req, res) => {
   // Push notif ke semua yang terlibat kecuali pengirim
   const pushTargets = [...notifTargets].filter(id => id !== req.user._id.toString());
   push.sendPushMany(pushTargets, {
-    title: `💬 Komentar baru di "${task.judul}"`,
+    title: `📝 Note baru di "${task.judul}"`,
     body:  `${req.user.namaLengkap}: ${isi.slice(0, 80)}`,
     url:   `/pages/task.html?id=${task._id}`,
   }).catch(() => {});

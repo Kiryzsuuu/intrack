@@ -123,7 +123,7 @@ router.get('/tasks/excel', auth, async (req, res) => {
   }
 
   const tasks = await Task.find(filter)
-    .populate('picUserId', 'namaLengkap')
+    .populate('assignees', 'namaLengkap')
     .populate('direktoratId', 'nama')
     .sort({ createdAt: -1 });
 
@@ -131,7 +131,7 @@ router.get('/tasks/excel', auth, async (req, res) => {
   const ws = wb.addWorksheet('Tasks');
   ws.columns = [
     { header: 'Judul',       key: 'judul',      width: 40 },
-    { header: 'PIC',         key: 'pic',        width: 22 },
+    { header: 'Assignee',    key: 'pic',        width: 22 },
     { header: 'Direktorat',  key: 'dir',        width: 22 },
     { header: 'Status',      key: 'status',     width: 18 },
     { header: 'Prioritas',   key: 'prioritas',  width: 12 },
@@ -141,7 +141,7 @@ router.get('/tasks/excel', auth, async (req, res) => {
   ws.getRow(1).font = { bold: true };
   tasks.forEach(t => ws.addRow({
     judul:    t.judul,
-    pic:      t.picUserId?.namaLengkap || '-',
+    pic:      (t.assignees || []).map(a => a.namaLengkap).join(', ') || '-',
     dir:      t.direktoratId?.nama || '-',
     status:   t.status,
     prioritas:t.prioritas,
@@ -157,7 +157,7 @@ router.get('/tasks/excel', auth, async (req, res) => {
 
 // ── GET /api/reports/workload — beban kerja per user ─────────────────────────
 router.get('/workload', auth, async (req, res) => {
-  const ACTIVE_STATUS = ['to_do','in_progress','perlu_review','revisi','menunggu_approval'];
+  const ACTIVE_STATUS = ['to_do','on_progress','partially_complete'];
 
   // Hanya direksi/superadmin bisa lihat semua; manager hanya direktoratnya
   const userFilter = { statusAktif: true, role: { $in: ['manager','staff'] } };
@@ -174,13 +174,13 @@ router.get('/workload', auth, async (req, res) => {
 
   const workload = await Promise.all(users.map(async u => {
     const [active, done, overdue] = await Promise.all([
-      Task.countDocuments({ picUserId: u._id, status: { $in: ACTIVE_STATUS }, isDeleted: false }),
-      Task.countDocuments({ picUserId: u._id, status: 'done', isDeleted: false }),
-      Task.countDocuments({ picUserId: u._id, status: { $in: ACTIVE_STATUS }, deadline: { $lt: now }, isDeleted: false }),
+      Task.countDocuments({ assignees: u._id, status: { $in: ACTIVE_STATUS }, isDeleted: false }),
+      Task.countDocuments({ assignees: u._id, status: 'complete', isDeleted: false }),
+      Task.countDocuments({ assignees: u._id, status: { $in: ACTIVE_STATUS }, deadline: { $lt: now }, isDeleted: false }),
     ]);
     const breakdown = {};
     for (const s of ACTIVE_STATUS) {
-      breakdown[s] = await Task.countDocuments({ picUserId: u._id, status: s, isDeleted: false });
+      breakdown[s] = await Task.countDocuments({ assignees: u._id, status: s, isDeleted: false });
     }
     return {
       user: { _id: u._id, namaLengkap: u.namaLengkap, email: u.email, fotoProfil: u.fotoProfil, role: u.role, direktoratId: u.direktoratId },

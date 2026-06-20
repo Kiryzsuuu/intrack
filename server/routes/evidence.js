@@ -5,13 +5,13 @@ const Task     = require('../models/Task');
 const auth     = require('../middleware/auth');
 const { upload } = require('../middleware/upload');
 
-function canAccessEvidence(user, task) {
-  if (user.role === 'direksi') return true;
-  const userDir = user.direktoratId?._id?.toString() || user.direktoratId?.toString();
-  const taskDir = task.direktoratId?.toString();
-  if (userDir !== taskDir) return false;
-  const isCollab = (task.collaborators || []).map(c => c.toString()).includes(user._id.toString());
-  return task.picUserId.toString() === user._id.toString() || isCollab;
+// Req #3: semua user bisa melihat task & evidence
+function canAccessEvidence() { return true; }
+
+function canEditEvidence(user, task) {
+  if (['direksi', 'superadmin'].includes(user.role)) return true;
+  if ((task.dibuatOleh?.toString() || '') === user._id.toString()) return true;
+  return (task.assignees || []).map(c => c.toString()).includes(user._id.toString());
 }
 
 // GET /api/evidence?taskId=xxx
@@ -38,11 +38,11 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
   if (!task || task.isDeleted)
     return res.status(404).json({ message: 'Task tidak ditemukan' });
 
-  // Hanya PIC yang bisa upload
-  if (task.picUserId.toString() !== req.user._id.toString() && req.user.role !== 'direksi')
-    return res.status(403).json({ message: 'Hanya PIC yang dapat upload evidence' });
+  // Hanya assignee/creator yang bisa upload
+  if (!canEditEvidence(req.user, task))
+    return res.status(403).json({ message: 'Hanya assignee atau pembuat yang dapat upload file' });
 
-  if (task.status === 'done' && req.user.role !== 'direksi')
+  if (task.status === 'complete' && req.user.role !== 'direksi')
     return res.status(400).json({ message: 'Task sudah Done, tidak dapat upload evidence baru' });
 
   // Cek limit 10 file
@@ -68,14 +68,13 @@ router.delete('/:id', auth, async (req, res) => {
   if (!ev) return res.status(404).json({ message: 'Evidence tidak ditemukan' });
 
   const task = await Task.findById(ev.taskId);
-  const isPIC = task.picUserId.toString() === req.user._id.toString();
 
-  if (task.status === 'done') {
+  if (task.status === 'complete') {
     if (req.user.role !== 'direksi')
-      return res.status(403).json({ message: 'Evidence task Done hanya dapat dihapus oleh Direksi' });
+      return res.status(403).json({ message: 'File task selesai hanya dapat dihapus oleh Direksi' });
   } else {
-    if (!isPIC && req.user.role !== 'direksi')
-      return res.status(403).json({ message: 'Hanya PIC yang dapat menghapus evidence' });
+    if (!canEditEvidence(req.user, task))
+      return res.status(403).json({ message: 'Hanya assignee atau pembuat yang dapat menghapus file' });
   }
 
   // Hapus file fisik

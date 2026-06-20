@@ -3,8 +3,9 @@ const mongoose = require('mongoose');
 const taskSchema = new mongoose.Schema({
   judul:        { type: String, required: true, maxlength: 150, trim: true },
   deskripsi:    { type: String, required: true },
-  picUserId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  dibuatOleh:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  // Multi-assignee: orang-orang yang mengerjakan task ini
+  assignees:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  dibuatOleh:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // creator
   direktoratId: { type: mongoose.Schema.Types.ObjectId, ref: 'Direktorat', required: true },
   prioritas:    { type: String, enum: ['normal', 'moderate', 'urgent'], default: 'normal' },
   status: {
@@ -13,8 +14,10 @@ const taskSchema = new mongoose.Schema({
     default: 'to_do',
   },
   deadline:        { type: Date, required: true },
-  tags:            { type: [String], default: [], validate: v => v.length <= 5 },
-  collaborators:   [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // Assignee yang sudah menandai bagiannya selesai (menunggu approval creator)
+  completedBy:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // True saat semua assignee selesai & menunggu approval creator
+  pendingApproval: { type: Boolean, default: false },
   catatanDireksi:  { type: String, default: null },
   isDeleted:       { type: Boolean, default: false },
   deletedAt:       { type: Date, default: null },
@@ -35,7 +38,7 @@ const taskSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 taskSchema.index({ direktoratId: 1, status: 1 });
-taskSchema.index({ picUserId: 1, status: 1 });
+taskSchema.index({ assignees: 1, status: 1 });
 taskSchema.index({ deadline: 1 });
 
 module.exports = mongoose.model('Task', taskSchema);

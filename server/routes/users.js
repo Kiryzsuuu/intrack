@@ -25,6 +25,18 @@ router.get('/', auth, requireRole('direksi'), async (req, res) => {
   res.json(users);
 });
 
+// GET /api/users/selectable — daftar user aktif untuk dipilih sebagai assignee (semua user login)
+router.get('/selectable', auth, async (req, res) => {
+  const { search } = req.query;
+  const filter = { statusAktif: true };
+  if (search) filter.namaLengkap = { $regex: search, $options: 'i' };
+  const users = await User.find(filter)
+    .select('namaLengkap email fotoProfil role direktoratId statusAktif')
+    .populate('direktoratId', 'nama kode')
+    .sort({ namaLengkap: 1 });
+  res.json(users);
+});
+
 // GET /api/users/mention — autocomplete @mention, semua authenticated user bisa akses
 router.get('/mention', auth, async (req, res) => {
   const { q } = req.query;

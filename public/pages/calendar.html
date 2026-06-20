@@ -165,13 +165,10 @@ const PRIO_COLOR = {
   low:      { bg:'#F0FDF4', text:'#166534', dot:'#10B981' },
 };
 const STATUS_COLOR = {
-  done:             { bg:'#DCFCE7', text:'#166534' },
-  menunggu_approval:{ bg:'#FFF7ED', text:'#9A3412' },
-  in_progress:      { bg:'#EFF6FF', text:'#1E40AF' },
-  perlu_review:     { bg:'#F5F3FF', text:'#4C1D95' },
-  revisi:           { bg:'#FEF2F2', text:'#991B1B' },
-  to_do:            { bg:'#F4F4F5', text:'#71717A' },
-  ditolak:          { bg:'#F4F4F5', text:'#71717A' },
+  complete:           { bg:'#DCFCE7', text:'#166534' },
+  partially_complete: { bg:'#F5F3FF', text:'#4C1D95' },
+  on_progress:        { bg:'#EFF6FF', text:'#1E40AF' },
+  to_do:              { bg:'#F4F4F5', text:'#71717A' },
 };
 
 let curYear  = new Date().getFullYear();
@@ -277,7 +274,7 @@ function openDay(d) {
         <div class="dp-dot" style="background:${over?'#EF4444':pc.dot}"></div>
         <div>
           <div class="dp-title">${t.judul}</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:2px">${t.picUserId?.namaLengkap||'—'} · ${t.direktoratId?.kode||'—'}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px">${assigneeNames(t)} · ${t.direktoratId?.kode||'—'}</div>
         </div>
         <span class="dp-badge" style="background:${sc.bg};color:${sc.text}">${statusLabel(t.status)}</span>
         ${over ? '<span style="color:#EF4444;font-size:12px;font-weight:700">Overdue</span>' : ''}

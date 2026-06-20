@@ -204,11 +204,9 @@ function renderCards() {
 
   const maxLoad = window._maxLoad || 1;
   const STATUS_MAP = {
-    to_do:             { label:'To Do',            color:'#6B7280' },
-    in_progress:       { label:'In Progress',      color:'#3B82F6' },
-    perlu_review:      { label:'Perlu Review',     color:'#8B5CF6' },
-    revisi:            { label:'Revisi',            color:'#EF4444' },
-    menunggu_approval: { label:'Menunggu Approval',color:'#F59E0B' },
+    to_do:              { label:'To Do',             color:'#6B7280' },
+    on_progress:        { label:'On Progress',       color:'#3B82F6' },
+    partially_complete: { label:'Partially Complete',color:'#8B5CF6' },
   };
 
   document.getElementById('wl-grid').innerHTML = data.map(w => {

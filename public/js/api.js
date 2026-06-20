@@ -137,6 +137,11 @@ const Users = {
   async managersByDirektorat(id) {
     return apiFetch(`/users/managers-direktorat/${id}`);
   },
+  // Daftar user aktif yang bisa dipilih sebagai assignee (semua user login)
+  async selectable(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return apiFetch('/users/selectable' + (qs ? '?' + qs : ''));
+  },
   async get(id) { return apiFetch(`/users/${id}`); },
   async create(data) {
     return apiFetch('/users', { method: 'POST', body: JSON.stringify(data) });
@@ -186,6 +191,14 @@ const Tasks = {
       body: JSON.stringify({ statusBaru, catatan }),
     });
   },
+  // Assignee menandai bagiannya selesai (atau membatalkan)
+  async completeMine(id, done = true) {
+    return apiFetch(`/tasks/${id}/complete-mine`, { method: 'POST', body: JSON.stringify({ done }) });
+  },
+  // Creator menyetujui penyelesaian (atau menolak/revisi)
+  async approve(id, approve = true) {
+    return apiFetch(`/tasks/${id}/approve`, { method: 'POST', body: JSON.stringify({ approve }) });
+  },
   async delete(id) {
     return apiFetch(`/tasks/${id}`, { method: 'DELETE' });
   },
@@ -219,6 +232,7 @@ const Channels = {
 // ── Subtasks ──────────────────────────────────────────────────────────────────
 const Subtasks = {
   async list(taskId) { return apiFetch(`/subtasks?taskId=${taskId}`); },
+  // data dapat berisi { judul, parentId, assignees, dueDate, priority }
   async create(taskId, data) {
     return apiFetch('/subtasks', { method: 'POST', body: JSON.stringify({ taskId, ...data }) });
   },
@@ -294,25 +308,6 @@ const SiteSettings = {
     const fd = new FormData();
     fd.append('logo', file);
     return apiUpload('/site-settings/logo', fd);
-  },
-};
-
-// ── TimeLog ───────────────────────────────────────────────────────────────────
-const TimeLog = {
-  async list(params = {}) {
-    const qs = new URLSearchParams(params).toString();
-    return apiFetch('/timelog' + (qs ? '?' + qs : ''));
-  },
-  async log(taskId, durasiMenit, catatan = '', tanggal = null) {
-    return apiFetch('/timelog', {
-      method: 'POST',
-      body: JSON.stringify({ taskId, durasiMenit, catatan, tanggal }),
-    });
-  },
-  async delete(id) { return apiFetch(`/timelog/${id}`, { method: 'DELETE' }); },
-  async summary(params = {}) {
-    const qs = new URLSearchParams(params).toString();
-    return apiFetch('/timelog/summary' + (qs ? '?' + qs : ''));
   },
 };
 
@@ -447,6 +442,21 @@ function prioritasBadgeClass(p) {
 function isOverdue(task) {
   return task.deadline && new Date(task.deadline) < new Date() &&
     task.status !== 'complete';
+}
+
+// Nama assignee (gabungan) untuk ditampilkan di list/board/dll
+function assigneeNames(t) {
+  const a = t.assignees || [];
+  if (!a.length) return '-';
+  return a.map(x => x.namaLengkap || '').filter(Boolean).join(', ') || '-';
+}
+// Assignee pertama (untuk avatar ringkas)
+function firstAssignee(t) {
+  return (t.assignees || [])[0] || null;
+}
+// Apakah task ini di-assign ke user tertentu
+function isMyTask(t, userId) {
+  return (t.assignees || []).some(a => (a._id || a) === userId);
 }
 
 function initials(nama) {

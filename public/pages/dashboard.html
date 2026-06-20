@@ -338,7 +338,7 @@ function buildMyTasks() {
   const isAdmin = ['direksi', 'superadmin'].includes(user?.role);
   const myTasksRaw = isAdmin
     ? _tasks.filter(t => t.status !== 'complete')
-    : _tasks.filter(t => t.picUserId?._id === user?._id || t.picUserId === user?._id);
+    : _tasks.filter(t => isMyTask(t, user?._id));
   const myTasks = myTasksRaw.slice(0, 7);
 
   const title = isAdmin ? 'Task Terbaru' : 'Task Saya';
@@ -676,25 +676,21 @@ function toggleWidget(id, on) {
 async function renderActivityFeed() {
   const el = document.getElementById('activity-feed');
   if (!el) return;
-  try {
-    const { logs } = await apiFetch('/timelog?limit=10');
-    if (!logs?.length) { el.innerHTML = '<div class="empty"><i class="ti ti-activity"></i><p>Belum ada aktivitas</p></div>'; return; }
-    el.innerHTML = logs.map(l => {
-      const inits = (l.userId?.namaLengkap || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-      const jam   = Math.floor(l.durasiMenit / 60);
-      const mnt   = l.durasiMenit % 60;
-      const dur   = (jam > 0 ? jam + 'j ' : '') + mnt + 'm';
-      const tgl   = new Date(l.tanggal).toLocaleDateString('id-ID', { day:'numeric', month:'short' });
-      return `
-        <div class="act-item">
-          <div class="act-av">${inits}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:600">${l.userId?.namaLengkap||'—'} <span style="color:var(--text-3);font-weight:400">mencatat</span> <span style="color:var(--accent)">${dur}</span></div>
-            <div style="font-size:11px;color:var(--text-3)">${tgl}${l.catatan?' · '+l.catatan:''}</div>
-          </div>
-        </div>`;
-    }).join('');
-  } catch { /* silent */ }
+  // Tampilkan task terbaru sebagai aktivitas (time tracking dihapus)
+  const recent = (_tasks || []).slice().sort((a,b) => new Date(b.updatedAt||b.createdAt) - new Date(a.updatedAt||a.createdAt)).slice(0, 10);
+  if (!recent.length) { el.innerHTML = '<div class="empty"><i class="ti ti-activity"></i><p>Belum ada aktivitas</p></div>'; return; }
+  el.innerHTML = recent.map(t => {
+    const inits = initials(firstAssignee(t)?.namaLengkap || '?');
+    const tgl   = new Date(t.updatedAt || t.createdAt).toLocaleDateString('id-ID', { day:'numeric', month:'short' });
+    return `
+      <div class="act-item" onclick="window.location='/pages/task.html?id=${t._id}'" style="cursor:pointer">
+        <div class="act-av">${inits}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600">${t.judul}</div>
+          <div style="font-size:11px;color:var(--text-3)">${statusLabel(t.status)} · ${tgl}</div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 /* ── Init ────────────────────────────────────────────────────────── */

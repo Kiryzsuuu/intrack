@@ -175,7 +175,7 @@
               </div>
               <div style="flex:1;min-width:0">
                 <div class="gs-item-title">${highlight(t.judul, q)}${overdueTag}</div>
-                <div class="gs-item-sub">${t.picUserId?.namaLengkap || '—'} · ${t.direktoratId?.kode || '—'} · ${formatTanggal(t.deadline)}</div>
+                <div class="gs-item-sub">${assigneeNames(t)} · ${t.direktoratId?.kode || '—'} · ${formatTanggal(t.deadline)}</div>
               </div>
               <span class="gs-item-badge" style="background:${sc}20;color:${sc}">${statusLabel(t.status)}</span>
             </a>`;
@@ -192,7 +192,7 @@
             ? `<img src="${u.fotoProfil}" style="width:32px;height:32px;border-radius:8px;object-fit:cover">`
             : `<div style="width:32px;height:32px;border-radius:8px;background:#5B4FE8;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">${inits}</div>`;
           html += `
-            <a class="gs-item" href="/pages/task.html?picUserId=${u._id}" onclick="closeGlobalSearch()">
+            <a class="gs-item" href="/pages/list.html?assigneeId=${u._id}" onclick="closeGlobalSearch()">
               ${avHtml}
               <div style="flex:1;min-width:0">
                 <div class="gs-item-title">${highlight(u.namaLengkap, q)}</div>

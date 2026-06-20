@@ -27,26 +27,29 @@ function startCronJobs() {
         const tasks = await Task.find({
           isDeleted:    false,
           archivedAt:   null,
-          status:       { $nin: ['perlu_review', 'done', 'ditolak'] },
+          status:       { $ne: 'complete' },
           deadline:     { $gte: mulai, $lte: targetDate },
-        }).populate('picUserId');
+        }).populate('assignees');
 
         for (const task of tasks) {
-          const pic = task.picUserId;
-          if (!pic) continue;
-          await notifSvc.notifDeadlineReminder(pic, task, hari);
-          if (pic.notifEmail) await mailer.mailDeadlineReminder(pic, task, hari).catch(() => {});
-          await wa.sendWADeadlineReminder(pic, task, hari);
+          const assignees = task.assignees || [];
+          for (const pic of assignees) {
+            if (!pic) continue;
+            await notifSvc.notifDeadlineReminder(pic, task, hari);
+            if (pic.notifEmail) await mailer.mailDeadlineReminder(pic, task, hari).catch(() => {});
+            await wa.sendWADeadlineReminder(pic, task, hari);
+          }
 
           // H-1: notif ke Direksi juga
           if (hari === 1) {
+            const namaAssignee = assignees.map(a => a.namaLengkap).join(', ') || '-';
             const direksi = await User.find({ role: 'direksi', statusAktif: true });
             for (const d of direksi) {
               await notifSvc.buatNotifikasi({
                 userId: d._id,
                 jenis:  'reminder_deadline_direksi',
                 judul:  `Task mendekati deadline H-1`,
-                isi:    `Task "${task.judul}" (${pic.namaLengkap}) deadline besok`,
+                isi:    `Task "${task.judul}" (${namaAssignee}) deadline besok`,
                 taskId: task._id,
               });
             }
@@ -70,22 +73,25 @@ function startCronJobs() {
       const tasks = await Task.find({
         isDeleted:  false,
         archivedAt: null,
-        status:     { $nin: ['done', 'ditolak'] },
+        status:     { $ne: 'complete' },
         deadline:   { $gte: kemarin, $lte: kemarinAkhir },
-      }).populate('picUserId');
+      }).populate('assignees');
 
       const direksi = await User.find({ role: 'direksi', statusAktif: true });
 
       for (const task of tasks) {
-        const pic = task.picUserId;
-        if (!pic) continue;
-        await notifSvc.notifOverdue(pic, task);
+        const assignees = task.assignees || [];
+        for (const pic of assignees) {
+          if (!pic) continue;
+          await notifSvc.notifOverdue(pic, task);
+        }
+        const namaAssignee = assignees.map(a => a.namaLengkap).join(', ') || '-';
         for (const d of direksi) {
           await notifSvc.buatNotifikasi({
             userId: d._id,
             jenis:  'task_overdue_direksi',
             judul:  'Task overdue',
-            isi:    `Task "${task.judul}" (${pic.namaLengkap}) sudah melewati deadline`,
+            isi:    `Task "${task.judul}" (${namaAssignee}) sudah melewati deadline`,
             taskId: task._id,
           });
         }
@@ -95,14 +101,15 @@ function startCronJobs() {
     }
   });
 
-  // ── Setiap jam 10:00 hari kerja — revisi terbengkalai > 2 hari kerja ─────────
+  // ── Setiap jam 10:00 hari kerja — approval terbengkalai > 2 hari kerja ───────
   cron.schedule('0 10 * * 1-5', async () => {
     try {
       const tasks = await Task.find({
         isDeleted:  false,
         archivedAt: null,
-        status:     'revisi',
-      }).populate('picUserId');
+        pendingApproval: true,
+        status:     { $ne: 'complete' },
+      }).populate('dibuatOleh');
 
       for (const task of tasks) {
         const lastUpdate = task.updatedAt;
@@ -114,12 +121,18 @@ function startCronJobs() {
           if (hariKerjaCount > 2) break;
         }
         if (hariKerjaCount > 2) {
-          const pic = task.picUserId;
-          if (pic) await notifSvc.notifRevisiTerbengkalai(pic, task);
+          const creator = task.dibuatOleh;
+          if (creator) await notifSvc.buatNotifikasi({
+            userId: creator._id,
+            jenis:  'approval_terbengkalai',
+            judul:  'Menunggu approval Anda',
+            isi:    `Task "${task.judul}" menunggu persetujuan penyelesaian`,
+            taskId: task._id,
+          });
         }
       }
     } catch (err) {
-      console.error('[Cron Revisi]', err.message);
+      console.error('[Cron Approval]', err.message);
     }
   });
 
@@ -129,7 +142,7 @@ function startCronJobs() {
       const batas = new Date();
       batas.setDate(batas.getDate() - 90);
       await Task.updateMany(
-        { status: 'done', doneAt: { $lt: batas }, archivedAt: null, isDeleted: false },
+        { status: 'complete', doneAt: { $lt: batas }, archivedAt: null, isDeleted: false },
         { archivedAt: new Date() }
       );
     } catch (err) {
@@ -162,9 +175,9 @@ function startCronJobs() {
       const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
 
       const [pendingApproval, overdueTasks, dueToday] = await Promise.all([
-        Task.countDocuments({ status: 'menunggu_approval', isDeleted: false }),
-        Task.countDocuments({ status: { $nin: ['done', 'ditolak'] }, deadline: { $lt: now }, isDeleted: false }),
-        Task.countDocuments({ deadline: { $gte: todayStart, $lte: today }, status: { $nin: ['done', 'ditolak'] }, isDeleted: false }),
+        Task.countDocuments({ pendingApproval: true, isDeleted: false }),
+        Task.countDocuments({ status: { $ne: 'complete' }, deadline: { $lt: now }, isDeleted: false }),
+        Task.countDocuments({ deadline: { $gte: todayStart, $lte: today }, status: { $ne: 'complete' }, isDeleted: false }),
       ]);
 
       for (const d of direksi) {
@@ -185,7 +198,6 @@ function startCronJobs() {
         'recurrence.tipe': { $ne: 'none' },
         'recurrence.nextRun': { $lte: now },
         isDeleted: false,
-        status: { $nin: ['ditolak'] },
       });
 
       for (const parent of tasks) {
@@ -202,13 +214,11 @@ function startCronJobs() {
         await Task.create({
           judul:        parent.judul,
           deskripsi:    parent.deskripsi,
-          picUserId:    parent.picUserId,
+          assignees:    parent.assignees,
           dibuatOleh:   parent.dibuatOleh,
           direktoratId: parent.direktoratId,
           prioritas:    parent.prioritas,
           deadline:     newDeadline,
-          tags:         parent.tags,
-          collaborators:parent.collaborators,
           templateId:   parent.templateId,
           recurrence: { tipe, interval, parentId: parent._id },
         });

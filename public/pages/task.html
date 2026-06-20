@@ -164,32 +164,15 @@
             </div>
             <div class="prog-track" style="margin-bottom:12px"><div class="prog-fill" id="subtask-bar" style="width:0%"></div></div>
             <div id="subtask-list"></div>
-            <div id="add-subtask-form" style="display:none;margin-top:10px">
-              <div style="display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:10px">
-                <input type="text" id="new-subtask" class="input" placeholder="Judul subtask..." maxlength="100">
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-                  <select id="new-sub-priority" class="input" style="font-size:12px">
-                    <option value="low">🟢 Low</option>
-                    <option value="medium" selected>🟡 Medium</option>
-                    <option value="high">🔴 High</option>
-                  </select>
-                  <input type="date" id="new-sub-duedate" class="input" style="font-size:12px" title="Due date">
-                  <select id="new-sub-assignee" class="input" style="font-size:12px">
-                    <option value="">— Assign ke —</option>
-                  </select>
-                </div>
-                <div style="display:flex;gap:6px;justify-content:flex-end">
-                  <button class="btn" style="font-size:12px" onclick="document.getElementById('add-subtask-form').style.display='none'">Batal</button>
-                  <button class="btn btn-primary" style="font-size:12px" onclick="addSubtask()"><i class="ti ti-plus"></i> Tambah</button>
-                </div>
-              </div>
+            <div id="subtask-edit-hint" style="display:none;margin-top:10px;font-size:12px;color:var(--text-3)">
+              <i class="ti ti-info-circle"></i> Tambah / ubah subtask lewat tombol <strong>Edit</strong> task.
             </div>
           </div>
 
           <!-- Evidence -->
           <div class="section-card">
             <div class="section-head">
-              <span class="section-title">Evidence</span>
+              <span class="section-title">Lampiran File</span>
               <label id="upload-ev-btn" class="btn" style="cursor:pointer;display:none">
                 <i class="ti ti-upload"></i> Upload
                 <input type="file" id="ev-file" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" onchange="uploadEvidence()">
@@ -198,13 +181,13 @@
             <div id="evidence-list"><div style="color:var(--text-3);font-size:13px">Belum ada evidence</div></div>
           </div>
 
-          <!-- Komentar -->
+          <!-- Notes -->
           <div class="section-card">
-            <div class="section-head"><span class="section-title">Komentar</span></div>
+            <div class="section-head"><span class="section-title">Notes</span></div>
             <div id="komentar-list"></div>
             <div style="margin-top:12px;display:flex;gap:8px;position:relative" id="komentar-form">
               <div style="flex:1;position:relative">
-                <textarea id="new-kom" class="input" rows="2" placeholder="Tulis komentar... ketik @ untuk mention" style="resize:vertical;width:100%" onkeyup="onKomKeyup(event)" onkeydown="onKomKeydown(event)"></textarea>
+                <textarea id="new-kom" class="input" rows="2" placeholder="Tulis note... ketik @ untuk mention" style="resize:vertical;width:100%" onkeyup="onKomKeyup(event)" onkeydown="onKomKeydown(event)"></textarea>
               </div>
               <button class="btn btn-primary" onclick="sendKomentar()" style="height:fit-content;align-self:flex-end"><i class="ti ti-send"></i></button>
             </div>
@@ -215,7 +198,7 @@
           <div class="section-card" id="task-chat-section" style="display:none">
             <div class="section-head">
               <span class="section-title"><i class="ti ti-message-circle" style="font-size:14px;margin-right:4px"></i>Direct Message</span>
-              <span style="font-size:11px;color:var(--text-3)">Hanya creator, PIC, dan collaborator</span>
+              <span style="font-size:11px;color:var(--text-3)">Hanya creator dan assignee</span>
             </div>
             <div id="task-chat-messages" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;padding:4px 0 8px"></div>
             <div style="margin-top:10px;display:flex;gap:8px;align-items:flex-end">
@@ -224,44 +207,6 @@
             </div>
           </div>
 
-          <!-- Time Tracking -->
-          <div class="section-card" id="timelog-section" style="display:none">
-            <div class="section-head">
-              <span class="section-title"><i class="ti ti-clock" style="font-size:14px;margin-right:4px"></i>Time Tracking</span>
-              <span id="timelog-total" style="font-size:12px;color:var(--text-3)"></span>
-            </div>
-            <div id="timelog-form" style="display:none;margin-bottom:14px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:14px;gap:10px;flex-direction:column">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <div>
-                  <label style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Durasi (menit)</label>
-                  <input type="number" id="tl-menit" class="input" min="1" max="1440" placeholder="contoh: 90">
-                </div>
-                <div>
-                  <label style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Tanggal</label>
-                  <input type="date" id="tl-tanggal" class="input">
-                </div>
-              </div>
-              <input type="text" id="tl-catatan" class="input" placeholder="Catatan (opsional)...">
-              <div style="display:flex;gap:8px;justify-content:flex-end">
-                <button class="btn" onclick="cancelTimeLog()">Batal</button>
-                <button class="btn btn-primary" onclick="submitTimeLog()"><i class="ti ti-check"></i> Simpan</button>
-              </div>
-            </div>
-            <!-- Stopwatch -->
-            <div id="stopwatch-bar" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:10px 14px">
-              <i class="ti ti-clock-play" style="font-size:18px;color:var(--accent);flex-shrink:0"></i>
-              <span id="sw-display" style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.5px;color:var(--text);min-width:80px">00:00:00</span>
-              <div style="display:flex;gap:6px;margin-left:auto">
-                <button id="sw-btn-start" class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="swStart()"><i class="ti ti-player-play"></i> Mulai</button>
-                <button id="sw-btn-stop" class="btn" style="font-size:12px;padding:6px 14px;display:none" onclick="swStop()"><i class="ti ti-player-stop"></i> Stop & Simpan</button>
-                <button id="sw-btn-discard" class="btn" style="font-size:12px;padding:6px 14px;display:none;color:var(--red-text)" onclick="swDiscard()"><i class="ti ti-x"></i></button>
-              </div>
-            </div>
-            <div id="timelog-list"></div>
-            <button class="btn" id="tl-add-btn" onclick="showTimeLogForm()" style="width:100%;margin-top:10px;justify-content:center">
-              <i class="ti ti-plus"></i> Catat Manual
-            </button>
-          </div>
 
           <!-- Task Dependencies -->
           <div class="section-card" id="dep-section" style="display:none">
@@ -317,7 +262,7 @@
         <div class="task-side">
           <div class="section-card" id="card-meta">
             <div class="section-title" style="margin-bottom:12px">Detail Task</div>
-            <div class="meta-row"><i class="ti ti-user" style="font-size:14px"></i> PIC: <strong id="m-pic">—</strong></div>
+            <div class="meta-row" style="align-items:flex-start"><i class="ti ti-users" style="font-size:14px"></i> Assignee: <strong id="m-pic" style="flex:1">—</strong></div>
             <div class="meta-row"><i class="ti ti-building" style="font-size:14px"></i> Direktorat: <strong id="m-dir">—</strong></div>
             <div class="meta-row"><i class="ti ti-calendar" style="font-size:14px"></i> Deadline: <strong id="m-deadline">—</strong></div>
             <div class="meta-row"><i class="ti ti-flag" style="font-size:14px"></i> Prioritas: <strong id="m-prio">—</strong></div>
@@ -329,7 +274,7 @@
             </div>
             <div id="m-collaborators-wrap" style="display:none">
               <div class="divider"></div>
-              <div class="section-lbl">Collaborators</div>
+              <div class="section-lbl">Status Penyelesaian Assignee</div>
               <div id="m-collaborators"></div>
             </div>
           </div>
@@ -376,7 +321,6 @@ async function loadTask() {
     renderLogs(logs);
     loadKomentar();
     loadTaskChat();
-    loadTimeLog();
     loadDependencies();
     initRecurringUI(task);
     initTemplateSection();
@@ -391,52 +335,53 @@ function renderTask(t) {
   document.getElementById('task-desc').textContent    = t.deskripsi;
   document.getElementById('task-status-badge').innerHTML = `<span class="${statusBadgeClass(t.status)}" style="font-size:12px">${statusLabel(t.status)}</span>`;
 
-  document.getElementById('m-pic').textContent     = t.picUserId?.namaLengkap || '—';
+  const assigneesArr = t.assignees || [];
+  document.getElementById('m-pic').innerHTML       = assigneesArr.length
+    ? assigneesArr.map(a => a.namaLengkap || '—').join(', ') : '—';
   document.getElementById('m-dir').textContent     = t.direktoratId?.nama || '—';
   document.getElementById('m-deadline').textContent= `${formatTanggal(t.deadline)}${isOverdue(t)?' ⚠':''}`;
   document.getElementById('m-deadline').style.color= isOverdue(t) ? 'var(--red)' : '';
   document.getElementById('m-prio').textContent    = prioritasLabel(t.prioritas);
   document.getElementById('m-creator').textContent = t.dibuatOleh?.namaLengkap || '—';
   document.getElementById('m-created').textContent = formatTanggal(t.createdAt);
+
+  const isDireksi = ['direksi','superadmin'].includes(user?.role);
+  const isPembuat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
+  const isAssignee = assigneesArr.some(a => (a._id || a) === user?._id);
+
   // Milestone
   const msEl  = document.getElementById('m-milestone');
   const msBtn = document.getElementById('m-milestone-btn');
   msEl.textContent = t.milestoneId?.judul || '—';
-  if (msBtn) msBtn.style.display = ['direksi','superadmin'].includes(user?.role) || t.picUserId?._id === user?._id ? '' : 'none';
+  if (msBtn) msBtn.style.display = (isDireksi || isPembuat) ? '' : 'none';
 
-  // Chat section — tampilkan hanya untuk creator, PIC, collaborator, direksi
+  // Chat section — tampilkan hanya untuk creator, assignee, direksi
   const chatSection = document.getElementById('task-chat-section');
   if (chatSection) {
-    const isDireksiChat = ['direksi','superadmin'].includes(user?.role);
-    const isPICChat     = t.picUserId?._id === user?._id || t.picUserId === user?._id;
-    const isCollabChat  = (t.collaborators || []).some(c => (c._id || c) === user?._id);
-    const isPembuatChat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
-    chatSection.style.display = (isDireksiChat || isPICChat || isCollabChat || isPembuatChat) ? '' : 'none';
+    chatSection.style.display = (isDireksi || isAssignee || isPembuat) ? '' : 'none';
   }
 
-  // Tags
-  const tagsEl = document.getElementById('task-tags');
-  tagsEl.innerHTML = (t.tags || []).map(g => `<span class="tag-pill">${g}</span>`).join('');
-
-  // Revisi note
-  if (t.status === 'revisi' && t.catatanDireksi) {
+  // Status penyelesaian per assignee (completedBy)
+  const completedIds = (t.completedBy || []).map(c => c._id || c);
+  if (assigneesArr.length) {
+    document.getElementById('m-collaborators-wrap').style.display = 'block';
+    document.getElementById('m-collaborators').innerHTML = assigneesArr.map(c => {
+      const done = completedIds.includes(c._id || c);
+      return `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <div class="av av-sm av-v" style="flex-shrink:0">${initials(c.namaLengkap)}</div>
+        <span style="font-size:12px;flex:1">${c.namaLengkap}</span>
+        <span style="font-size:11px;color:${done ? 'var(--green)' : 'var(--text-3)'}">${done ? '✓ Selesai' : 'Belum'}</span>
+      </div>`;
+    }).join('');
+  }
+  if (t.pendingApproval) {
     const rn = document.getElementById('revisi-note');
-    rn.textContent = '📋 Catatan revisi: ' + t.catatanDireksi;
+    rn.textContent = '⏳ Semua assignee selesai — menunggu approval pembuat task.';
     rn.style.display = 'block';
   }
 
-  // Collaborators
-  if (t.collaborators?.length) {
-    document.getElementById('m-collaborators-wrap').style.display = 'block';
-    document.getElementById('m-collaborators').innerHTML = t.collaborators.map(c => `
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <div class="av av-sm av-v" style="flex-shrink:0">${initials(c.namaLengkap)}</div>
-        <span style="font-size:12px">${c.namaLengkap}</span>
-      </div>`).join('');
-  }
-
-  const isDireksi = ['direksi','superadmin'].includes(user?.role);
-  const isPembuat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
+  // Req #10: hanya creator (atau direksi) yang dapat edit & hapus
   if (isDireksi || (isPembuat && t.status !== 'complete')) {
     document.getElementById('btn-edit').style.display = '';
   }
@@ -449,47 +394,61 @@ function renderTask(t) {
 function renderStatusActions(t) {
   const el        = document.getElementById('status-actions');
   const isDireksi = ['direksi','superadmin'].includes(user?.role);
-  const isPIC     = t.picUserId?._id === user?._id || t.picUserId === user?._id;
-  const isCollab  = (t.collaborators || []).some(c => (c._id || c) === user?._id);
   const isPembuat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
-  const canAct    = isDireksi || isPIC || isCollab || isPembuat;
+  const assigneesArr = t.assignees || [];
+  const isAssignee = assigneesArr.some(a => (a._id || a) === user?._id);
+  const completedIds = (t.completedBy || []).map(c => c._id || c);
+  const meDone = completedIds.includes(user?._id);
 
-  const statuses = [
-    { key: 'to_do',              label: 'To Do' },
-    { key: 'on_progress',        label: 'On Progress' },
-    { key: 'partially_complete', label: 'Partially Complete' },
-    { key: 'complete',           label: 'Complete' },
-  ];
+  let html = '';
 
-  if (canAct) {
-    el.innerHTML = `<select class="input" style="font-size:13px;padding:6px 10px;width:auto;min-width:170px" onchange="changeStatus(this.value);this.value='${t.status}'">
+  // Creator / direksi: dropdown status + tombol approve saat pendingApproval
+  if (isDireksi || isPembuat) {
+    const statuses = [
+      { key: 'to_do',              label: 'To Do' },
+      { key: 'on_progress',        label: 'On Progress' },
+      { key: 'partially_complete', label: 'Partially Complete' },
+      { key: 'complete',           label: 'Complete' },
+    ];
+    html += `<select class="input" style="font-size:13px;padding:6px 10px;width:auto;min-width:170px" onchange="changeStatus(this.value);this.value='${t.status}'">
       ${statuses.map(s => `<option value="${s.key}" ${s.key === t.status ? 'selected' : ''}>${s.label}</option>`).join('')}
     </select>`;
-  } else {
-    el.innerHTML = '';
+    if (t.pendingApproval && t.status !== 'complete') {
+      html += `<button class="btn btn-primary" style="font-size:13px" onclick="approveTask(true)"><i class="ti ti-check"></i> Setujui Selesai</button>`;
+      html += `<button class="btn" style="font-size:13px" onclick="approveTask(false)"><i class="ti ti-rotate"></i> Minta Revisi</button>`;
+    }
+  } else if (isAssignee && t.status !== 'complete') {
+    // Assignee: tandai bagiannya selesai (req: tiap assignee selesai sendiri)
+    html += meDone
+      ? `<span style="font-size:12px;color:var(--green);align-self:center;margin-right:6px">✓ Anda menandai selesai</span>
+         <button class="btn" style="font-size:13px" onclick="markMineDone(false)"><i class="ti ti-rotate"></i> Batalkan</button>`
+      : `<button class="btn btn-primary" style="font-size:13px" onclick="markMineDone(true)"><i class="ti ti-check"></i> Tandai Bagian Saya Selesai</button>`;
   }
 
-  if (canAct && t.status !== 'complete') {
-    document.getElementById('add-subtask-form').style.display = '';
-    document.getElementById('upload-ev-btn').style.display    = '';
-    populateSubtaskAssignee(t);
+  el.innerHTML = html;
+
+  // Upload lampiran: assignee/creator/direksi saat belum complete
+  if ((isDireksi || isPembuat || isAssignee) && t.status !== 'complete') {
+    document.getElementById('upload-ev-btn').style.display = '';
   }
 }
 
-async function populateSubtaskAssignee(task) {
+async function markMineDone(done) {
   try {
-    const users = await Users.list();
-    const sel   = document.getElementById('new-sub-assignee');
-    if (!sel) return;
-    const collabs = [
-      task.picUserId?._id || task.picUserId,
-      task.dibuatOleh?._id || task.dibuatOleh,
-      ...(task.collaborators || []).map(c => c._id || c),
-    ].filter(Boolean).map(String);
-    const relevant = users.filter(u => collabs.includes(String(u._id)));
-    sel.innerHTML = '<option value="">— Assign ke —</option>' +
-      relevant.map(u => `<option value="${u._id}">${u.namaLengkap}</option>`).join('');
-  } catch {}
+    await Tasks.completeMine(taskId, done);
+    showToast(done ? 'Bagian Anda ditandai selesai' : 'Dibatalkan');
+    await loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function approveTask(approve) {
+  if (approve && !await showConfirm('Setujui penyelesaian task ini?', { title: 'Approve Task', okLabel: 'Setujui' })) return;
+  if (!approve && !await showConfirm('Kembalikan task untuk revisi?', { title: 'Minta Revisi', okLabel: 'Minta Revisi', type: 'danger' })) return;
+  try {
+    await Tasks.approve(taskId, approve);
+    showToast(approve ? 'Task disetujui & selesai' : 'Task dikembalikan untuk revisi');
+    await loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
 function renderSubtasks(subtasks) {
@@ -501,41 +460,49 @@ function renderSubtasks(subtasks) {
   document.getElementById('subtask-progress').textContent = total ? `${done}/${total} (${pct}%)` : '';
   document.getElementById('subtask-bar').style.width      = pct + '%';
 
-  if (!total) { el.innerHTML = '<div style="color:var(--text-3);font-size:12px">Belum ada subtask</div>'; return; }
+  if (!total) { el.innerHTML = '<div style="color:var(--text-3);font-size:12px">Belum ada subtask. Tambahkan lewat tombol Edit.</div>'; return; }
 
   const prioLabel = { low: '🟢 Low', medium: '🟡 Medium', high: '🔴 High' };
+  const isDireksi = ['direksi','superadmin'].includes(user?.role);
+  const isPembuat = taskData?.dibuatOleh?._id === user?._id || taskData?.dibuatOleh === user?._id;
 
-  el.innerHTML = subtasks.map(s => {
-    const assignee  = s.assignedTo ? s.assignedTo.namaLengkap : null;
+  function children(parentId) {
+    return subtasks.filter(s => (s.parentId || null) === (parentId || null)).sort((a,b)=>a.urutan-b.urutan);
+  }
+  function nodeHtml(s, depth) {
+    const names     = (s.assignees || []).map(a => a.namaLengkap || '').filter(Boolean);
+    const meAssigned= (s.assignees || []).some(a => (a._id || a) === user?._id);
+    const canToggle = isDireksi || isPembuat || meAssigned;
     const dueDateTx = s.dueDate ? new Date(s.dueDate).toLocaleDateString('id-ID', { day:'numeric', month:'short' }) : null;
-    const isOverdue = s.dueDate && !s.isDone && new Date(s.dueDate) < new Date();
+    const overdue   = s.dueDate && !s.isDone && new Date(s.dueDate) < new Date();
     const prio      = s.priority || 'medium';
-
     return `
-    <div class="subtask-item" id="sub-${s._id}">
+    <div class="subtask-item" id="sub-${s._id}" style="margin-left:${depth*20}px">
       <div class="subtask-row1">
-        <input type="checkbox" class="subtask-cb" ${s.isDone ? 'checked' : ''} onchange="toggleSubtask('${s._id}',this.checked)">
-        <span class="subtask-txt ${s.isDone ? 'done' : ''}">${s.judul}</span>
-        <button class="btn-icon" style="width:22px;height:22px;border:none;flex-shrink:0" onclick="deleteSubtask('${s._id}')"><i class="ti ti-x" style="font-size:11px"></i></button>
+        <input type="checkbox" class="subtask-cb" ${s.isDone ? 'checked' : ''} ${canToggle ? '' : 'disabled'} onchange="toggleSubtask('${s._id}',this.checked)">
+        <span class="subtask-txt ${s.isDone ? 'done' : ''}">${depth ? '↳ ' : ''}${s.judul}</span>
       </div>
       <div class="subtask-row2">
         <span class="sub-priority ${prio}">${prioLabel[prio]}</span>
-        ${assignee ? `<span class="sub-meta"><i class="ti ti-user" style="font-size:11px"></i>${assignee}</span>` : ''}
-        ${dueDateTx ? `<span class="sub-meta" style="${isOverdue ? 'color:var(--red-text)' : ''}"><i class="ti ti-calendar" style="font-size:11px"></i>${dueDateTx}${isOverdue ? ' ⚠️' : ''}</span>` : ''}
+        ${names.length ? `<span class="sub-meta"><i class="ti ti-user" style="font-size:11px"></i>${names.join(', ')}</span>` : ''}
+        ${dueDateTx ? `<span class="sub-meta" style="${overdue ? 'color:var(--red-text)' : ''}"><i class="ti ti-calendar" style="font-size:11px"></i>${dueDateTx}${overdue ? ' ⚠️' : ''}</span>` : ''}
       </div>
-    </div>`;
-  }).join('');
+    </div>
+    ${children(s._id).map(c => nodeHtml(c, depth+1)).join('')}`;
+  }
+  el.innerHTML = children(null).map(s => nodeHtml(s, 0)).join('');
 }
 
 function renderEvidence(evidences) {
   const el = document.getElementById('evidence-list');
   if (!evidences.length) { el.innerHTML = '<div style="color:var(--text-3);font-size:13px">Belum ada evidence</div>'; return; }
 
-  const isDireksi = user?.role === 'direksi';
-  const isPIC     = taskData?.picUserId?._id === user?._id || taskData?.picUserId === user?._id;
+  const isDireksi = ['direksi','superadmin'].includes(user?.role);
+  const isCreator = taskData?.dibuatOleh?._id === user?._id || taskData?.dibuatOleh === user?._id;
+  const isAssignee= (taskData?.assignees || []).some(a => (a._id || a) === user?._id);
 
   el.innerHTML = evidences.map(ev => {
-    const canDelete = (isPIC && taskData?.status !== 'done') || isDireksi;
+    const canDelete = ((isCreator || isAssignee) && taskData?.status !== 'complete') || isDireksi;
     const ext  = (ev.namaFile || '').split('.').pop().toLowerCase();
     const icon = ['jpg','jpeg','png'].includes(ext) ? 'ti-photo'
                : ext === 'pdf' ? 'ti-file-type-pdf'
@@ -566,7 +533,7 @@ function renderEvidence(evidences) {
 async function loadKomentar() {
   const list = await Komentar.list(taskId).catch(() => []);
   const el   = document.getElementById('komentar-list');
-  if (!list.length) { el.innerHTML = '<div style="color:var(--text-3);font-size:13px;margin-bottom:10px">Belum ada komentar</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div style="color:var(--text-3);font-size:13px;margin-bottom:10px">Belum ada notes</div>'; return; }
   el.innerHTML = list.map(k => {
     const inits = initials(k.userId?.namaLengkap || '?');
     return `
@@ -611,33 +578,11 @@ async function changeStatus(statusBaru) {
 }
 
 
-async function addSubtask() {
-  const judul      = document.getElementById('new-subtask').value.trim();
-  const priority   = document.getElementById('new-sub-priority').value;
-  const dueDate    = document.getElementById('new-sub-duedate').value || null;
-  const assignedTo = document.getElementById('new-sub-assignee').value || null;
-  if (!judul) return;
-  try {
-    await Subtasks.create(taskId, { judul, priority, dueDate, assignedTo });
-    document.getElementById('new-subtask').value      = '';
-    document.getElementById('new-sub-duedate').value  = '';
-    document.getElementById('new-sub-assignee').value = '';
-    document.getElementById('new-sub-priority').value = 'medium';
-    loadTask();
-  } catch (e) { showToast(e.message, 'error'); }
-}
-
 async function toggleSubtask(id, isDone) {
   try {
     await Subtasks.update(id, { isDone });
     loadTask();
   } catch (e) { showToast(e.message, 'error'); }
-}
-
-async function deleteSubtask(id) {
-  if (!await showConfirm('Hapus subtask ini?', { title: 'Hapus Subtask', okLabel: 'Hapus', type: 'danger' })) return;
-  await Subtasks.delete(id).catch(e => showToast(e.message, 'error'));
-  loadTask();
 }
 
 async function uploadEvidence() {
@@ -680,9 +625,6 @@ async function deleteTask() {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.activeElement.id === 'new-subtask') { e.preventDefault(); addSubtask(); }
-});
 
 // ── Evidence viewer ───────────────────────────────────────────────────────────
 function openEvModal(url, nama, mime) {
@@ -831,130 +773,6 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#mention-popup') && e.target.id !== 'new-kom') hideMentionPopup();
 });
 
-// ── Time Tracking ────────────────────────────────────────────────────────────
-async function loadTimeLog() {
-  const section = document.getElementById('timelog-section');
-  const isPIC   = taskData?.picUserId?._id === user?._id || taskData?.picUserId === user?._id;
-  const isCollab = (taskData?.collaborators||[]).some(c => (c._id||c) === user?._id);
-  const canLog  = isPIC || isCollab || user?.role === 'direksi' || user?.role === 'superadmin';
-  if (!canLog) return;
-  section.style.display = '';
-
-  // Set default tanggal hari ini
-  document.getElementById('tl-tanggal').value = new Date().toISOString().split('T')[0];
-
-  try {
-    const { logs, totalMenit } = await TimeLog.list({ taskId });
-    const jam  = Math.floor(totalMenit / 60);
-    const mnt  = totalMenit % 60;
-    document.getElementById('timelog-total').textContent =
-      totalMenit ? `Total: ${jam > 0 ? jam + 'j ' : ''}${mnt}m` : 'Belum ada log';
-
-    const el = document.getElementById('timelog-list');
-    if (!logs.length) {
-      el.innerHTML = '<div style="color:var(--text-3);font-size:12px;text-align:center;padding:12px 0">Belum ada catatan waktu</div>';
-      return;
-    }
-    el.innerHTML = logs.map(l => {
-      const jam = Math.floor(l.durasiMenit / 60);
-      const mnt = l.durasiMenit % 60;
-      const dur = (jam > 0 ? jam + 'j ' : '') + mnt + 'm';
-      const tgl = new Date(l.tanggal).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
-      const isMine = l.userId?._id === user?._id || l.userId === user?._id;
-      const inits  = (l.userId?.namaLengkap||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-      return `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
-          <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${inits}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:600">${l.userId?.namaLengkap||'—'} · <span style="color:var(--accent)">${dur}</span></div>
-            <div style="font-size:11px;color:var(--text-3)">${tgl}${l.catatan ? ' · ' + l.catatan : ''}</div>
-          </div>
-          ${isMine ? `<button onclick="deleteTimeLog('${l._id}')" style="border:none;background:none;cursor:pointer;color:var(--text-3);padding:4px" title="Hapus"><i class="ti ti-trash" style="font-size:13px"></i></button>` : ''}
-        </div>`;
-    }).join('');
-  } catch(e) { /* silent */ }
-}
-
-function showTimeLogForm() {
-  document.getElementById('timelog-form').style.display = 'flex';
-  document.getElementById('tl-add-btn').style.display   = 'none';
-  document.getElementById('tl-menit').focus();
-}
-function cancelTimeLog() {
-  document.getElementById('timelog-form').style.display = 'none';
-  document.getElementById('tl-add-btn').style.display   = '';
-  document.getElementById('tl-menit').value   = '';
-  document.getElementById('tl-catatan').value = '';
-}
-
-async function submitTimeLog() {
-  const menit   = parseInt(document.getElementById('tl-menit').value);
-  const catatan = document.getElementById('tl-catatan').value.trim();
-  const tanggal = document.getElementById('tl-tanggal').value;
-  if (!menit || menit < 1) { showToast('Durasi minimal 1 menit', 'error'); return; }
-  if (menit > 1440)        { showToast('Durasi maksimal 1440 menit', 'error'); return; }
-  try {
-    await TimeLog.log(taskId, menit, catatan, tanggal);
-    cancelTimeLog();
-    loadTimeLog();
-    showToast('Waktu berhasil dicatat');
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-async function deleteTimeLog(id) {
-  if (!await showConfirm('Hapus catatan waktu ini?', { title: 'Hapus Catatan Waktu', okLabel: 'Hapus', type: 'danger' })) return;
-  await TimeLog.delete(id).catch(e => showToast(e.message, 'error'));
-  loadTimeLog();
-}
-
-// ── Stopwatch ────────────────────────────────────────────────────────────────
-let swInterval = null, swStartTs = null;
-
-function swTick() {
-  const elapsed = Math.floor((Date.now() - swStartTs) / 1000);
-  const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
-  const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
-  const s = String(elapsed % 60).padStart(2, '0');
-  document.getElementById('sw-display').textContent = `${h}:${m}:${s}`;
-}
-
-function swStart() {
-  swStartTs = Date.now();
-  swInterval = setInterval(swTick, 1000);
-  document.getElementById('sw-btn-start').style.display   = 'none';
-  document.getElementById('sw-btn-stop').style.display    = '';
-  document.getElementById('sw-btn-discard').style.display = '';
-  document.getElementById('sw-display').style.color = 'var(--accent)';
-}
-
-async function swStop() {
-  clearInterval(swInterval);
-  const menit = Math.max(1, Math.round((Date.now() - swStartTs) / 60000));
-  swReset();
-  const catatan = await showPrompt(`Stopwatch selesai: ${menit} menit`, {
-    title: 'Simpan Waktu', placeholder: 'Catatan (opsional)', okLabel: 'Simpan', type: 'success'
-  });
-  if (catatan === null) return;
-  try {
-    await TimeLog.log(taskId, menit, catatan.trim(), new Date().toISOString().split('T')[0]);
-    showToast(`${menit} menit berhasil dicatat`);
-    loadTimeLog();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-function swDiscard() {
-  clearInterval(swInterval);
-  swReset();
-}
-
-function swReset() {
-  swInterval = null; swStartTs = null;
-  document.getElementById('sw-display').textContent = '00:00:00';
-  document.getElementById('sw-display').style.color = '';
-  document.getElementById('sw-btn-start').style.display   = '';
-  document.getElementById('sw-btn-stop').style.display    = 'none';
-  document.getElementById('sw-btn-discard').style.display = 'none';
-}
 
 loadMentionUsers();
 // ── Dependencies ────────────────────────────────────────────────────────────
@@ -987,7 +805,7 @@ function renderDependencies(deps) {
     return;
   }
   el.innerHTML = deps.map(d => {
-    const isDone = d.status === 'done';
+    const isDone = d.status === 'complete';
     const color  = isDone ? '#10B981' : '#F59E0B';
     return `
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">

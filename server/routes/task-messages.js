@@ -6,9 +6,8 @@ const { getIO }   = require('../socket');
 
 function canAccess(user, task) {
   if (['direksi','superadmin'].includes(user.role)) return true;
-  if (task.picUserId?.toString() === user._id.toString()) return true;
   if (task.dibuatOleh?.toString() === user._id.toString()) return true;
-  return (task.collaborators || []).some(c => c.toString() === user._id.toString());
+  return (task.assignees || []).some(c => c.toString() === user._id.toString());
 }
 
 // GET /api/tasks/:taskId/messages

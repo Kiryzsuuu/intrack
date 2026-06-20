@@ -93,8 +93,8 @@
           </div>
           <div class="my-stat"><div class="my-stat-n" id="stat-todo">0</div><div class="my-stat-l">To Do</div></div>
           <div class="my-stat"><div class="my-stat-n" id="stat-progress">0</div><div class="my-stat-l">In Progress</div></div>
-          <div class="my-stat"><div class="my-stat-n" id="stat-review">0</div><div class="my-stat-l">Review</div></div>
-          <div class="my-stat"><div class="my-stat-n" id="stat-done">0</div><div class="my-stat-l">Done bulan ini</div></div>
+          <div class="my-stat"><div class="my-stat-n" id="stat-review">0</div><div class="my-stat-l">Approval</div></div>
+          <div class="my-stat"><div class="my-stat-n" id="stat-done">0</div><div class="my-stat-l">Selesai bulan ini</div></div>
         </div>
 
         <!-- Filters -->
@@ -102,10 +102,9 @@
           <input type="text" id="f-search" class="input" placeholder="Cari task..." style="width:200px" oninput="render()">
           <select id="f-prio" class="sel" onchange="render()">
             <option value="">Semua Prioritas</option>
-            <option value="critical">Kritis</option>
-            <option value="high">Tinggi</option>
-            <option value="medium">Sedang</option>
-            <option value="low">Rendah</option>
+            <option value="urgent">Urgent</option>
+            <option value="moderate">Moderate</option>
+            <option value="normal">Normal</option>
           </select>
           <select id="f-sort" class="sel" onchange="render()">
             <option value="deadline">Urutkan: Deadline</option>
@@ -135,16 +134,21 @@ if (!requireAuth()) throw 'redirect';
 const user = getUser();
 
 const COLUMNS = [
-  { status: 'menunggu_approval', label: 'Menunggu Approval', color: '#F59E0B' },
-  { status: 'to_do',            label: 'To Do',             color: '#6366F1' },
-  { status: 'in_progress',      label: 'In Progress',       color: '#3B82F6' },
-  { status: 'perlu_review',     label: 'Perlu Review',      color: '#8B5CF6' },
-  { status: 'revisi',           label: 'Revisi',            color: '#EF4444' },
-  { status: 'done',             label: 'Done',              color: '#10B981' },
+  { status: 'to_do',              label: 'To Do',               color: '#6366F1' },
+  { status: 'on_progress',        label: 'On Progress',         color: '#3B82F6' },
+  { status: 'partially_complete', label: 'Partially Complete',  color: '#8B5CF6' },
+  { status: 'pending_approval',   label: 'Menunggu Approval',   color: '#F59E0B' },
+  { status: 'complete',           label: 'Complete',            color: '#10B981' },
 ];
 
-const PRIO_ORDER = { critical:4, high:3, medium:2, low:1 };
-const PRIO_COLOR = { critical:'#EF4444', high:'#F97316', medium:'#EAB308', low:'#6B7280' };
+const PRIO_ORDER = { urgent:3, moderate:2, normal:1 };
+const PRIO_COLOR = { urgent:'#EF4444', moderate:'#F59E0B', normal:'#6B7280' };
+
+// Status efektif: tampilkan task pendingApproval di kolom khusus
+function effStatus(t) {
+  if (t.pendingApproval && t.status !== 'complete') return 'pending_approval';
+  return t.status;
+}
 
 let allTasks = [];
 
@@ -159,12 +163,9 @@ async function init() {
 
   // Load tasks
   try {
-    const { tasks } = await Tasks.list({ limit: 200 });
-    // Filter hanya task milik saya (PIC atau collaborator)
-    allTasks = tasks.filter(t =>
-      t.picUserId?._id === user._id || t.picUserId === user._id ||
-      (t.collaborators||[]).some(c => (c._id||c) === user._id)
-    );
+    // Req #12: hanya task yang di-assign ke saya
+    const { tasks } = await Tasks.list({ mine: 'true', limit: 200 });
+    allTasks = tasks.filter(t => isMyTask(t, user._id));
     updateStats();
     render();
   } catch (e) { showToast(e.message, 'error'); }
@@ -174,9 +175,9 @@ function updateStats() {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   document.getElementById('stat-todo').textContent     = allTasks.filter(t => t.status === 'to_do').length;
-  document.getElementById('stat-progress').textContent = allTasks.filter(t => t.status === 'in_progress').length;
-  document.getElementById('stat-review').textContent   = allTasks.filter(t => t.status === 'perlu_review').length;
-  document.getElementById('stat-done').textContent     = allTasks.filter(t => t.status === 'done' && new Date(t.doneAt || t.updatedAt) >= startOfMonth).length;
+  document.getElementById('stat-progress').textContent = allTasks.filter(t => t.status === 'on_progress').length;
+  document.getElementById('stat-review').textContent   = allTasks.filter(t => effStatus(t) === 'pending_approval').length;
+  document.getElementById('stat-done').textContent     = allTasks.filter(t => t.status === 'complete' && new Date(t.doneAt || t.updatedAt) >= startOfMonth).length;
 }
 
 function render() {
@@ -188,7 +189,7 @@ function render() {
   let filtered = allTasks.filter(t => {
     if (q && !t.judul.toLowerCase().includes(q)) return false;
     if (prio && t.prioritas !== prio) return false;
-    if (overdue && (!t.deadline || new Date(t.deadline) >= new Date() || t.status === 'done')) return false;
+    if (overdue && (!t.deadline || new Date(t.deadline) >= new Date() || t.status === 'complete')) return false;
     return true;
   });
 
@@ -198,7 +199,7 @@ function render() {
 
   const wrap = document.getElementById('columns-wrap');
   wrap.innerHTML = COLUMNS.map(col => {
-    const colTasks = filtered.filter(t => t.status === col.status);
+    const colTasks = filtered.filter(t => effStatus(t) === col.status);
     return `
       <div class="column-card">
         <div class="column-head">
@@ -216,7 +217,7 @@ function render() {
 function taskCard(t) {
   const now      = new Date();
   const deadline = t.deadline ? new Date(t.deadline) : null;
-  const overdue  = deadline && deadline < now && t.status !== 'done';
+  const overdue  = deadline && deadline < now && t.status !== 'complete';
   const dStr     = deadline ? deadline.toLocaleDateString('id-ID',{day:'numeric',month:'short'}) : '—';
 
   const subtaskTotal = t.subtaskTotal || 0;
@@ -240,7 +241,6 @@ function taskCard(t) {
         </div>
         <div style="font-size:11px;color:var(--text-3)">${t.direktoratId?.kode||''}</div>
       </div>
-      ${(t.tags||[]).length ? `<div class="tc-tags">${t.tags.slice(0,3).map(g=>`<span class="tc-tag">${g}</span>`).join('')}</div>` : ''}
       ${pct >= 0 ? `
         <div class="tc-progress">
           <div class="tc-prog-bar"><div class="tc-prog-fill" style="width:${pct}%"></div></div>

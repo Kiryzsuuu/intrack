@@ -110,7 +110,7 @@
               <tr>
                 <th style="width:36px"><input type="checkbox" id="cb-all" class="row-cb" title="Pilih semua" onchange="toggleSelectAll(this.checked)"></th>
                 <th>Judul Task</th>
-                <th class="hide-mobile">PIC</th>
+                <th class="hide-mobile">Assignee</th>
                 <th class="hide-mobile">Direktorat</th>
                 <th>Status</th>
                 <th>Prioritas</th>
@@ -216,10 +216,10 @@ function renderTable(tasks) {
       </td>
       <td class="hide-mobile">
         <div style="display:flex;align-items:center;gap:8px">
-          ${t.picUserId?.fotoProfil
-            ? `<img src="${t.picUserId.fotoProfil}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
-            : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${(t.picUserId?.namaLengkap||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`}
-          <span style="color:var(--text-2)">${t.picUserId?.namaLengkap || '-'}</span>
+          ${(() => { const p = firstAssignee(t); return p?.fotoProfil
+            ? `<img src="${p.fotoProfil}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
+            : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${initials(p?.namaLengkap||'?')}</div>`; })()}
+          <span style="color:var(--text-2)">${assigneeNames(t)}</span>
         </div>
       </td>
       <td class="hide-mobile" style="color:var(--text-2)">${t.direktoratId?.nama || '-'}</td>

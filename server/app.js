@@ -47,7 +47,6 @@ app.use('/api/notifikasi',    require('./routes/notifikasi'));
 app.use('/api/kpi',           require('./routes/kpi'));
 app.use('/api/reports',       require('./routes/reports'));
 app.use('/api/site-settings', require('./routes/site-settings'));
-app.use('/api/timelog',      require('./routes/timelog'));
 app.use('/api/templates',    require('./routes/templates'));
 app.use('/api/milestones',   require('./routes/milestones'));
 app.use('/api/push',         require('./routes/push'));

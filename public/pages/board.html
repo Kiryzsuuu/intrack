@@ -143,12 +143,10 @@ if (!requireAuth()) throw 'redirect';
 const user = getUser();
 
 const COLUMNS = [
-  { status:'menunggu_approval', label:'Menunggu Approval', color:'#EA580C', direksiOnly:true },
-  { status:'to_do',             label:'To Do',             color:'#A1A1AA' },
-  { status:'in_progress',       label:'In Progress',       color:'#7C3AED' },
-  { status:'perlu_review',      label:'Perlu Review',      color:'#EA580C', direksiOnly:true },
-  { status:'revisi',            label:'Revisi',            color:'#DC2626' },
-  { status:'done',              label:'Done',              color:'#16A34A' },
+  { status:'to_do',              label:'To Do',              color:'#A1A1AA' },
+  { status:'on_progress',        label:'On Progress',        color:'#7C3AED' },
+  { status:'partially_complete', label:'Partially Complete', color:'#EA580C' },
+  { status:'complete',           label:'Complete',           color:'#16A34A' },
 ];
 
 async function loadBoard() {
@@ -207,8 +205,7 @@ function renderCard(t) {
         </div>
         <span style="font-size:11px;color:${od?'var(--red)':'var(--text-3)'}">${formatTanggal(t.deadline)}</span>
       </div>
-      ${t.picUserId ? `<div style="margin-top:8px;font-size:11px;color:var(--text-3)">${t.picUserId.namaLengkap || ''}</div>` : ''}
-      ${t.tags?.length ? `<div class="card-tags">${t.tags.map(g=>`<span class="tag-pill">${g}</span>`).join('')}</div>` : ''}
+      ${(t.assignees||[]).length ? `<div style="margin-top:8px;font-size:11px;color:var(--text-3)">${assigneeNames(t)}</div>` : ''}
     </div>`;
 }
 
@@ -242,32 +239,8 @@ async function onDrop(e, toStatus) {
   e.currentTarget.classList.remove('drag-over');
   if (!dragTaskId || dragFromStatus === toStatus) return;
 
-  // Cek transisi valid
-  const VALID = {
-    menunggu_approval: ['to_do','ditolak'],
-    to_do:             ['in_progress'],
-    in_progress:       ['perlu_review'],
-    perlu_review:      ['done','revisi'],
-    revisi:            ['in_progress'],
-  };
-  if (!VALID[dragFromStatus]?.includes(toStatus)) {
-    showToast(`Tidak bisa pindah dari "${statusLabel(dragFromStatus)}" ke "${statusLabel(toStatus)}"`, 'error');
-    return;
-  }
-
-  // Kalau reject/revisi perlu catatan
-  let catatan = null;
-  if (['ditolak','revisi'].includes(toStatus)) {
-    catatan = await showPrompt(
-      `Masukkan alasan ${toStatus === 'ditolak' ? 'penolakan' : 'revisi'} (min. 10 karakter)`,
-      { title: toStatus === 'ditolak' ? 'Tolak Task' : 'Kembalikan Revisi', placeholder: 'Ketik alasan...', hint: 'Minimal 10 karakter', okLabel: 'Kirim', type: 'danger' }
-    );
-    if (catatan === null) return;
-    if (catatan.length < 10) { showToast('Alasan minimal 10 karakter', 'error'); return; }
-  }
-
   try {
-    await Tasks.updateStatus(dragTaskId, toStatus, catatan);
+    await Tasks.updateStatus(dragTaskId, toStatus);
     showToast(`Task dipindah ke ${statusLabel(toStatus)}`);
     loadBoard();
   } catch(err) { showToast(err.message, 'error'); }

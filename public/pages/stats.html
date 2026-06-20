@@ -166,24 +166,6 @@
           <div style="overflow-x:auto" id="all-managers-table"></div>
         </div>
 
-        <!-- Time Tracking Analytics -->
-        <div class="section-card" id="timelog-analytics" style="display:none">
-          <div class="section-head">
-            <span class="section-title">Analitik Waktu Kerja</span>
-            <span id="timelog-total-label" style="font-size:12px;color:var(--text-3)"></span>
-          </div>
-          <!-- Bar chart harian -->
-          <div style="overflow-x:auto;padding-bottom:6px">
-            <div id="time-chart" style="display:flex;align-items:flex-end;gap:6px;height:120px;min-width:400px"></div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;justify-content:center" id="time-chart-labels"></div>
-          <!-- Per-user breakdown -->
-          <div style="margin-top:20px;border-top:0.5px solid var(--border);padding-top:16px">
-            <div style="font-size:13px;font-weight:700;margin-bottom:12px">Per Anggota Tim</div>
-            <div id="time-per-user"></div>
-          </div>
-        </div>
-
       </div>
     </div>
   </div>
@@ -315,65 +297,7 @@ async function loadAllManagers() {
   } catch {}
 }
 
-async function loadTimeAnalytics() {
-  try {
-    const { logs } = await apiFetch('/timelog');
-    if (!logs?.length) return;
-    document.getElementById('timelog-analytics').style.display = '';
-
-    const totalMenit = logs.reduce((s, l) => s + l.durasiMenit, 0);
-    const totalJam   = (totalMenit / 60).toFixed(1);
-    document.getElementById('timelog-total-label').textContent = `Total: ${totalJam} jam (${logs.length} sesi)`;
-
-    // Group by tanggal (last 14 days)
-    const byDate = {};
-    logs.forEach(l => {
-      const d = l.tanggal?.slice(0, 10) || new Date(l.createdAt).toISOString().slice(0, 10);
-      byDate[d] = (byDate[d] || 0) + l.durasiMenit;
-    });
-    const dates = Object.keys(byDate).sort().slice(-14);
-    const maxMin = Math.max(...dates.map(d => byDate[d]), 1);
-
-    document.getElementById('time-chart').innerHTML = dates.map(d => {
-      const mnt  = byDate[d];
-      const pct  = Math.max(4, Math.round((mnt / maxMin) * 100));
-      const jam  = (mnt / 60).toFixed(1);
-      const lbl  = new Date(d).toLocaleDateString('id-ID', { day:'numeric', month:'short' });
-      return `
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:24px" title="${lbl}: ${jam} jam">
-          <div style="font-size:9px;color:var(--text-3)">${jam}j</div>
-          <div style="width:100%;border-radius:4px 4px 0 0;background:var(--accent);height:${pct}%;min-height:4px;transition:height .4s"></div>
-        </div>`;
-    }).join('');
-    document.getElementById('time-chart-labels').innerHTML = dates.map(d =>
-      `<span style="font-size:9px;color:var(--text-3)">${new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span>`
-    ).join('');
-
-    // Per-user
-    const byUser = {};
-    logs.forEach(l => {
-      const uid  = l.userId?._id || l.userId;
-      const name = l.userId?.namaLengkap || '—';
-      if (!byUser[uid]) byUser[uid] = { name, menit: 0 };
-      byUser[uid].menit += l.durasiMenit;
-    });
-    const sorted = Object.values(byUser).sort((a, b) => b.menit - a.menit);
-    const maxU   = sorted[0]?.menit || 1;
-    document.getElementById('time-per-user').innerHTML = sorted.map(u => {
-      const jam = (u.menit / 60).toFixed(1);
-      const pct = Math.round((u.menit / maxU) * 100);
-      return `
-        <div class="bar-row">
-          <div class="bar-label">${u.name}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--accent)"></div></div>
-          <div class="bar-pct">${jam}j</div>
-        </div>`;
-    }).join('');
-  } catch {}
-}
-
 async function init() {
-  if (user.role === 'direksi' || user.role === 'superadmin') loadTimeAnalytics();
   if (user.role === 'direksi') {
     document.getElementById('user-filter').style.display = '';
     const fUser = document.getElementById('f-user');

@@ -55,18 +55,17 @@ router.post('/:id/apply', auth, async (req, res) => {
   const tpl = await Template.findById(req.params.id);
   if (!tpl) return res.status(404).json({ message: 'Template tidak ditemukan' });
 
-  const { picUserId, direktoratId, deadline, judul: judulOverride } = req.body;
-  if (!picUserId || !direktoratId || !deadline)
-    return res.status(400).json({ message: 'PIC, direktorat, dan deadline wajib diisi' });
+  const { assignees, direktoratId, deadline, judul: judulOverride } = req.body;
+  if (!assignees?.length || !direktoratId || !deadline)
+    return res.status(400).json({ message: 'Assignee, direktorat, dan deadline wajib diisi' });
 
   const task = await Task.create({
     judul:        judulOverride || tpl.nama,
     deskripsi:    tpl.deskripsi,
     prioritas:    tpl.prioritas,
-    picUserId,
+    assignees,
     direktoratId,
     deadline:     new Date(deadline),
-    tags:         tpl.tags,
     dibuatOleh:   req.user._id,
     templateId:   tpl._id,
   });
@@ -77,7 +76,7 @@ router.post('/:id/apply', auth, async (req, res) => {
   }
 
   await task.populate([
-    { path: 'picUserId', select: 'namaLengkap email' },
+    { path: 'assignees', select: 'namaLengkap email' },
     { path: 'direktoratId', select: 'nama kode' },
   ]);
 
