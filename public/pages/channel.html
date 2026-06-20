@@ -87,21 +87,21 @@
       border-top: 0.5px solid var(--border);
       background: var(--surface-2);
       padding: 8px 10px;
-      display: none; align-items: center; gap: 8px;
+      display: none; flex-direction: column; gap: 6px;
     }
     .ch-voice-bar.active { display: flex; }
+    .ch-voice-bar-top { display: flex; align-items: center; gap: 7px; }
     .ch-voice-bar-info { flex: 1; min-width: 0; }
-    .ch-voice-bar-status { font-size: 11px; font-weight: 600; color: #3BA55C; }
+    .ch-voice-bar-status { font-size: 11px; font-weight: 600; color: #3BA55C; display: flex; align-items: center; gap: 3px; }
     .ch-voice-bar-name { font-size: 11px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ch-voice-bar-btns { display: flex; gap: 2px; }
+    .ch-voice-bar-btns { display: flex; gap: 4px; justify-content: space-around; }
     .vc-mini-btn {
-      width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
-      background: none; color: var(--text-3); font-size: 16px;
+      flex: 1; height: 28px; border-radius: 6px; border: none; cursor: pointer;
+      background: none; color: var(--text-3); font-size: 14px;
       display: flex; align-items: center; justify-content: center; transition: var(--transition);
     }
     .vc-mini-btn:hover { background: var(--border); color: var(--text); }
     .vc-mini-btn.off { color: #EF4444; }
-    .vc-mini-btn.danger:hover { color: #EF4444; }
 
     /* ── Main chat area ── */
     .ch-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--surface); }
@@ -326,12 +326,14 @@
 
         <!-- Voice status bar — muncul saat sedang di voice (seperti Discord) -->
         <div class="ch-voice-bar" id="ch-voice-bar">
-          <div style="width:36px;height:36px;border-radius:50%;background:#3BA55C;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <i class="ti ti-phone" style="color:#fff;font-size:16px"></i>
-          </div>
-          <div class="ch-voice-bar-info">
-            <div class="ch-voice-bar-status"><i class="ti ti-circle-filled" style="font-size:8px;margin-right:3px"></i>Terhubung</div>
-            <div class="ch-voice-bar-name" id="voice-bar-ch-name">General Voice</div>
+          <div class="ch-voice-bar-top">
+            <div style="width:28px;height:28px;border-radius:50%;background:#3BA55C;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="ti ti-phone" style="color:#fff;font-size:13px"></i>
+            </div>
+            <div class="ch-voice-bar-info">
+              <div class="ch-voice-bar-status"><i class="ti ti-circle-filled" style="font-size:7px"></i>Terhubung</div>
+              <div class="ch-voice-bar-name" id="voice-bar-ch-name">General Voice</div>
+            </div>
           </div>
           <div class="ch-voice-bar-btns">
             <button class="vc-mini-btn" id="vc-mute" onclick="toggleMute()" title="Mute/Unmute">
@@ -343,7 +345,7 @@
             <button class="vc-mini-btn" id="vc-video" onclick="toggleVideo()" title="Kamera On/Off">
               <i class="ti ti-video-off"></i>
             </button>
-            <button class="vc-mini-btn danger" onclick="leaveVoice()" title="Putuskan voice" style="color:#EF4444">
+            <button class="vc-mini-btn" onclick="leaveVoice()" title="Putuskan voice" style="color:#EF4444;background:rgba(239,68,68,0.15)">
               <i class="ti ti-phone-off"></i>
             </button>
           </div>
@@ -956,6 +958,7 @@ function leaveVoice() {
   document.getElementById('video-grid')?.classList.remove('active');
   if (document.getElementById('video-grid')) document.getElementById('video-grid').innerHTML = '';
   renderVoiceParticipants();
+  updateVoiceUI();
 }
 
 function toggleMute() {
