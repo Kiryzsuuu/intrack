@@ -3,6 +3,7 @@ const TimeLog = require('../models/TimeLog');
 const Task    = require('../models/Task');
 const StatusLog = require('../models/StatusLog');
 const auth    = require('../middleware/auth');
+const { autoUpdateStatus } = require('./tasks');
 
 // GET /api/timelog?taskId=xxx
 router.get('/', auth, async (req, res) => {
@@ -56,6 +57,9 @@ router.post('/', auth, async (req, res) => {
     task.status = 'on_progress';
     await task.save();
     await StatusLog.create({ taskId, userId: req.user._id, statusLama: 'to_do', statusBaru: 'on_progress', catatan: 'Auto: time tracking dimulai' });
+  } else {
+    // Setelah log dicatat, recalculate status dari subtask progress
+    autoUpdateStatus(taskId).catch(() => {});
   }
 
   res.status(201).json(log);

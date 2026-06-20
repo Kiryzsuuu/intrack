@@ -212,7 +212,7 @@
           <div id="mention-popup"></div>
 
           <!-- Direct Message / Task Chat -->
-          <div class="section-card" id="task-chat-section">
+          <div class="section-card" id="task-chat-section" style="display:none">
             <div class="section-head">
               <span class="section-title"><i class="ti ti-message-circle" style="font-size:14px;margin-right:4px"></i>Direct Message</span>
               <span style="font-size:11px;color:var(--text-3)">Hanya creator, PIC, dan collaborator</span>
@@ -404,6 +404,16 @@ function renderTask(t) {
   msEl.textContent = t.milestoneId?.judul || '—';
   if (msBtn) msBtn.style.display = ['direksi','superadmin'].includes(user?.role) || t.picUserId?._id === user?._id ? '' : 'none';
 
+  // Chat section — tampilkan hanya untuk creator, PIC, collaborator, direksi
+  const chatSection = document.getElementById('task-chat-section');
+  if (chatSection) {
+    const isDireksiChat = ['direksi','superadmin'].includes(user?.role);
+    const isPICChat     = t.picUserId?._id === user?._id || t.picUserId === user?._id;
+    const isCollabChat  = (t.collaborators || []).some(c => (c._id || c) === user?._id);
+    const isPembuatChat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
+    chatSection.style.display = (isDireksiChat || isPICChat || isCollabChat || isPembuatChat) ? '' : 'none';
+  }
+
   // Tags
   const tagsEl = document.getElementById('task-tags');
   tagsEl.innerHTML = (t.tags || []).map(g => `<span class="tag-pill">${g}</span>`).join('');
@@ -441,7 +451,8 @@ function renderStatusActions(t) {
   const isDireksi = ['direksi','superadmin'].includes(user?.role);
   const isPIC     = t.picUserId?._id === user?._id || t.picUserId === user?._id;
   const isCollab  = (t.collaborators || []).some(c => (c._id || c) === user?._id);
-  const canAct    = isDireksi || isPIC || isCollab;
+  const isPembuat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
+  const canAct    = isDireksi || isPIC || isCollab || isPembuat;
 
   const statuses = [
     { key: 'to_do',              label: 'To Do',              icon: 'ti-circle' },
@@ -593,7 +604,7 @@ async function changeStatus(statusBaru) {
   try {
     await Tasks.updateStatus(taskId, statusBaru);
     showToast('Status berhasil diubah');
-    loadTask();
+    await loadTask();
   } catch (e) { showToast(e.message, 'error'); }
 }
 
