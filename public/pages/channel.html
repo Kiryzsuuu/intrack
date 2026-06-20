@@ -546,6 +546,12 @@ async function openChannel(id) {
     // Join channel socket room untuk real-time messages
     const s = getSocket();
     s.emit('ch:join', { channelId: id });
+
+    // Sync voice-panel state jika sudah in-voice sebelum channel dibuka
+    if (inVoice) {
+      document.getElementById('voice-panel')?.classList.add('active');
+      renderVoiceParticipants();
+    }
   } catch(e) {
     document.getElementById('ch-messages').innerHTML =
       `<div style="padding:20px;color:var(--red-text);font-size:13px">${e.message}</div>`;
@@ -901,6 +907,9 @@ function getSocket() {
   return socket;
 }
 
+// Voice pakai room ID terpisah, tidak bergantung text channel
+const VOICE_ROOM_ID = 'general-voice';
+
 async function joinVoice() {
   if (inVoice) return;
   try {
@@ -912,7 +921,8 @@ async function joinVoice() {
   inVoice = true;
   isMuted = false; isDeafened = false; isVideoOn = false;
 
-  document.getElementById('voice-panel').classList.add('active');
+  // voice-panel hanya ada kalau text channel sudah dibuka
+  document.getElementById('voice-panel')?.classList.add('active');
   document.getElementById('ch-voice-bar').classList.add('active');
 
   voiceParticipants = {};
@@ -920,7 +930,7 @@ async function joinVoice() {
 
   const s = getSocket();
   s.emit('voice:join', {
-    channelId: activeChannelId,
+    channelId: VOICE_ROOM_ID,
     name: me.namaLengkap,
     photo: me.fotoProfil || null,
   });
@@ -941,10 +951,10 @@ function leaveVoice() {
   inVoice = false; isMuted = false; isDeafened = false; isVideoOn = false;
   voiceParticipants = {};
 
-  document.getElementById('voice-panel').classList.remove('active');
+  document.getElementById('voice-panel')?.classList.remove('active');
   document.getElementById('ch-voice-bar').classList.remove('active');
-  document.getElementById('video-grid').classList.remove('active');
-  document.getElementById('video-grid').innerHTML = '';
+  document.getElementById('video-grid')?.classList.remove('active');
+  if (document.getElementById('video-grid')) document.getElementById('video-grid').innerHTML = '';
   renderVoiceParticipants();
 }
 
@@ -1025,9 +1035,8 @@ function updateVoiceUI() {
     voiceChItem.className = 'ch-voice-item' + (inVoice ? ' in-voice' : '');
   }
 
-  // Update voice panel di dalam chat
-  const vPanel = document.getElementById('voice-panel');
-  if (vPanel) vPanel.classList.toggle('active', inVoice);
+  // voice-panel ada di dalam area chat, mungkin belum dirender
+  document.getElementById('voice-panel')?.classList.toggle('active', inVoice);
 }
 
 // ── WebRTC Peer ────────────────────────────────────────────────────────────────
