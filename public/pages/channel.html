@@ -423,6 +423,7 @@
 <script src="/js/search.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/webpush.js"></script>
+<script src="/js/dialogs.js"></script>
 <script>
 if (!requireAuth()) throw 'redirect';
 const me = getUser();
@@ -464,8 +465,12 @@ function renderChannelList() {
 
 // ── Buka channel ───────────────────────────────────────────────────────────────
 async function openChannel(id) {
-  // Tinggalkan voice jika pindah channel
+  // Tinggalkan voice dan channel room lama
   if (inVoice && activeChannelId && activeChannelId !== id) leaveVoice();
+  if (activeChannelId && activeChannelId !== id) {
+    const s = getSocket();
+    s.emit('ch:leave', { channelId: activeChannelId });
+  }
 
   activeChannelId = id;
   msgBefore       = null;
@@ -537,6 +542,10 @@ async function openChannel(id) {
     }
 
     await loadMessages(id);
+
+    // Join channel socket room untuk real-time messages
+    const s = getSocket();
+    s.emit('ch:join', { channelId: id });
   } catch(e) {
     document.getElementById('ch-messages').innerHTML =
       `<div style="padding:20px;color:var(--red-text);font-size:13px">${e.message}</div>`;
@@ -856,6 +865,39 @@ function getSocket() {
     if (pc && candidate) await pc.addIceCandidate(candidate);
   });
 
+  // ── Real-time channel messages ────────────────────────────────────────────
+  socket.on('channel:message', (msg) => {
+    if (msg.channelId !== activeChannelId) return;
+    // Skip jika pesan dari diri sendiri (sudah dirender saat send)
+    const uid = msg.userId?._id || msg.userId;
+    if (uid === me._id || uid?.toString() === me._id) return;
+
+    const el = document.getElementById('ch-messages');
+    if (!el) return;
+    const empty = el.querySelector('.ch-empty');
+    if (empty) empty.remove();
+
+    const u    = msg.userId || {};
+    const name = u.namaLengkap || 'Unknown';
+    const time = new Date(msg.createdAt).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+    const inits = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const avColors = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
+    const avColor  = avColors[inits.charCodeAt(0) % avColors.length];
+    const avHtml   = u.fotoProfil
+      ? `<img src="${u.fotoProfil}" alt="">`
+      : `<span style="font-size:12px;font-weight:700;color:#fff">${inits}</span>`;
+
+    el.insertAdjacentHTML('beforeend', `
+      <div class="msg-row" id="msg-${msg._id}">
+        <div class="msg-av" style="background:${avColor}">${avHtml}</div>
+        <div class="msg-content">
+          <div class="msg-meta"><span class="msg-name">${escHtml(name)}</span><span class="msg-time">${time}</span></div>
+          <div class="msg-text">${escHtml(msg.isi).replace(/\n/g,'<br>')}</div>
+        </div>
+      </div>`);
+    el.scrollTop = el.scrollHeight;
+  });
+
   return socket;
 }
 
@@ -871,7 +913,7 @@ async function joinVoice() {
   isMuted = false; isDeafened = false; isVideoOn = false;
 
   document.getElementById('voice-panel').classList.add('active');
-  document.getElementById('voice-controls').classList.add('active');
+  document.getElementById('ch-voice-bar').classList.add('active');
 
   voiceParticipants = {};
   addMyVideoTile();
@@ -900,7 +942,7 @@ function leaveVoice() {
   voiceParticipants = {};
 
   document.getElementById('voice-panel').classList.remove('active');
-  document.getElementById('voice-controls').classList.remove('active');
+  document.getElementById('ch-voice-bar').classList.remove('active');
   document.getElementById('video-grid').classList.remove('active');
   document.getElementById('video-grid').innerHTML = '';
   renderVoiceParticipants();
