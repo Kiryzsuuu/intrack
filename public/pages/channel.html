@@ -1285,7 +1285,8 @@ function getSocket() {
 const VOICE_ROOM_ID = 'general-voice';
 
 async function joinVoice() {
-  if (inVoice) return;
+  // Sudah di voice — cukup tampilkan kembali call-view
+  if (inVoice) { showCallView(); return; }
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   } catch(e) {
@@ -1340,16 +1341,26 @@ function leaveVoice() {
 }
 
 function toggleCallChat() {
-  const cv = document.getElementById('call-view');
-  const hidden = cv.classList.toggle('call-hidden');
-  // Tombol chat menyala saat call-view disembunyikan (artinya chat sedang tampil)
-  document.getElementById('cb-chat')?.classList.toggle('on', hidden);
+  const cv  = document.getElementById('call-view');
+  const btn = document.getElementById('cb-chat');
+  if (cv.classList.contains('call-hidden')) {
+    // Sedang di chat → kembali ke voice view
+    cv.classList.remove('call-hidden');
+    if (btn) btn.innerHTML = '<i class="ti ti-message"></i> Chat';
+    if (btn) btn.classList.remove('on');
+  } else {
+    // Sedang di voice view → sembunyikan, tampilkan chat
+    cv.classList.add('call-hidden');
+    if (btn) btn.innerHTML = '<i class="ti ti-video"></i> Voice';
+    if (btn) btn.classList.add('on');
+  }
 }
 
 function showCallView() {
-  const cv = document.getElementById('call-view');
+  const cv  = document.getElementById('call-view');
+  const btn = document.getElementById('cb-chat');
   cv.classList.remove('call-hidden');
-  document.getElementById('cb-chat')?.classList.remove('on');
+  if (btn) { btn.innerHTML = '<i class="ti ti-message"></i> Chat'; btn.classList.remove('on'); }
 }
 
 // ── Voice Activity Detection ──────────────────────────────────────────────────
@@ -1821,7 +1832,14 @@ async function applyVoiceSettings() {
 }
 
 // ── WebRTC Peer ────────────────────────────────────────────────────────────────
-const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const ICE_SERVERS = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  // Free public TURN — untuk koneksi di balik NAT/firewall VPS
+  { urls: 'turn:openrelay.metered.ca:80',  username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+] };
 
 function getOrCreatePeer(socketId, userId) {
   if (peerConns[socketId]) return peerConns[socketId];
@@ -1840,12 +1858,21 @@ function createPeer(socketId, userId) {
 
   pc.ontrack = ({ streams, track }) => {
     if (track.kind === 'audio') {
-      const audio = document.getElementById('audio-' + socketId) || document.createElement('audio');
-      audio.id  = 'audio-' + socketId;
+      let audio = document.getElementById('audio-' + socketId);
+      if (!audio) {
+        audio = document.createElement('audio');
+        audio.id = 'audio-' + socketId;
+        audio.autoplay = true;
+        audio.playsInline = true;
+        document.body.appendChild(audio);
+      }
       audio.srcObject = streams[0];
-      audio.autoplay  = true;
-      if (isDeafened) audio.muted = true;
-      document.body.appendChild(audio);
+      audio.muted = isDeafened;
+      // Apply output volume & device
+      audio.volume = Math.min(1, (vsm.spkVol || 100) / 100);
+      if (vsm.spkId && audio.setSinkId) audio.setSinkId(vsm.spkId).catch(()=>{});
+      // Force play — browser may block autoplay
+      audio.play().catch(() => {});
     }
     if (track.kind === 'video') {
       // Jika ada >1 video track dari peer, yg kedua biasanya screen share
