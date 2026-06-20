@@ -1172,6 +1172,7 @@ loadChannels();
 // ── Socket.io + WebRTC Voice ───────────────────────────────────────────────────
 let socket       = null;
 let peerConns    = {};   // { socketId: RTCPeerConnection }
+let peerRoles    = {};   // { socketId: 'offerer' | 'answerer' }
 let localStream  = null;
 let isMuted      = false;
 let isDeafened   = false;
@@ -1228,6 +1229,7 @@ function getSocket() {
   });
 
   socket.on('voice:offer', async ({ fromSocketId, fromUserId, offer }) => {
+    peerRoles[fromSocketId] = 'answerer';
     const pc = getOrCreatePeer(fromSocketId, fromUserId);
     await pc.setRemoteDescription(offer);
     const answer = await pc.createAnswer();
@@ -1454,12 +1456,13 @@ async function toggleVideo() {
       const vidStream = await navigator.mediaDevices.getUserMedia({ video: true });
       const vidTrack  = vidStream.getVideoTracks()[0];
       localStream.addTrack(vidTrack);
-      // Add ke semua peer connections + renegotiate
       for (const [sid, pc] of Object.entries(peerConns)) {
-        pc.addTrack(vidTrack, localStream);
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit('voice:offer', { targetSocketId: sid, offer });
+        const existingSender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (existingSender) {
+          await existingSender.replaceTrack(vidTrack); // no renegotiation needed
+        } else {
+          pc.addTrack(vidTrack, localStream); // onnegotiationneeded fires for offerer automatically
+        }
       }
       updateMyVideoTile(true);
     } catch(e) { isVideoOn = false; showToast('Tidak dapat mengakses kamera: ' + e.message, 'error'); }
@@ -1550,12 +1553,22 @@ async function startScreenShare() {
   isScreenSharing = true;
   const screenTrack = screenStream.getVideoTracks()[0];
 
-  // Kirim ke semua peer
+  // Kirim ke semua peer — screen share is always a new track, use addTrack
+  // onnegotiationneeded fires automatically for offerer connections
   for (const [sid, pc] of Object.entries(peerConns)) {
     pc.addTrack(screenTrack, screenStream);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('voice:offer', { targetSocketId: sid, offer });
+    // answerer peers: trigger renegotiation by having the offerer side re-offer
+    // since we can't createOffer as answerer, signal to the offerer peer to renegotiate
+    if (peerRoles[sid] === 'offerer') {
+      try {
+        const offer = await pc.createOffer();
+        if (pc.signalingState === 'stable') {
+          await pc.setLocalDescription(offer);
+          socket.emit('voice:offer', { targetSocketId: sid, offer });
+        }
+      } catch(e) {}
+    }
+    // For answerer connections, onnegotiationneeded handles it automatically
   }
 
   // Tampilkan tile lokal dengan label "Layar Anda"
@@ -1852,6 +1865,20 @@ function createPeer(socketId, userId) {
 
   if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
+  // Offerer handles renegotiation automatically via onnegotiationneeded
+  let makingOffer = false;
+  pc.onnegotiationneeded = async () => {
+    if (peerRoles[socketId] !== 'offerer') return; // answerer never creates offer
+    if (makingOffer) return;
+    try {
+      makingOffer = true;
+      const offer = await pc.createOffer();
+      if (pc.signalingState !== 'stable') return;
+      await pc.setLocalDescription(offer);
+      socket.emit('voice:offer', { targetSocketId: socketId, offer });
+    } catch(e) {} finally { makingOffer = false; }
+  };
+
   pc.onicecandidate = ({ candidate }) => {
     if (candidate) socket.emit('voice:ice', { targetSocketId: socketId, candidate });
   };
@@ -1910,6 +1937,7 @@ function createPeer(socketId, userId) {
 }
 
 async function createOffer(targetSocketId) {
+  peerRoles[targetSocketId] = 'offerer';
   const pc    = getOrCreatePeer(targetSocketId, null);
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
@@ -1919,6 +1947,7 @@ async function createOffer(targetSocketId) {
 function closePeer(socketId) {
   const pc = peerConns[socketId];
   if (pc) { pc.close(); delete peerConns[socketId]; }
+  delete peerRoles[socketId];
   const audio = document.getElementById('audio-' + socketId);
   if (audio) audio.remove();
 }
