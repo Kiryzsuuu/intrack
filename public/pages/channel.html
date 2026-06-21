@@ -476,6 +476,53 @@
     @media(max-width:640px) {
       .ch-list-panel { width: 180px; }
     }
+
+    /* Voice lobby (pra-join) */
+    #voice-lobby {
+      display: none; position: fixed; inset: 0; z-index: 1200;
+      background: #0f0f17; align-items: center; justify-content: center; padding: 20px;
+    }
+    .lobby-card {
+      width: 100%; max-width: 560px; background: #1a1a26;
+      border: 0.5px solid rgba(255,255,255,.08); border-radius: 18px;
+      padding: 24px; display: flex; flex-direction: column; gap: 18px;
+    }
+    .lobby-title { color: #fff; font-size: 18px; font-weight: 800; text-align: center; }
+    .lobby-preview {
+      position: relative; width: 100%; aspect-ratio: 16/9; background: #000;
+      border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center;
+    }
+    .lobby-preview video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    #lobby-video-off { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .lobby-av {
+      width: 90px; height: 90px; border-radius: 50%; background: #5B4FE8;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 34px; font-weight: 800;
+    }
+    .lobby-meter-wrap {
+      position: absolute; left: 12px; right: 12px; bottom: 12px; height: 6px;
+      background: rgba(255,255,255,.15); border-radius: 99px; overflow: hidden;
+    }
+    #lobby-mic-meter { height: 100%; width: 0%; background: #3BA55C; border-radius: 99px; transition: width .08s linear; }
+    .lobby-controls { display: flex; gap: 12px; justify-content: center; }
+    .lobby-btn {
+      width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+      background: #2a2a3a; color: #fff; font-size: 20px;
+      display: flex; align-items: center; justify-content: center; transition: background .15s;
+    }
+    .lobby-btn:hover { background: #34344a; }
+    .lobby-btn.off { background: #EF4444; }
+    .lobby-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* Mode popup voice (jendela terpisah) — hanya tampilkan call-view fullscreen */
+    body.voice-popup-mode .app { display: none !important; }
+    body.voice-popup-mode #call-view {
+      left: 0 !important; top: 0 !important; right: 0; bottom: 0;
+      display: flex !important;
+    }
+    body.voice-popup-mode #call-view.call-hidden { display: flex !important; }
+    /* sembunyikan tombol "Chat" (toggle ke channel) di popup, tak relevan */
+    body.voice-popup-mode #cb-chat { display: none !important; }
   </style>
 </head>
 <body>
@@ -507,9 +554,9 @@
           <!-- Voice channels -->
           <div class="ch-section-label" style="margin-top:8px">
             <span>Voice</span>
-            <button class="ch-section-add" title="Gabung voice" onclick="joinVoice()"><i class="ti ti-phone"></i></button>
+            <button class="ch-section-add" title="Gabung voice" onclick="openVoice()"><i class="ti ti-phone"></i></button>
           </div>
-          <div id="voice-ch-item" class="ch-voice-item" onclick="joinVoice()">
+          <div id="voice-ch-item" class="ch-voice-item" onclick="openVoice()">
             <i class="ti ti-volume" style="font-size:18px;width:20px;text-align:center"></i>
             <span style="font-size:13px;font-weight:500">General Voice</span>
           </div>
@@ -598,6 +645,26 @@
     <div class="call-bar-extras">
       <button class="cb-small" id="cb-deafen" onclick="toggleDeafen()"><i class="ti ti-headphones"></i> Deafen</button>
       <button class="cb-small" id="cb-chat" onclick="toggleCallChat()"><i class="ti ti-message"></i> Chat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Voice Lobby (pra-join, ala Zoom/Meet) -->
+<div id="voice-lobby">
+  <div class="lobby-card">
+    <div class="lobby-title">Siap bergabung ke General Voice?</div>
+    <div class="lobby-preview">
+      <video id="lobby-video" autoplay muted playsinline></video>
+      <div id="lobby-video-off"><div class="lobby-av" id="lobby-av">?</div></div>
+      <div class="lobby-meter-wrap"><div id="lobby-mic-meter"></div></div>
+    </div>
+    <div class="lobby-controls">
+      <button id="lobby-mic-btn" class="lobby-btn off" onclick="toggleLobbyMic()" title="Mic"><i class="ti ti-microphone-off"></i></button>
+      <button id="lobby-cam-btn" class="lobby-btn off" onclick="toggleLobbyCam()" title="Kamera"><i class="ti ti-video-off"></i></button>
+    </div>
+    <div class="lobby-actions">
+      <button class="btn" onclick="cancelLobby()">Batal</button>
+      <button class="btn btn-primary" onclick="joinFromLobby()"><i class="ti ti-phone"></i> Gabung Sekarang</button>
     </div>
   </div>
 </div>
@@ -790,6 +857,33 @@
 <script>
 if (!requireAuth()) throw 'redirect';
 const me = getUser();
+
+// Mode popup voice: halaman ini dibuka di jendela terpisah khusus voice
+const VOICE_POPUP = new URLSearchParams(location.search).get('voiceOnly') === '1';
+let voicePopup = null; // referensi jendela popup (di jendela utama)
+
+// Dipanggil dari tombol "General Voice" / gabung di jendela utama.
+function openVoice() {
+  if (VOICE_POPUP) { joinVoice(); return; } // di dalam popup: langsung join
+  if (voicePopup && !voicePopup.closed) { voicePopup.focus(); return; }
+
+  // Raih popup bernama sama tanpa menavigasi (url kosong = tidak reload),
+  // supaya voice yang sedang berjalan tidak terputus jika halaman utama tadi di-reload.
+  const existing = window.open('', 'intrackVoice');
+  try {
+    if (existing && !existing.closed && existing.location && existing.location.href &&
+        existing.location.href !== 'about:blank') {
+      voicePopup = existing; existing.focus(); return;
+    }
+  } catch (e) { /* cross state, lanjut buka baru */ }
+
+  const w = 1000, h = 680;
+  const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
+  voicePopup = window.open('/pages/channel.html?voiceOnly=1', 'intrackVoice',
+    `width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`);
+  if (!voicePopup) { showToast('Popup diblokir browser. Izinkan popup untuk fitur voice.', 'error'); return; }
+  voicePopup.focus();
+}
 
 let activeChannelId = null;
 let channels        = [];
@@ -1169,6 +1263,15 @@ function escHtml(s) {
 
 loadChannels();
 
+// Mode popup: tampilkan lobby pra-join lalu call-view
+if (VOICE_POPUP) {
+  document.body.classList.add('voice-popup-mode');
+  document.title = 'Voice — General Voice';
+  getSocket();      // pastikan socket terbuka
+  showLobby();      // tampilkan preview mic/kamera dulu
+  window.addEventListener('beforeunload', () => { try { socket?.emit('voice:leave'); } catch(e) {} });
+}
+
 // ── Socket.io + WebRTC Voice ───────────────────────────────────────────────────
 let socket       = null;
 let peerConns    = {};   // { socketId: RTCPeerConnection }
@@ -1201,7 +1304,9 @@ function getSocket() {
     voiceParticipants[p.userId] = p;
     ensureParticipantTile(p);
     renderVoiceParticipants();
-    createOffer(p.socketId);
+    // JANGAN buat offer di sini. Pendatang baru yang menginisiasi offer
+    // (lewat 'voice:participants'). Kalau dua sisi sama-sama offer → glare,
+    // sebagian koneksi gagal → bisu/tuli saat ramai.
     if (inVoice) playJoinSound();
   });
 
@@ -1227,6 +1332,18 @@ function getSocket() {
   socket.on('voice:speaking', ({ userId, speaking }) => {
     setParticipantSpeaking(userId, speaking);
   });
+
+  // Presence: roster voice untuk yang BELUM join (preview siapa di dalam)
+  socket.on('voice:presence', ({ channelId, participants }) => {
+    if (channelId !== VOICE_ROOM_ID) return;
+    if (inVoice) return; // saat sudah join, roster diurus event lain
+    voiceParticipants = {};
+    (participants || []).forEach(p => { voiceParticipants[p.userId] = p; });
+    renderVoiceParticipants();
+  });
+
+  // Minta snapshot peserta voice saat konek
+  socket.on('connect', () => socket.emit('voice:peek', { channelId: VOICE_ROOM_ID }));
 
   socket.on('voice:offer', async ({ fromSocketId, fromUserId, offer }) => {
     peerRoles[fromSocketId] = 'answerer';
@@ -1289,23 +1406,141 @@ const VOICE_ROOM_ID = 'general-voice';
 async function joinVoice() {
   // Sudah di voice — cukup tampilkan kembali call-view
   if (inVoice) { showCallView(); return; }
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  } catch(e) {
-    showToast('Tidak dapat mengakses mikrofon: ' + e.message, 'error'); return;
+  showLobby();
+}
+
+// ── Lobby pra-join (preview mic/kamera seperti Zoom/Meet) ─────────────────────
+let lobbyStream = null, lobbyMicOn = false, lobbyCamOn = false;
+let lobbyMeterRAF = null, lobbyMeterCtx = null;
+
+async function showLobby() {
+  const lobby = document.getElementById('voice-lobby');
+  if (lobby) lobby.style.display = 'flex';
+  const av = document.getElementById('lobby-av');
+  if (av) {
+    const inits = (me.namaLengkap || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+    av.innerHTML = me.fotoProfil ? `<img src="${me.fotoProfil}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : inits;
   }
 
+  // Ambil stream preview (audio + video). Fallback audio-only bila kamera tidak ada/ditolak.
+  try {
+    lobbyStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+  } catch (e) {
+    try { lobbyStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); }
+    catch (e2) { showToast('Tidak dapat mengakses mic/kamera: ' + e2.message, 'error'); }
+  }
+
+  lobbyMicOn = false; lobbyCamOn = false; // default: mic & kamera mati (aman)
+  const v = document.getElementById('lobby-video');
+  if (v && lobbyStream) { v.srcObject = lobbyStream; v.play().catch(() => {}); }
+  applyLobbyTracks();
+  startLobbyMeter();
+  updateLobbyButtons();
+}
+
+function applyLobbyTracks() {
+  lobbyStream?.getAudioTracks().forEach(t => t.enabled = lobbyMicOn);
+  lobbyStream?.getVideoTracks().forEach(t => t.enabled = lobbyCamOn);
+  const v  = document.getElementById('lobby-video');
+  const ph = document.getElementById('lobby-video-off');
+  if (v)  v.style.display  = lobbyCamOn ? 'block' : 'none';
+  if (ph) ph.style.display = lobbyCamOn ? 'none'  : 'flex';
+}
+
+function toggleLobbyMic() {
+  const hasAudio = lobbyStream?.getAudioTracks().length;
+  if (!hasAudio) { showToast('Mikrofon tidak tersedia', 'error'); return; }
+  lobbyMicOn = !lobbyMicOn; applyLobbyTracks(); updateLobbyButtons();
+}
+function toggleLobbyCam() {
+  const hasVideo = lobbyStream?.getVideoTracks().length;
+  if (!hasVideo) { showToast('Kamera tidak tersedia', 'error'); return; }
+  lobbyCamOn = !lobbyCamOn; applyLobbyTracks(); updateLobbyButtons();
+}
+
+function updateLobbyButtons() {
+  const mic = document.getElementById('lobby-mic-btn');
+  const cam = document.getElementById('lobby-cam-btn');
+  if (mic) {
+    mic.className = 'lobby-btn' + (lobbyMicOn ? '' : ' off');
+    mic.innerHTML = `<i class="ti ${lobbyMicOn ? 'ti-microphone' : 'ti-microphone-off'}"></i>`;
+    mic.title = lobbyMicOn ? 'Matikan mic' : 'Nyalakan mic';
+  }
+  if (cam) {
+    cam.className = 'lobby-btn' + (lobbyCamOn ? '' : ' off');
+    cam.innerHTML = `<i class="ti ${lobbyCamOn ? 'ti-video' : 'ti-video-off'}"></i>`;
+    cam.title = lobbyCamOn ? 'Matikan kamera' : 'Nyalakan kamera';
+  }
+}
+
+function startLobbyMeter() {
+  stopLobbyMeter();
+  if (!lobbyStream || !lobbyStream.getAudioTracks().length) return;
+  try {
+    lobbyMeterCtx = new AudioContext();
+    const src = lobbyMeterCtx.createMediaStreamSource(lobbyStream);
+    const an  = lobbyMeterCtx.createAnalyser(); an.fftSize = 256;
+    src.connect(an);
+    const buf = new Uint8Array(an.frequencyBinCount);
+    const bar = document.getElementById('lobby-mic-meter');
+    const tick = () => {
+      lobbyMeterRAF = requestAnimationFrame(tick);
+      an.getByteFrequencyData(buf);
+      const rms = Math.sqrt(buf.reduce((s, x) => s + x*x, 0) / buf.length);
+      const pct = lobbyMicOn ? Math.min(100, Math.round(rms * 2.2)) : 0;
+      if (bar) bar.style.width = pct + '%';
+    };
+    tick();
+  } catch (e) {}
+}
+function stopLobbyMeter() {
+  if (lobbyMeterRAF) { cancelAnimationFrame(lobbyMeterRAF); lobbyMeterRAF = null; }
+  if (lobbyMeterCtx) { lobbyMeterCtx.close().catch(() => {}); lobbyMeterCtx = null; }
+}
+
+function cancelLobby() {
+  stopLobbyMeter();
+  lobbyStream?.getTracks().forEach(t => t.stop());
+  lobbyStream = null;
+  const lobby = document.getElementById('voice-lobby');
+  if (lobby) lobby.style.display = 'none';
+  if (VOICE_POPUP) { try { window.close(); } catch (e) {} }
+}
+
+function joinFromLobby() {
+  if (!lobbyStream) { showToast('Media belum siap', 'error'); return; }
+  stopLobbyMeter();
+
+  // Buang track video bila kamera dimatikan (jangan dikirim ke peserta lain)
+  if (!lobbyCamOn) {
+    lobbyStream.getVideoTracks().forEach(t => { t.stop(); lobbyStream.removeTrack(t); });
+  }
+  localStream = lobbyStream; lobbyStream = null;
+
+  isMuted    = !lobbyMicOn;
+  isVideoOn  = lobbyCamOn;
+  isDeafened = false;
+  localStream.getAudioTracks().forEach(t => t.enabled = lobbyMicOn);
+
+  const lobby = document.getElementById('voice-lobby');
+  if (lobby) lobby.style.display = 'none';
+
+  enterVoice();
+}
+
+// Inti masuk voice — asumsikan localStream & isMuted/isVideoOn sudah diset
+function enterVoice() {
   inVoice = true;
-  isMuted = false; isDeafened = false; isVideoOn = false;
 
   document.getElementById('voice-panel')?.classList.add('active');
   document.getElementById('ch-voice-bar').classList.add('active');
   const cv = document.getElementById('call-view');
   cv.classList.add('active');
-  cv.classList.remove('call-hidden'); // selalu tampilkan kembali saat join
+  cv.classList.remove('call-hidden');
 
   voiceParticipants = {};
   addMyVideoTile();
+  if (isVideoOn) updateMyVideoTile(true);
   renderVoiceParticipants();
 
   const s = getSocket();
@@ -1314,6 +1549,7 @@ async function joinVoice() {
     name: me.namaLengkap,
     photo: me.fotoProfil || null,
   });
+  s.emit('voice:status', { muted: isMuted, videoOn: isVideoOn });
 
   updateVoiceUI();
   startVAD();
@@ -1340,6 +1576,9 @@ function leaveVoice() {
   clearCallGrid();
   renderVoiceParticipants();
   updateVoiceUI();
+
+  // Di jendela popup: tutup jendela setelah keluar voice
+  if (VOICE_POPUP) { try { window.close(); } catch(e) {} }
 }
 
 function toggleCallChat() {

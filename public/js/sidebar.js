@@ -61,8 +61,8 @@ function buildSidebar(user, activePage) {
 
   return `
     <div class="sb-logo">
-      <div class="sb-mark">
-        <img src="/img/logo.png" alt="Logo" onerror="this.parentElement.innerHTML='<div class=sb-mark-text>I</div>'">
+      <div class="sb-mark" style="background:transparent;padding:4px">
+        <img src="/img/logo.png" alt="Logo" style="width:100%;height:100%;object-fit:contain" onerror="this.parentElement.innerHTML='I'">
       </div>
       <div>
         <div class="sb-name" id="sb-app-name">Intrack</div>

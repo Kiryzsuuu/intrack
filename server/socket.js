@@ -73,6 +73,15 @@ function initSocket(server) {
         name: name || socket.userName, photo: photo || socket.userPhoto,
         muted: false, deafened: false, videoOn: false,
       });
+
+      // Broadcast presence ke semua (agar yang belum join pun lihat isi voice)
+      broadcastPresence(channelId);
+    });
+
+    // ── Voice: peek — lihat siapa di voice tanpa join ─────────────────────────
+    socket.on('voice:peek', ({ channelId }) => {
+      if (!channelId) return;
+      socket.emit('voice:presence', { channelId, participants: getParticipants(channelId) });
     });
 
     // ── Voice: leave room ────────────────────────────────────────────────────
@@ -123,6 +132,8 @@ function initSocket(server) {
       io.to(`voice:${channelId}`).emit('voice:user-status', {
         userId: socket.userId, muted: p.muted, deafened: p.deafened, videoOn: p.videoOn,
       });
+
+      broadcastPresence(channelId);
     });
 
     socket.on('disconnect', () => {
@@ -147,10 +158,18 @@ function leaveAllVoiceRooms(socket) {
     userId: socket.userId, socketId: socket.id,
   });
   socket.voiceChannel = null;
+
+  broadcastPresence(channelId);
 }
 
 function getParticipants(channelId) {
   return Object.values(voiceRooms[channelId] || {});
+}
+
+// Broadcast daftar peserta voice ke SEMUA client (termasuk yang belum join),
+// agar roster "siapa di voice" terlihat sebelum masuk.
+function broadcastPresence(channelId) {
+  if (io) io.emit('voice:presence', { channelId, participants: getParticipants(channelId) });
 }
 
 function emitToUser(userId, event, data) {
