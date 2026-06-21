@@ -41,6 +41,11 @@ router.post('/', auth, async (req, res) => {
     createdBy: req.user._id,
   });
 
+  // Sinkronkan milestoneId ke task terpilih
+  if (Array.isArray(taskIds) && taskIds.length) {
+    await Task.updateMany({ _id: { $in: taskIds } }, { milestoneId: ms._id });
+  }
+
   await ms.populate([
     { path: 'direktoratId', select: 'nama kode' },
     { path: 'createdBy', select: 'namaLengkap' },
@@ -60,8 +65,17 @@ router.put('/:id', auth, async (req, res) => {
   if (tanggal)      ms.tanggal      = new Date(tanggal);
   if (status)       ms.status       = status;
   if (direktoratId !== undefined) ms.direktoratId = direktoratId || null;
-  if (taskIds)      ms.taskIds      = taskIds;
   if (warna)        ms.warna        = warna;
+
+  if (taskIds) {
+    const oldIds = (ms.taskIds || []).map(t => t.toString());
+    const newIds = taskIds.map(t => t.toString());
+    const added   = newIds.filter(id => !oldIds.includes(id));
+    const removed = oldIds.filter(id => !newIds.includes(id));
+    if (added.length)   await Task.updateMany({ _id: { $in: added } },   { milestoneId: ms._id });
+    if (removed.length) await Task.updateMany({ _id: { $in: removed } }, { milestoneId: null });
+    ms.taskIds = taskIds;
+  }
 
   await ms.save();
   res.json({ message: 'Milestone diupdate', milestone: ms });

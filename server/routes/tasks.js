@@ -35,6 +35,21 @@ function isDireksiRole(user) {
 // Req #3: semua user bisa MELIHAT semua task
 function canView() { return true; }
 
+// Buat subtask (mendukung nested) dari struktur pohon { judul, assignees, dueDate, priority, children[] }
+async function createSubtasksRecursive(taskId, parentId, nodes) {
+  let urutan = 0;
+  for (const s of (nodes || [])) {
+    if (!s || !s.judul) continue;
+    const sub = await Subtask.create({
+      taskId, parentId: parentId || null, judul: s.judul, urutan: urutan++,
+      assignees: s.assignees || [], dueDate: s.dueDate || null, priority: s.priority || 'medium',
+    });
+    if (Array.isArray(s.children) && s.children.length) {
+      await createSubtasksRecursive(taskId, sub._id, s.children);
+    }
+  }
+}
+
 // Notif & snapshot saat task benar-benar complete (sudah di-approve creator)
 async function onTaskComplete(task) {
   task.doneAt     = new Date();
@@ -149,16 +164,9 @@ router.post('/', auth, async (req, res) => {
     deadline: new Date(deadline),
   });
 
-  // Subtask boleh dikirim saat pembuatan (opsional)
+  // Subtask boleh dikirim saat pembuatan (opsional). Mendukung nested via `children`.
   if (Array.isArray(subtasks) && subtasks.length) {
-    let urutan = 0;
-    for (const s of subtasks) {
-      if (!s.judul) continue;
-      await Subtask.create({
-        taskId: task._id, parentId: null, judul: s.judul, urutan: urutan++,
-        assignees: s.assignees || [], dueDate: s.dueDate || null, priority: s.priority || 'medium',
-      });
-    }
+    await createSubtasksRecursive(task._id, null, subtasks);
   }
 
   await StatusLog.create({ taskId: task._id, userId: req.user._id, statusLama: null, statusBaru: 'to_do', catatan: 'Task dibuat' });

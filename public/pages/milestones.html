@@ -138,6 +138,11 @@
       <label>Warna Penanda</label>
       <div class="ms-color-row" id="ms-colors"></div>
     </div>
+    <div class="ms-form-row">
+      <label>Task dalam Milestone (opsional)</label>
+      <input type="text" id="ms-task-search" placeholder="Cari task..." style="margin-bottom:8px">
+      <div id="ms-task-list" style="max-height:200px;overflow-y:auto;border:0.5px solid var(--border);border-radius:8px;padding:6px"></div>
+    </div>
 
     <div class="ms-modal-footer">
       <button class="ms-btn" onclick="closeForm()">Batal</button>
@@ -202,6 +207,17 @@ function renderTimeline(milestones) {
     return;
   }
 
+  // Auto-tandai tercapai jika semua task complete
+  milestones.forEach(ms => {
+    const tasks = ms.taskIds || [];
+    if (ms.status === 'pending' && tasks.length && tasks.every(t => t.status === 'complete')) {
+      ms.status = 'tercapai';
+      Milestones.update(ms._id, { status: 'tercapai' }).catch(() => {});
+    }
+  });
+
+  const curUser = getUser();
+
   wrap.innerHTML = milestones.map(ms => {
     const tgl     = new Date(ms.tanggal);
     const isOver  = tgl < now && ms.status === 'pending';
@@ -210,16 +226,30 @@ function renderTimeline(milestones) {
     const badgeFg = ms.status === 'tercapai' ? '#065F46' : (isOver ? '#991B1B' : '#1E40AF');
     const badgeTxt= ms.status === 'tercapai' ? '✓ Tercapai' : (isOver ? '⚠ Overdue' : '○ Pending');
 
-    const taskChips = (ms.taskIds || []).map(t =>
+    const canEdit = curUser?.role === 'superadmin' || curUser?.role === 'direksi' ||
+                    ms.createdBy?._id === curUser?._id;
+
+    // Progress dari task
+    const tasks = ms.taskIds || [];
+    const total = tasks.length;
+    const done  = tasks.filter(t => t.status === 'complete').length;
+    const pct   = total ? Math.round(done / total * 100) : 0;
+    const progressHtml = total ? `
+      <div style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:4px">
+          <span>Progress</span><span>${done}/${total} task (${pct}%)</span>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${pct===100?'#10B981':ms.warna};transition:width .3s"></div>
+        </div>
+      </div>` : '';
+
+    const taskChips = tasks.map(t =>
       `<div class="ms-task-chip" style="display:flex;align-items:center;gap:4px">
-        <span onclick="window.location='/pages/task.html?id=${t._id}'" style="cursor:pointer;flex:1">${t.judul}</span>
+        <span onclick="window.location='/pages/task.html?id=${t._id}'" style="cursor:pointer;flex:1">${t.status === 'complete' ? '✓ ' : ''}${t.judul}</span>
         ${canEdit ? `<i class="ti ti-x" style="font-size:11px;cursor:pointer;color:var(--text-3)" onclick="removeTaskFromMs('${ms._id}','${t._id}')"></i>` : ''}
       </div>`
     ).join('');
-
-    const curUser = getUser();
-    const canEdit = curUser?.role === 'superadmin' || curUser?.role === 'direksi' ||
-                    ms.createdBy?._id === curUser?._id;
 
     return `
       <div class="ms-item ${cls}">
@@ -237,6 +267,7 @@ function renderTimeline(milestones) {
         </div>
         <div class="ms-date"><i class="ti ti-calendar"></i> ${formatTanggal(ms.tanggal)}</div>
         ${ms.direktoratId ? `<div class="ms-dir"><i class="ti ti-building"></i> ${ms.direktoratId.kode} — ${ms.direktoratId.nama}</div>` : ''}
+        ${progressHtml}
         ${taskChips ? `<div class="ms-tasks">${taskChips}</div>` : ''}
         ${canEdit ? `
         <div class="ms-actions">
@@ -249,6 +280,34 @@ function renderTimeline(milestones) {
   }).join('');
 }
 
+let allTasksForMs = [];
+let selectedTaskIds = new Set();
+
+async function loadTasksForPicker() {
+  if (!allTasksForMs.length) {
+    const { tasks } = await Tasks.list({ limit: 200 }).catch(() => ({ tasks: [] }));
+    allTasksForMs = tasks || [];
+  }
+  renderTaskPicker('');
+}
+
+function renderTaskPicker(q) {
+  const el = document.getElementById('ms-task-list');
+  const list = allTasksForMs.filter(t => !q || t.judul.toLowerCase().includes(q));
+  if (!list.length) { el.innerHTML = '<div style="color:var(--text-3);font-size:12px;padding:6px">Tidak ada task</div>'; return; }
+  el.innerHTML = list.map(t => `
+    <label style="display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;font-size:13px">
+      <input type="checkbox" ${selectedTaskIds.has(t._id) ? 'checked' : ''} onchange="toggleMsTask('${t._id}', this.checked)">
+      <span>${t.judul}</span>
+    </label>`).join('');
+}
+
+function toggleMsTask(id, on) { on ? selectedTaskIds.add(id) : selectedTaskIds.delete(id); }
+
+document.getElementById('ms-task-search').addEventListener('input', function () {
+  renderTaskPicker(this.value.toLowerCase());
+});
+
 function openForm() {
   document.getElementById('ms-modal-title').textContent = 'Milestone Baru';
   document.getElementById('ms-edit-id').value = '';
@@ -256,10 +315,13 @@ function openForm() {
   document.getElementById('ms-tanggal').value = '';
   document.getElementById('ms-deskripsi').value = '';
   document.getElementById('ms-dir').value     = '';
+  document.getElementById('ms-task-search').value = '';
+  selectedTaskIds = new Set();
   selectedColor = COLORS[0];
   document.querySelectorAll('.ms-color-swatch').forEach((el, i) => {
     el.classList.toggle('selected', i === 0);
   });
+  loadTasksForPicker();
   document.getElementById('ms-modal-overlay').classList.add('open');
 }
 
@@ -274,10 +336,13 @@ async function openEdit(id) {
   document.getElementById('ms-tanggal').value   = ms.tanggal?.slice(0, 10) || '';
   document.getElementById('ms-deskripsi').value = ms.deskripsi || '';
   document.getElementById('ms-dir').value       = ms.direktoratId?._id || '';
+  document.getElementById('ms-task-search').value = '';
+  selectedTaskIds = new Set((ms.taskIds || []).map(t => t._id || t));
   selectedColor = ms.warna || COLORS[0];
   document.querySelectorAll('.ms-color-swatch').forEach(el => {
     el.classList.toggle('selected', el.dataset.color === selectedColor);
   });
+  loadTasksForPicker();
   document.getElementById('ms-modal-overlay').classList.add('open');
 }
 
@@ -294,7 +359,7 @@ async function saveMilestone() {
 
   if (!judul || !tanggal) { showToast('Judul dan tanggal wajib diisi', 'error'); return; }
 
-  const data = { judul, tanggal, deskripsi, direktoratId: direktoratId || null, warna: selectedColor };
+  const data = { judul, tanggal, deskripsi, direktoratId: direktoratId || null, warna: selectedColor, taskIds: [...selectedTaskIds] };
 
   try {
     if (id) {

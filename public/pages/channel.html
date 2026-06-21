@@ -268,15 +268,15 @@
     }
     #call-view.active { display: flex; }
 
-    /* Grid mode (no spotlight) */
+    /* Grid mode (no spotlight) — auto-fit ke satu layar */
     .call-grid {
-      flex: 1; display: flex; flex-wrap: wrap; gap: 8px;
-      padding: 12px; align-content: center; justify-content: center;
+      flex: 1; min-height: 0; display: grid; gap: 8px;
+      padding: 12px; grid-auto-rows: 1fr; place-content: stretch;
       overflow: hidden;
     }
     /* Spotlight mode */
     .call-grid.spotlight-mode {
-      flex-direction: column; flex-wrap: nowrap; padding: 0; gap: 0;
+      display: flex; flex-direction: column; flex-wrap: nowrap; padding: 0; gap: 0;
     }
     .call-spotlight-main {
       flex: 1; min-height: 0; padding: 10px;
@@ -300,7 +300,7 @@
     .video-tile {
       background: #1e1e2e; border-radius: 14px; overflow: hidden;
       position: relative; display: flex; align-items: center; justify-content: center;
-      flex: 1 1 260px; min-height: 160px; max-width: calc(50% - 4px);
+      min-height: 0; min-width: 0;
       border: 2px solid transparent; transition: border-color .2s, box-shadow .2s;
       cursor: pointer; user-select: none;
     }
@@ -1992,6 +1992,10 @@ function enterSpotlight(tileId) {
   const pinnedEl = document.getElementById(tileId);
   if (!pinnedEl) return;
 
+  // PENTING: tangkap semua tile DULU sebelum mengosongkan grid,
+  // agar referensinya tidak hilang (bug: peserta lain & diri sendiri ikut hilang).
+  const allTiles = [...grid.querySelectorAll('.video-tile')];
+
   grid.classList.add('spotlight-mode');
   grid.innerHTML = '';
 
@@ -2006,35 +2010,40 @@ function enterSpotlight(tileId) {
   const strip = document.createElement('div');
   strip.className = 'call-strip';
   strip.id = 'call-strip';
-  // Move remaining tiles into strip — re-read from voiceParticipants + self
-  rebuildStripTiles(strip, tileId);
+  allTiles.forEach(t => { if (t.id !== tileId) strip.appendChild(t); });
   grid.appendChild(strip);
-}
-
-function rebuildStripTiles(strip, excludeId) {
-  // Self tile (if not pinned)
-  if (excludeId !== 'vtile-me') {
-    const t = document.getElementById('vtile-me');
-    if (t) strip.appendChild(t);
-  }
-  Object.values(voiceParticipants).forEach(p => {
-    const id = 'vtile-p-' + p.userId;
-    const vId = 'vtile-' + (p.socketId || '');
-    const el  = document.getElementById(id) || document.getElementById(vId);
-    if (el && el.id !== excludeId) strip.appendChild(el);
-  });
 }
 
 function exitSpotlight() {
   const grid = getCallGrid();
   if (!grid) return;
-  grid.classList.remove('spotlight-mode');
 
-  // Gather all tiles back to flat grid
-  const tiles = [...document.querySelectorAll('.video-tile')];
+  // Tangkap semua tile (di main + strip) sebelum membersihkan
+  const tiles = [...grid.querySelectorAll('.video-tile')];
+  grid.classList.remove('spotlight-mode');
   grid.innerHTML = '';
   tiles.forEach(t => grid.appendChild(t));
+  layoutGrid();
 }
+
+// Auto-resize grid agar pas satu layar (Google Meet style)
+function layoutGrid() {
+  const grid = getCallGrid();
+  if (!grid || grid.classList.contains('spotlight-mode')) return;
+  const n = grid.querySelectorAll('.video-tile').length;
+  if (!n) { grid.style.gridTemplateColumns = ''; return; }
+  const cols = Math.ceil(Math.sqrt(n));
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+}
+
+// Pantau perubahan jumlah tile → atur ulang kolom otomatis
+(function initGridAutoLayout() {
+  const grid = getCallGrid();
+  if (!grid) return;
+  const obs = new MutationObserver(() => layoutGrid());
+  obs.observe(grid, { childList: true });
+  window.addEventListener('resize', layoutGrid);
+})();
 
 // ── Join/Leave sound notifications ────────────────────────────────────────────
 function _playTones(freqs) {
