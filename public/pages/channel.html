@@ -858,30 +858,29 @@
 if (!requireAuth()) throw 'redirect';
 const me = getUser();
 
-// Mode popup voice: halaman ini dibuka di jendela terpisah khusus voice
+// Mode popup voice: halaman ini dibuka di jendela terpisah (?voiceOnly=1)
 const VOICE_POPUP = new URLSearchParams(location.search).get('voiceOnly') === '1';
-let voicePopup = null; // referensi jendela popup (di jendela utama)
+let voicePopup = null;
 
-// Dipanggil dari tombol "General Voice" / gabung di jendela utama.
+// Dipanggil dari tombol "General Voice".
 function openVoice() {
-  if (VOICE_POPUP) { joinVoice(); return; } // di dalam popup: langsung join
+  // Di dalam jendela popup → langsung tampilkan lobby (in-page popup)
+  if (VOICE_POPUP) { if (inVoice) { showCallView(); } else { showLobby(); } return; }
+
+  // Jendela utama: kalau popup masih hidup, cukup fokuskan
   if (voicePopup && !voicePopup.closed) { voicePopup.focus(); return; }
 
-  // Raih popup bernama sama tanpa menavigasi (url kosong = tidak reload),
-  // supaya voice yang sedang berjalan tidak terputus jika halaman utama tadi di-reload.
-  const existing = window.open('', 'intrackVoice');
-  try {
-    if (existing && !existing.closed && existing.location && existing.location.href &&
-        existing.location.href !== 'about:blank') {
-      voicePopup = existing; existing.focus(); return;
-    }
-  } catch (e) { /* cross state, lanjut buka baru */ }
-
-  const w = 1000, h = 680;
-  const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
+  // Buka popup baru (HARUS dari gesture klik ini agar tidak diblokir)
+  const w = 1040, h = 700;
+  const left = Math.max(0, (screen.width  - w) / 2);
+  const top  = Math.max(0, (screen.height - h) / 2);
   voicePopup = window.open('/pages/channel.html?voiceOnly=1', 'intrackVoice',
-    `width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`);
-  if (!voicePopup) { showToast('Popup diblokir browser. Izinkan popup untuk fitur voice.', 'error'); return; }
+    `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
+
+  if (!voicePopup) {
+    showToast('Popup diblokir browser. Klik ikon "popup diblokir" di address bar → Izinkan, lalu coba lagi.', 'error');
+    return;
+  }
   voicePopup.focus();
 }
 
@@ -1263,14 +1262,6 @@ function escHtml(s) {
 
 loadChannels();
 
-// Mode popup: tampilkan lobby pra-join lalu call-view
-if (VOICE_POPUP) {
-  document.body.classList.add('voice-popup-mode');
-  document.title = 'Voice — General Voice';
-  getSocket();      // pastikan socket terbuka
-  showLobby();      // tampilkan preview mic/kamera dulu
-  window.addEventListener('beforeunload', () => { try { socket?.emit('voice:leave'); } catch(e) {} });
-}
 
 // ── Socket.io + WebRTC Voice ───────────────────────────────────────────────────
 let socket       = null;
@@ -2470,6 +2461,15 @@ function renderVoiceParticipants() {
       </div>`;
     }).join('');
   }
+}
+
+// ── Mode popup: jendela khusus voice (hanya call-view + lobby) ─────────────────
+if (VOICE_POPUP) {
+  document.body.classList.add('voice-popup-mode');
+  document.title = 'Voice — General Voice';
+  getSocket();   // pastikan socket terbuka
+  showLobby();   // tampilkan lobby preview di dalam popup
+  window.addEventListener('beforeunload', () => { try { socket?.emit('voice:leave'); } catch(e) {} });
 }
 </script>
 </body>
