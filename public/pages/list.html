@@ -111,6 +111,9 @@
                 <th style="width:36px"><input type="checkbox" id="cb-all" class="row-cb" title="Pilih semua" onchange="toggleSelectAll(this.checked)"></th>
                 <th>Judul Task</th>
                 <th class="hide-mobile">Assignee</th>
+                <th class="hide-mobile">Subtask</th>
+                <th class="hide-mobile">Creator</th>
+                <th class="hide-mobile">Validator</th>
                 <th class="hide-mobile">Direktorat</th>
                 <th>Status</th>
                 <th>Prioritas</th>
@@ -119,7 +122,7 @@
               </tr>
             </thead>
             <tbody id="task-tbody">
-              <tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:48px">Memuat...</td></tr>
+              <tr><td colspan="11" style="text-align:center;color:var(--text-3);padding:48px">Memuat...</td></tr>
             </tbody>
           </table>
         </div>
@@ -173,7 +176,7 @@ async function loadList() {
   if (direktorat) params.direktoratId = direktorat;
 
   const tbody = document.getElementById('task-tbody');
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:28px">Memuat...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-3);padding:28px">Memuat...</td></tr>';
 
   try {
     const { tasks, total } = await Tasks.list(params);
@@ -182,14 +185,14 @@ async function loadList() {
     renderPagination(total);
     updateBulkBar();
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red-text);padding:28px">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--red-text);padding:28px">${e.message}</td></tr>`;
   }
 }
 
 function renderTable(tasks) {
   const tbody = document.getElementById('task-tbody');
   if (!tasks.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:48px">Tidak ada task</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-3);padding:48px">Tidak ada task</td></tr>';
     return;
   }
   tbody.innerHTML = tasks.map(t => {
@@ -222,6 +225,9 @@ function renderTable(tasks) {
           <span style="color:var(--text-2)">${assigneeNames(t)}</span>
         </div>
       </td>
+      <td class="hide-mobile" style="color:var(--text-2)">${(t.subtaskTotal||0) ? `${t.subtaskDone||0}/${t.subtaskTotal}` : '—'}</td>
+      <td class="hide-mobile" style="color:var(--text-2)">${creatorNames(t)}</td>
+      <td class="hide-mobile" style="color:var(--text-2)">${namesOf(t.validators)}</td>
       <td class="hide-mobile" style="color:var(--text-2)">${t.direktoratId?.nama || '-'}</td>
       <td><span class="badge ${statusBadgeClass(t.status)}">${statusLabel(t.status)}</span></td>
       <td>

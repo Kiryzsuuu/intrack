@@ -24,12 +24,51 @@ function isAssignee(user, task) {
   return assigneeIds(task).includes(user._id.toString());
 }
 
-function isCreator(user, task) {
+// Creator utama
+function isMainCreator(user, task) {
   return idStr(task.dibuatOleh) === user._id.toString();
+}
+// Creator (utama atau co-creator)
+function isCreator(user, task) {
+  if (isMainCreator(user, task)) return true;
+  return (task.creators || []).map(idStr).includes(user._id.toString());
+}
+// Validator (direktur yang ditunjuk)
+function isValidator(user, task) {
+  return (task.validators || []).map(idStr).includes(user._id.toString());
 }
 
 function isDireksiRole(user) {
   return ['direksi', 'superadmin'].includes(user.role);
+}
+
+// Hitung ulang status task dari progres subtask (atau completedBy bila tanpa subtask).
+// Mengembalikan { status, pendingApproval }.
+async function deriveTaskState(task) {
+  const subs = await Subtask.find({ taskId: task._id });
+  if (subs.length) {
+    const total = subs.length;
+    const done  = subs.filter(s => s.status === 'done' || s.isDone).length;
+    const prog  = subs.filter(s => s.status === 'on_progress').length;
+    if (done >= total)              return { status: 'partially_complete', pendingApproval: true };
+    if (done > 0 || prog > 0)       return { status: 'on_progress',        pendingApproval: false };
+    return { status: 'to_do', pendingApproval: false };
+  }
+  // Tanpa subtask: pakai completedBy vs assignees
+  const totalA = assigneeIds(task).length;
+  const doneA  = (task.completedBy || []).length;
+  if (totalA && doneA >= totalA) return { status: 'partially_complete', pendingApproval: true };
+  if (doneA > 0)                 return { status: 'partially_complete', pendingApproval: false };
+  return { status: task.status === 'on_progress' ? 'on_progress' : 'to_do', pendingApproval: false };
+}
+
+// Terapkan derive ke task (tidak menimpa bila sudah complete). Pakai object task ter-load.
+async function applyDerivedState(task) {
+  if (task.status === 'complete') return;
+  const d = await deriveTaskState(task);
+  task.status = d.status;
+  task.pendingApproval = d.pendingApproval;
+  await task.save();
 }
 
 // Req #3: semua user bisa MELIHAT semua task
@@ -88,11 +127,33 @@ router.get('/', auth, async (req, res) => {
   const tasks = await Task.find(filter)
     .populate('assignees', 'namaLengkap email fotoProfil')
     .populate('dibuatOleh', 'namaLengkap')
+    .populate('creators', 'namaLengkap')
+    .populate('validators', 'namaLengkap')
     .populate('direktoratId', 'nama kode')
     .populate('milestoneId', 'judul warna')
     .sort({ deadline: 1, createdAt: -1 })
     .skip((page - 1) * limit)
-    .limit(parseInt(limit));
+    .limit(parseInt(limit))
+    .lean();
+
+  // Lampirkan jumlah subtask (total & done) per task
+  const ids = tasks.map(t => t._id);
+  if (ids.length) {
+    const counts = await Subtask.aggregate([
+      { $match: { taskId: { $in: ids } } },
+      { $group: {
+        _id: '$taskId',
+        total: { $sum: 1 },
+        done:  { $sum: { $cond: [{ $or: [{ $eq: ['$status', 'done'] }, { $eq: ['$isDone', true] }] }, 1, 0] } },
+      } },
+    ]);
+    const map = {};
+    counts.forEach(c => { map[c._id.toString()] = { total: c.total, done: c.done }; });
+    tasks.forEach(t => {
+      const c = map[t._id.toString()] || { total: 0, done: 0 };
+      t.subtaskTotal = c.total; t.subtaskDone = c.done;
+    });
+  }
 
   res.json({ total, page: parseInt(page), tasks });
 });
@@ -139,7 +200,7 @@ router.put('/bulk-status', auth, async (req, res) => {
 
 // ── POST /api/tasks ───────────────────────────────────────────────────────────
 router.post('/', auth, async (req, res) => {
-  const { judul, deskripsi, assignees, prioritas, deadline, subtasks } = req.body;
+  const { judul, deskripsi, assignees, prioritas, deadline, subtasks, creators, validators } = req.body;
 
   if (!judul || !deskripsi || !assignees?.length || !deadline)
     return res.status(400).json({ message: 'Judul, deskripsi, assignee, dan deadline wajib diisi' });
@@ -157,6 +218,8 @@ router.post('/', auth, async (req, res) => {
     deskripsi,
     assignees,
     dibuatOleh: req.user._id,
+    creators: (creators || []).filter(id => idStr(id) !== req.user._id.toString()),
+    validators: validators || [],
     // Direktorat task = direktorat creator (untuk pelaporan)
     direktoratId: req.user.direktoratId?._id || req.user.direktoratId,
     prioritas: prioritas || 'normal',
@@ -182,11 +245,28 @@ router.post('/', auth, async (req, res) => {
   res.status(201).json({ task });
 });
 
+// ── GET /api/tasks/pending-approval — antrian approval untuk validator ────────
+// (Harus sebelum '/:id' agar tidak dianggap id)
+router.get('/pending-approval', auth, async (req, res) => {
+  const filter = { isDeleted: false, status: { $ne: 'complete' }, pendingApproval: true };
+  if (req.user.role !== 'superadmin') filter.validators = req.user._id;
+  const tasks = await Task.find(filter)
+    .populate('assignees', 'namaLengkap fotoProfil')
+    .populate('dibuatOleh', 'namaLengkap')
+    .populate('validators', 'namaLengkap')
+    .populate('direktoratId', 'nama kode')
+    .sort({ deadline: 1 });
+  res.json({ tasks });
+});
+
 // ── GET /api/tasks/:id ────────────────────────────────────────────────────────
 router.get('/:id', auth, async (req, res) => {
   const task = await Task.findById(req.params.id)
     .populate('assignees', 'namaLengkap email fotoProfil direktoratId')
     .populate('dibuatOleh', 'namaLengkap email')
+    .populate('creators', 'namaLengkap email fotoProfil')
+    .populate('validators', 'namaLengkap email fotoProfil')
+    .populate('approvedBy', 'namaLengkap')
     .populate('direktoratId', 'nama kode')
     .populate('completedBy', 'namaLengkap fotoProfil')
     .populate('milestoneId', 'judul warna');
@@ -216,12 +296,20 @@ router.put('/:id', auth, async (req, res) => {
   const allowed = ['judul', 'deskripsi', 'prioritas', 'deadline', 'assignees', 'milestoneId'];
   if (isDireksi) allowed.push('catatanDireksi');
 
+  // creators & validators hanya boleh diatur oleh CREATOR UTAMA (req)
+  if (isMainCreator(req.user, task) || isDireksi) {
+    if (req.body.creators !== undefined)
+      task.creators = (req.body.creators || []).filter(id => idStr(id) !== idStr(task.dibuatOleh));
+    if (req.body.validators !== undefined)
+      task.validators = req.body.validators || [];
+  }
+
   allowed.forEach(f => {
     if (req.body[f] !== undefined) task[f] = req.body[f];
   });
 
   await task.save();
-  await task.populate(['assignees', 'dibuatOleh', 'direktoratId']);
+  await task.populate(['assignees', 'dibuatOleh', 'creators', 'validators', 'direktoratId']);
   res.json({ message: 'Task berhasil diupdate', task });
 });
 
@@ -255,16 +343,17 @@ router.put('/:id/status', auth, async (req, res) => {
   if (!task || task.isDeleted)
     return res.status(404).json({ message: 'Task tidak ditemukan' });
 
-  const isDireksi = isDireksiRole(req.user);
+  const isSuper   = req.user.role === 'superadmin';
   const creator   = isCreator(req.user, task);
   const assignee  = isAssignee(req.user, task);
+  const validator = isValidator(req.user, task);
 
-  if (!isDireksi && !creator && !assignee)
+  if (!isSuper && !creator && !assignee && !validator)
     return res.status(403).json({ message: 'Akses ditolak' });
 
-  // Hanya creator/direksi yang boleh langsung set 'complete'
-  if (statusBaru === 'complete' && !isDireksi && !creator)
-    return res.status(403).json({ message: 'Hanya pembuat task yang dapat menyelesaikan task (approval)' });
+  // 'complete' hanya lewat approval validator (atau superadmin). Tidak bisa via status biasa.
+  if (statusBaru === 'complete' && !isSuper)
+    return res.status(403).json({ message: 'Task hanya bisa di-Complete lewat approval validator' });
 
   const statusLama = task.status;
   task.status = statusBaru;
@@ -314,43 +403,52 @@ router.post('/:id/complete-mine', auth, async (req, res) => {
   await task.save();
   await task.populate('completedBy', 'namaLengkap fotoProfil');
 
-  // Notif creator saat semua assignee selesai → minta approval
+  // Notif validator saat semua assignee selesai → minta approval
   if (task.pendingApproval) {
-    push.sendPush(idStr(task.dibuatOleh), {
-      title: 'Menunggu Approval', body: `Semua assignee menyelesaikan: ${task.judul}`,
-      url: `/pages/task.html?id=${task._id}`,
-    }).catch(() => {});
+    for (const vid of (task.validators || []).map(idStr)) {
+      push.sendPush(vid, {
+        title: 'Menunggu Approval Anda', body: `Task siap divalidasi: ${task.judul}`,
+        url: `/pages/approval.html`,
+      }).catch(() => {});
+    }
   }
 
   res.json({ message: done === false ? 'Ditandai belum selesai' : 'Ditandai selesai', task });
 });
 
-// ── POST /api/tasks/:id/approve — creator menyetujui penyelesaian (req #12) ──
+// ── POST /api/tasks/:id/approve — VALIDATOR menyetujui (1 approve = complete) ──
 router.post('/:id/approve', auth, async (req, res) => {
   const { approve } = req.body; // true = setujui jadi complete, false = tolak/revisi
   const task = await Task.findById(req.params.id).populate('assignees').populate('dibuatOleh');
   if (!task || task.isDeleted) return res.status(404).json({ message: 'Task tidak ditemukan' });
 
-  if (!isDireksiRole(req.user) && !isCreator(req.user, task))
-    return res.status(403).json({ message: 'Hanya pembuat task yang dapat approve' });
+  const isSuper = req.user.role === 'superadmin';
+  if (!isSuper && !isValidator(req.user, task))
+    return res.status(403).json({ message: 'Hanya validator (direktur) yang ditunjuk yang dapat approve' });
 
   const statusLama = task.status;
   if (approve === false) {
-    // Revisi: kembalikan ke on_progress
+    // Tolak / minta revisi: kembalikan ke on_progress
     task.pendingApproval = false;
     task.completedBy = [];
     task.status = 'on_progress';
     task.revisiCount = (task.revisiCount || 0) + 1;
     await task.save();
-    await StatusLog.create({ taskId: task._id, userId: req.user._id, statusLama, statusBaru: 'on_progress', catatan: 'Revisi oleh pembuat' });
+    await StatusLog.create({ taskId: task._id, userId: req.user._id, statusLama, statusBaru: 'on_progress', catatan: 'Ditolak validator — revisi' });
+    // beri tahu assignee
+    for (const uid of assigneeIds(task)) {
+      push.sendPush(uid, { title: 'Perlu Revisi', body: task.judul, url: `/pages/task.html?id=${task._id}` }).catch(() => {});
+    }
     return res.json({ message: 'Task dikembalikan untuk revisi', task });
   }
 
+  // Satu validator approve → langsung complete (tanpa menunggu validator lain)
   task.status = 'complete';
   task.pendingApproval = false;
+  task.approvedBy = req.user._id;
   await onTaskComplete(task);
   await task.save();
-  await StatusLog.create({ taskId: task._id, userId: req.user._id, statusLama, statusBaru: 'complete', catatan: 'Disetujui pembuat' });
+  await StatusLog.create({ taskId: task._id, userId: req.user._id, statusLama, statusBaru: 'complete', catatan: `Disetujui ${req.user.namaLengkap}` });
   audit.log(req, 'task.approve', { target:'Task', targetId: task._id, detail: { judul: task.judul } });
   res.json({ message: 'Task disetujui & selesai', task });
 });
@@ -418,8 +516,10 @@ function nextRunDate(fromDate, tipe, interval) {
   return d;
 }
 
-// ── DELETE /api/tasks/:id (soft delete) ── Direksi saja ──────────────────────
-router.delete('/:id', auth, requireRole('direksi'), async (req, res) => {
+// ── DELETE /api/tasks/:id (soft delete) ── Superadmin saja ───────────────────
+router.delete('/:id', auth, async (req, res) => {
+  if (req.user.role !== 'superadmin')
+    return res.status(403).json({ message: 'Hanya admin (superadmin) yang dapat menghapus task' });
   const task = await Task.findById(req.params.id);
   if (!task) return res.status(404).json({ message: 'Task tidak ditemukan' });
 

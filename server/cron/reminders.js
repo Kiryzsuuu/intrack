@@ -5,6 +5,7 @@ const notifSvc = require('../services/notifikasi');
 const mailer   = require('../services/mailer');
 const wa       = require('../services/whatsapp');
 const { simpanSnapshot } = require('../services/kpi');
+const push     = require('../services/push');
 
 function hariKerja(tanggal) {
   const hari = tanggal.getDay();
@@ -61,29 +62,32 @@ function startCronJobs() {
     }
   });
 
-  // ── Setiap jam 09:00 — task overdue (H+1) ───────────────────────────────────
-  cron.schedule('0 9 * * 1-5', async () => {
+  // ── Setiap jam 09:00 — reminder overdue HARIAN ke assignee ──────────────────
+  // Berjalan tiap hari (termasuk weekend) selama task masih overdue & belum complete.
+  cron.schedule('0 9 * * *', async () => {
     try {
-      const kemarin = new Date();
-      kemarin.setDate(kemarin.getDate() - 1);
-      kemarin.setHours(0, 0, 0, 0);
-      const kemarinAkhir = new Date(kemarin);
-      kemarinAkhir.setHours(23, 59, 59, 999);
+      const now = new Date();
 
+      // SEMUA task yang sudah lewat deadline & belum complete (bukan hanya H+1)
       const tasks = await Task.find({
         isDeleted:  false,
         archivedAt: null,
         status:     { $ne: 'complete' },
-        deadline:   { $gte: kemarin, $lte: kemarinAkhir },
+        deadline:   { $lt: now },
       }).populate('assignees');
 
       const direksi = await User.find({ role: 'direksi', statusAktif: true });
 
       for (const task of tasks) {
         const assignees = task.assignees || [];
+        // Notif harian ke tiap assignee — tetap dikirim walau sudah overdue lama
         for (const pic of assignees) {
           if (!pic) continue;
-          await notifSvc.notifOverdue(pic, task);
+          await notifSvc.notifOverdue(pic, task).catch(() => {});
+          push.sendPush(pic._id, {
+            title: '⚠ Task Overdue', body: `${task.judul} sudah lewat deadline — segera selesaikan`,
+            url: `/pages/task.html?id=${task._id}`,
+          }).catch(() => {});
         }
         const namaAssignee = assignees.map(a => a.namaLengkap).join(', ') || '-';
         for (const d of direksi) {

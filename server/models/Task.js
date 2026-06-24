@@ -5,7 +5,12 @@ const taskSchema = new mongoose.Schema({
   deskripsi:    { type: String, required: true },
   // Multi-assignee: orang-orang yang mengerjakan task ini
   assignees:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  dibuatOleh:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // creator
+  dibuatOleh:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // creator utama
+  // Co-creator: beberapa orang bisa jadi task creator (hanya diatur oleh creator utama)
+  creators:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // Validator (direktur) — salah satu approve → task complete
+  validators:   [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  approvedBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   direktoratId: { type: mongoose.Schema.Types.ObjectId, ref: 'Direktorat', required: true },
   prioritas:    { type: String, enum: ['normal', 'moderate', 'urgent'], default: 'normal' },
   status: {

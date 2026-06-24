@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="/img/logo.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Approval Task</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .ap-card {
+      background:var(--surface); border:0.5px solid var(--border);
+      border-radius:var(--r-lg); padding:18px 20px; margin-bottom:12px;
+    }
+    .ap-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .ap-title { font-size:15px; font-weight:700; }
+    .ap-meta { font-size:12px; color:var(--text-3); margin-top:4px; display:flex; gap:14px; flex-wrap:wrap; }
+    .ap-actions { display:flex; gap:8px; flex-shrink:0; }
+    .ap-empty { text-align:center; color:var(--text-3); padding:60px 0; }
+    .ap-empty i { font-size:40px; display:block; margin-bottom:10px; opacity:.5; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="approval"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Approval Task</span></div>
+    </div>
+    <div class="page-scroll">
+      <div class="page-content">
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:4px">Menunggu Persetujuan Anda</div>
+        <div style="font-size:13px;color:var(--text-3);margin-bottom:16px">Sebagai validator, satu approval dari Anda akan menyelesaikan task.</div>
+        <div id="ap-list"><div class="ap-empty">Memuat...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script src="/js/dialogs.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+if (!['direksi','superadmin'].includes(user?.role)) window.location.href = '/pages/dashboard.html';
+
+async function load() {
+  const el = document.getElementById('ap-list');
+  try {
+    const { tasks } = await Tasks.pendingApproval();
+    if (!tasks.length) {
+      el.innerHTML = `<div class="ap-empty"><i class="ti ti-circle-check"></i>Tidak ada task yang menunggu approval.</div>`;
+      return;
+    }
+    el.innerHTML = tasks.map(t => {
+      const assignees = (t.assignees || []).map(a => a.namaLengkap).join(', ') || '-';
+      const od = isOverdue(t);
+      return `
+      <div class="ap-card">
+        <div class="ap-head">
+          <div style="flex:1;min-width:0">
+            <div class="ap-title"><a href="/pages/task.html?id=${t._id}" style="color:inherit;text-decoration:none">${t.judul}</a></div>
+            <div class="ap-meta">
+              <span><i class="ti ti-users" style="font-size:12px"></i> ${assignees}</span>
+              <span><i class="ti ti-user-plus" style="font-size:12px"></i> ${t.dibuatOleh?.namaLengkap || '-'}</span>
+              <span><i class="ti ti-building" style="font-size:12px"></i> ${t.direktoratId?.nama || '-'}</span>
+              <span style="${od?'color:var(--red)':''}"><i class="ti ti-calendar" style="font-size:12px"></i> ${formatTanggal(t.deadline)}${od?' ⚠':''}</span>
+            </div>
+          </div>
+          <div class="ap-actions">
+            <button class="btn btn-primary" onclick="doApprove('${t._id}', true)"><i class="ti ti-check"></i> Approve</button>
+            <button class="btn" onclick="doApprove('${t._id}', false)"><i class="ti ti-rotate"></i> Tolak</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="ap-empty" style="color:var(--red-text)">${e.message}</div>`;
+  }
+}
+
+async function doApprove(id, approve) {
+  const ok = approve
+    ? await showConfirm('Setujui & selesaikan task ini?', { title: 'Approve Task', okLabel: 'Setujui' })
+    : await showConfirm('Tolak task ini & kembalikan untuk revisi?', { title: 'Tolak Task', okLabel: 'Tolak', type: 'danger' });
+  if (!ok) return;
+  try {
+    await Tasks.approve(id, approve);
+    showToast(approve ? 'Task disetujui & selesai' : 'Task dikembalikan untuk revisi');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+load();
+</script>
+</body>
+</html>

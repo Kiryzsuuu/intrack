@@ -17,6 +17,9 @@ function buildSidebar(user, activePage) {
     { id: 'dashboard',  href: '/pages/dashboard.html', icon: 'ti-layout-dashboard', label: 'Dashboard',  section: 'tasks' },
     { id: 'my-tasks',   href: '/pages/my-tasks.html',  icon: 'ti-checkbox',         label: 'My Tasks',   section: 'tasks' },
     { id: 'tasks',      href: '/pages/list.html',       icon: 'ti-clipboard-list',   label: 'Task List',  section: 'tasks', activeIds: taskListIds },
+    ...(isDireksi || isSuperadmin ? [
+      { id: 'approval', href: '/pages/approval.html', icon: 'ti-checks', label: 'Approval Task', section: 'tasks' },
+    ] : []),
     { id: 'inbox',      href: '/pages/inbox.html',      icon: 'ti-bell',             label: 'Notifikasi', section: 'tasks', badge: true },
     { id: 'channel',    href: '/pages/channel.html',    icon: 'ti-messages',         label: 'Channel',    section: 'workspace' },
     { id: 'kpi',        href: '/pages/stats.html',      icon: 'ti-chart-bar',        label: 'KPI',        section: 'workspace' },

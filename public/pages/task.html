@@ -181,19 +181,6 @@
             <div id="evidence-list"><div style="color:var(--text-3);font-size:13px">Belum ada evidence</div></div>
           </div>
 
-          <!-- Notes -->
-          <div class="section-card">
-            <div class="section-head"><span class="section-title">Notes</span></div>
-            <div id="komentar-list"></div>
-            <div style="margin-top:12px;display:flex;gap:8px;position:relative" id="komentar-form">
-              <div style="flex:1;position:relative">
-                <textarea id="new-kom" class="input" rows="2" placeholder="Tulis note... ketik @ untuk mention" style="resize:vertical;width:100%" onkeyup="onKomKeyup(event)" onkeydown="onKomKeydown(event)"></textarea>
-              </div>
-              <button class="btn btn-primary" onclick="sendKomentar()" style="height:fit-content;align-self:flex-end"><i class="ti ti-send"></i></button>
-            </div>
-          </div>
-          <div id="mention-popup"></div>
-
           <!-- Direct Message / Task Chat -->
           <div class="section-card" id="task-chat-section" style="display:none">
             <div class="section-head">
@@ -272,11 +259,29 @@
               <strong id="m-milestone" style="flex:1">—</strong>
               <button id="m-milestone-btn" class="btn" style="font-size:11px;padding:2px 8px;display:none" onclick="openMilestoneModal()">Set</button>
             </div>
+            <div id="m-validators-wrap" style="display:none">
+              <div class="divider"></div>
+              <div class="section-lbl">Validator (Direktur)</div>
+              <div id="m-validators"></div>
+            </div>
             <div id="m-collaborators-wrap" style="display:none">
               <div class="divider"></div>
               <div class="section-lbl">Status Penyelesaian Assignee</div>
               <div id="m-collaborators"></div>
             </div>
+          </div>
+
+          <!-- Notes (dipindah ke sidebar kanan) -->
+          <div class="section-card">
+            <div class="section-head"><span class="section-title">Notes</span></div>
+            <div id="komentar-list"></div>
+            <div style="margin-top:12px;display:flex;gap:8px;position:relative" id="komentar-form">
+              <div style="flex:1;position:relative">
+                <textarea id="new-kom" class="input" rows="2" placeholder="Tulis note... ketik @ untuk mention" style="resize:vertical;width:100%" onkeyup="onKomKeyup(event)" onkeydown="onKomKeydown(event)"></textarea>
+              </div>
+              <button class="btn btn-primary" onclick="sendKomentar()" style="height:fit-content;align-self:flex-end"><i class="ti ti-send"></i></button>
+            </div>
+            <div id="mention-popup"></div>
           </div>
         </div>
       </div>
@@ -345,20 +350,37 @@ function renderTask(t) {
   document.getElementById('m-creator').textContent = t.dibuatOleh?.namaLengkap || '—';
   document.getElementById('m-created').textContent = formatTanggal(t.createdAt);
 
+  const isSuper   = user?.role === 'superadmin';
   const isDireksi = ['direksi','superadmin'].includes(user?.role);
-  const isPembuat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
+  const isMainCreator = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
+  const isCreator = isMainCreator || (t.creators || []).some(c => (c._id || c) === user?._id);
   const isAssignee = assigneesArr.some(a => (a._id || a) === user?._id);
+
+  // Creator utama di sidebar (gabung dengan co-creator)
+  document.getElementById('m-creator').textContent = creatorNames(t);
+
+  // Validator list
+  const validatorsArr = t.validators || [];
+  if (validatorsArr.length) {
+    document.getElementById('m-validators-wrap').style.display = 'block';
+    document.getElementById('m-validators').innerHTML = validatorsArr.map(v => `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <div class="av av-sm av-v" style="flex-shrink:0">${initials(v.namaLengkap)}</div>
+        <span style="font-size:12px;flex:1">${v.namaLengkap}</span>
+        ${(t.approvedBy && (t.approvedBy._id||t.approvedBy) === (v._id||v)) ? '<span style="font-size:11px;color:var(--green)">✓ Approve</span>' : ''}
+      </div>`).join('');
+  }
 
   // Milestone
   const msEl  = document.getElementById('m-milestone');
   const msBtn = document.getElementById('m-milestone-btn');
   msEl.textContent = t.milestoneId?.judul || '—';
-  if (msBtn) msBtn.style.display = (isDireksi || isPembuat) ? '' : 'none';
+  if (msBtn) msBtn.style.display = (isDireksi || isCreator) ? '' : 'none';
 
   // Chat section — tampilkan hanya untuk creator, assignee, direksi
   const chatSection = document.getElementById('task-chat-section');
   if (chatSection) {
-    chatSection.style.display = (isDireksi || isAssignee || isPembuat) ? '' : 'none';
+    chatSection.style.display = (isDireksi || isAssignee || isCreator) ? '' : 'none';
   }
 
   // Status penyelesaian per assignee (completedBy)
@@ -377,15 +399,15 @@ function renderTask(t) {
   }
   if (t.pendingApproval) {
     const rn = document.getElementById('revisi-note');
-    rn.textContent = '⏳ Semua assignee selesai — menunggu approval pembuat task.';
+    rn.textContent = '⏳ Pekerjaan selesai — menunggu approval validator (direktur).';
     rn.style.display = 'block';
   }
 
-  // Req #10: hanya creator (atau direksi) yang dapat edit & hapus
-  if (isDireksi || (isPembuat && t.status !== 'complete')) {
+  // Edit: creator (utama/co) atau direksi. Hapus: superadmin saja.
+  if (isDireksi || (isCreator && t.status !== 'complete')) {
     document.getElementById('btn-edit').style.display = '';
   }
-  if (isDireksi || isPembuat) document.getElementById('btn-delete').style.display = '';
+  if (isSuper) document.getElementById('btn-delete').style.display = '';
 
   // Status action buttons
   renderStatusActions(t);
@@ -393,42 +415,51 @@ function renderTask(t) {
 
 function renderStatusActions(t) {
   const el        = document.getElementById('status-actions');
-  const isDireksi = ['direksi','superadmin'].includes(user?.role);
-  const isPembuat = t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id;
+  const isSuper   = user?.role === 'superadmin';
+  const isCreator = (t.dibuatOleh?._id === user?._id || t.dibuatOleh === user?._id) ||
+                    (t.creators || []).some(c => (c._id || c) === user?._id);
   const assigneesArr = t.assignees || [];
   const isAssignee = assigneesArr.some(a => (a._id || a) === user?._id);
+  const isValidator = (t.validators || []).some(v => (v._id || v) === user?._id);
   const completedIds = (t.completedBy || []).map(c => c._id || c);
   const meDone = completedIds.includes(user?._id);
 
   let html = '';
 
-  // Creator / direksi: dropdown status + tombol approve saat pendingApproval
-  if (isDireksi || isPembuat) {
+  // Validator (atau superadmin): approve/reject saat menunggu approval
+  if ((isValidator || isSuper) && t.status !== 'complete') {
+    if (t.pendingApproval) {
+      html += `<button class="btn btn-primary" style="font-size:13px" onclick="approveTask(true)"><i class="ti ti-check"></i> Approve (Selesai)</button>`;
+      html += `<button class="btn" style="font-size:13px" onclick="approveTask(false)"><i class="ti ti-rotate"></i> Tolak / Revisi</button>`;
+    } else {
+      html += `<span style="font-size:12px;color:var(--text-3);align-self:center">Belum siap divalidasi</span>`;
+    }
+  }
+
+  // Creator (utama/co): atur status manual (tanpa complete — complete lewat validator)
+  if (isCreator && t.status !== 'complete') {
     const statuses = [
       { key: 'to_do',              label: 'To Do' },
       { key: 'on_progress',        label: 'On Progress' },
       { key: 'partially_complete', label: 'Partially Complete' },
-      { key: 'complete',           label: 'Complete' },
     ];
-    html += `<select class="input" style="font-size:13px;padding:6px 10px;width:auto;min-width:170px" onchange="changeStatus(this.value);this.value='${t.status}'">
+    html += `<select class="input" style="font-size:13px;padding:6px 10px;width:auto;min-width:160px" onchange="changeStatus(this.value);this.value='${t.status}'">
       ${statuses.map(s => `<option value="${s.key}" ${s.key === t.status ? 'selected' : ''}>${s.label}</option>`).join('')}
+      ${['to_do','on_progress','partially_complete'].includes(t.status) ? '' : `<option selected>${statusLabel(t.status)}</option>`}
     </select>`;
-    if (t.pendingApproval && t.status !== 'complete') {
-      html += `<button class="btn btn-primary" style="font-size:13px" onclick="approveTask(true)"><i class="ti ti-check"></i> Setujui Selesai</button>`;
-      html += `<button class="btn" style="font-size:13px" onclick="approveTask(false)"><i class="ti ti-rotate"></i> Minta Revisi</button>`;
-    }
-  } else if (isAssignee && t.status !== 'complete') {
-    // Assignee: tandai bagiannya selesai (req: tiap assignee selesai sendiri)
+  }
+
+  // Assignee: tandai bagiannya selesai
+  if (isAssignee && t.status !== 'complete') {
     html += meDone
-      ? `<span style="font-size:12px;color:var(--green);align-self:center;margin-right:6px">✓ Anda menandai selesai</span>
+      ? `<span style="font-size:12px;color:var(--green);align-self:center;margin-right:6px">✓ Bagian Anda selesai</span>
          <button class="btn" style="font-size:13px" onclick="markMineDone(false)"><i class="ti ti-rotate"></i> Batalkan</button>`
       : `<button class="btn btn-primary" style="font-size:13px" onclick="markMineDone(true)"><i class="ti ti-check"></i> Tandai Bagian Saya Selesai</button>`;
   }
 
   el.innerHTML = html;
 
-  // Upload lampiran: assignee/creator/direksi saat belum complete
-  if ((isDireksi || isPembuat || isAssignee) && t.status !== 'complete') {
+  if ((isSuper || isCreator || isAssignee) && t.status !== 'complete') {
     document.getElementById('upload-ev-btn').style.display = '';
   }
 }
@@ -451,9 +482,16 @@ async function approveTask(approve) {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+const SUB_STATUS = [
+  { key: 'to_do',       label: 'To Do' },
+  { key: 'on_progress', label: 'On Progress' },
+  { key: 'done',        label: 'Done' },
+];
+function subStatusOf(s) { return s.status || (s.isDone ? 'done' : 'to_do'); }
+
 function renderSubtasks(subtasks) {
   const el    = document.getElementById('subtask-list');
-  const done  = subtasks.filter(s => s.isDone).length;
+  const done  = subtasks.filter(s => subStatusOf(s) === 'done').length;
   const total = subtasks.length;
   const pct   = total > 0 ? Math.round(done / total * 100) : 0;
 
@@ -463,24 +501,29 @@ function renderSubtasks(subtasks) {
   if (!total) { el.innerHTML = '<div style="color:var(--text-3);font-size:12px">Belum ada subtask. Tambahkan lewat tombol Edit.</div>'; return; }
 
   const prioLabel = { low: '🟢 Low', medium: '🟡 Medium', high: '🔴 High' };
-  const isDireksi = ['direksi','superadmin'].includes(user?.role);
-  const isPembuat = taskData?.dibuatOleh?._id === user?._id || taskData?.dibuatOleh === user?._id;
+  const isSuper = user?.role === 'superadmin';
 
   function children(parentId) {
     return subtasks.filter(s => (s.parentId || null) === (parentId || null)).sort((a,b)=>a.urutan-b.urutan);
   }
   function nodeHtml(s, depth) {
+    const st        = subStatusOf(s);
     const names     = (s.assignees || []).map(a => a.namaLengkap || '').filter(Boolean);
     const meAssigned= (s.assignees || []).some(a => (a._id || a) === user?._id);
-    const canToggle = isDireksi || isPembuat || meAssigned;
+    const canChange = meAssigned || isSuper; // hanya assignee subtask (req #4)
     const dueDateTx = s.dueDate ? new Date(s.dueDate).toLocaleDateString('id-ID', { day:'numeric', month:'short' }) : null;
-    const overdue   = s.dueDate && !s.isDone && new Date(s.dueDate) < new Date();
+    const overdue   = s.dueDate && st !== 'done' && new Date(s.dueDate) < new Date();
     const prio      = s.priority || 'medium';
+    const badgeCls  = statusBadgeClass(st === 'done' ? 'complete' : st);
     return `
     <div class="subtask-item" id="sub-${s._id}" style="margin-left:${depth*20}px">
       <div class="subtask-row1">
-        <input type="checkbox" class="subtask-cb" ${s.isDone ? 'checked' : ''} ${canToggle ? '' : 'disabled'} onchange="toggleSubtask('${s._id}',this.checked)">
-        <span class="subtask-txt ${s.isDone ? 'done' : ''}">${depth ? '↳ ' : ''}${s.judul}</span>
+        <span class="subtask-txt ${st==='done' ? 'done' : ''}" style="flex:1">${depth ? '↳ ' : ''}${s.judul}</span>
+        ${canChange
+          ? `<select class="input" style="font-size:11px;padding:3px 6px;width:auto" onchange="setSubtaskStatus('${s._id}', this.value)">
+              ${SUB_STATUS.map(o => `<option value="${o.key}" ${o.key===st?'selected':''}>${o.label}</option>`).join('')}
+             </select>`
+          : `<span class="badge ${badgeCls}" style="font-size:10px">${SUB_STATUS.find(o=>o.key===st)?.label||st}</span>`}
       </div>
       <div class="subtask-row2">
         <span class="sub-priority ${prio}">${prioLabel[prio]}</span>
@@ -578,9 +621,9 @@ async function changeStatus(statusBaru) {
 }
 
 
-async function toggleSubtask(id, isDone) {
+async function setSubtaskStatus(id, status) {
   try {
-    await Subtasks.update(id, { isDone });
+    await Subtasks.update(id, { status });
     loadTask();
   } catch (e) { showToast(e.message, 'error'); }
 }

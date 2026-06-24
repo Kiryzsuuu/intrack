@@ -195,9 +195,13 @@ const Tasks = {
   async completeMine(id, done = true) {
     return apiFetch(`/tasks/${id}/complete-mine`, { method: 'POST', body: JSON.stringify({ done }) });
   },
-  // Creator menyetujui penyelesaian (atau menolak/revisi)
+  // Validator menyetujui penyelesaian (atau menolak/revisi)
   async approve(id, approve = true) {
     return apiFetch(`/tasks/${id}/approve`, { method: 'POST', body: JSON.stringify({ approve }) });
+  },
+  // Antrian approval untuk validator (direktur)
+  async pendingApproval() {
+    return apiFetch('/tasks/pending-approval');
   },
   async delete(id) {
     return apiFetch(`/tasks/${id}`, { method: 'DELETE' });
@@ -457,6 +461,16 @@ function firstAssignee(t) {
 // Apakah task ini di-assign ke user tertentu
 function isMyTask(t, userId) {
   return (t.assignees || []).some(a => (a._id || a) === userId);
+}
+// Gabungan nama dari array user ref
+function namesOf(arr) {
+  if (!arr || !arr.length) return '-';
+  return arr.map(x => x.namaLengkap || '').filter(Boolean).join(', ') || '-';
+}
+// Daftar nama task creator (utama + co-creator)
+function creatorNames(t) {
+  const main = t.dibuatOleh ? [t.dibuatOleh] : [];
+  return namesOf([...main, ...(t.creators || [])]);
 }
 
 function initials(nama) {

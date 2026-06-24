@@ -65,6 +65,12 @@
     .st-chip { background:var(--accent-light); color:var(--accent); font-size:11px; padding:2px 8px; border-radius:100px; }
     .icon-btn { background:none; border:0.5px solid var(--border); border-radius:var(--r-sm); cursor:pointer; color:var(--text-2); padding:6px 8px; font-size:13px; }
     .icon-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .icon-btn.on { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
+    .st-assign-panel {
+      display:flex; flex-wrap:wrap; gap:8px; padding:8px 10px; margin:2px 0 6px 30px;
+      background:var(--surface-2); border:0.5px solid var(--border); border-radius:var(--r-sm);
+    }
+    .st-assign-item { display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; }
 
     @media(max-width:700px){ .row-2,.row-3{ grid-template-columns:1fr } }
     @keyframes spin { to { transform:rotate(360deg) } }
@@ -149,11 +155,26 @@
           </div>
         </div>
 
-        <!-- Subtasks (hanya saat edit, req #11) -->
+        <!-- Co-creator (hanya diatur creator utama) -->
+        <div class="card" id="creator-card">
+          <div class="card-title">Task Creator Tambahan <span style="text-transform:none;font-weight:400;color:var(--text-3)">(opsional, bisa banyak)</span></div>
+          <input type="text" id="creator-search" placeholder="Cari nama..." style="margin-bottom:12px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--text);outline:none;width:100%">
+          <div class="assignee-grid" id="creator-grid"></div>
+        </div>
+
+        <!-- Validator (direktur) -->
+        <div class="card" id="validator-card">
+          <div class="card-title">Validator / Direktur <span style="text-transform:none;font-weight:400;color:var(--text-3)">(salah satu approve = task complete)</span></div>
+          <div class="assignee-grid" id="validator-grid">
+            <div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Memuat direktur...</div>
+          </div>
+        </div>
+
+        <!-- Subtasks -->
         <div class="card" id="subtask-card" style="display:none">
           <div class="card-title">Subtask <span style="text-transform:none;font-weight:400;color:var(--text-3)">(bisa bersarang & di-assign)</span></div>
           <div id="subtask-tree"></div>
-          <button class="btn" style="margin-top:12px" onclick="addSubtask(null)"><i class="ti ti-plus"></i> Tambah Subtask</button>
+          <button type="button" class="btn" style="margin-top:12px" onclick="startAddSubtask(null)"><i class="ti ti-plus"></i> Tambah Subtask</button>
         </div>
 
       </div>
@@ -203,11 +224,50 @@ function toggleAssignee(id) {
   renderAssigneeGrid(document.getElementById('assignee-search').value.toLowerCase());
 }
 
+let selectedCreators = new Set();
+let selectedValidators = new Set();
+
 async function loadUsers() {
   const data = await Users.selectable().catch(() => []);
   allUsers = (data || []).filter(u => u.statusAktif !== false);
   renderAssigneeGrid();
+  renderCreatorGrid();
+  renderValidatorGrid();
 }
+
+function renderCreatorGrid(q = '') {
+  const grid = document.getElementById('creator-grid');
+  if (!grid) return;
+  // co-creator tidak termasuk diri sendiri (otomatis jadi creator utama)
+  const list = allUsers.filter(u => u._id !== user._id && (!q || u.namaLengkap.toLowerCase().includes(q)));
+  grid.innerHTML = list.map(m => `
+    <div class="assignee-item${selectedCreators.has(m._id) ? ' selected' : ''}" onclick="toggleCreator('${m._id}')">
+      <div class="assignee-check"></div><span style="font-size:13px">${m.namaLengkap}</span>
+    </div>`).join('') || '<div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Tidak ada user</div>';
+}
+function toggleCreator(id) {
+  selectedCreators.has(id) ? selectedCreators.delete(id) : selectedCreators.add(id);
+  renderCreatorGrid(document.getElementById('creator-search').value.toLowerCase());
+}
+
+function renderValidatorGrid() {
+  const grid = document.getElementById('validator-grid');
+  if (!grid) return;
+  const directors = allUsers.filter(u => u.role === 'direksi');
+  if (!directors.length) { grid.innerHTML = '<div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Belum ada user direktur</div>'; return; }
+  grid.innerHTML = directors.map(m => `
+    <div class="assignee-item${selectedValidators.has(m._id) ? ' selected' : ''}" onclick="toggleValidator('${m._id}')">
+      <div class="assignee-check"></div><span style="font-size:13px">${m.namaLengkap}</span>
+    </div>`).join('');
+}
+function toggleValidator(id) {
+  selectedValidators.has(id) ? selectedValidators.delete(id) : selectedValidators.add(id);
+  renderValidatorGrid();
+}
+
+document.getElementById('creator-search').addEventListener('input', function () {
+  renderCreatorGrid(this.value.toLowerCase());
+});
 
 let allTemplates = [];
 async function loadTemplates() {
@@ -254,63 +314,88 @@ function childrenOf(parentId) {
     .sort((a,b) => (a.urutan||0) - (b.urutan||0));
 }
 
+let assignOpenId = null;   // id subtask yang panel assign-nya terbuka
+let pendingAddParent;      // undefined = tidak ada; null = tambah top-level; id = tambah child
+function nameOf(id) { const u = allUsers.find(x => x._id === id); return u ? u.namaLengkap : '?'; }
+
 function renderSubtaskTree() {
   const root = document.getElementById('subtask-tree');
-  function nameOf(id) { const u = allUsers.find(x => x._id === id); return u ? u.namaLengkap : '?'; }
+  function assignPanel(s) {
+    if (assignOpenId !== sid(s)) return '';
+    const cur = new Set((s.assignees || []).map(a => a._id || a));
+    const items = allUsers.map(u => `
+      <label class="st-assign-item">
+        <input type="checkbox" ${cur.has(u._id) ? 'checked' : ''} onchange="toggleSubAssignee('${sid(s)}','${u._id}',this.checked)">
+        <span>${u.namaLengkap}</span>
+      </label>`).join('');
+    return `<div class="st-assign-panel">${items || '<span style="font-size:12px;color:var(--text-3)">Tidak ada user</span>'}</div>`;
+  }
   function buildNodes(parentId, depth) {
-    return childrenOf(parentId).map(s => {
+    let html = childrenOf(parentId).map(s => {
       const id = sid(s);
       const names = (s.assignees || []).map(a => `<span class="st-chip">${a.namaLengkap || nameOf(a._id || a)}</span>`).join('');
       return `
         <div class="st-row" style="margin-left:${depth * 22}px">
           <i class="ti ti-corner-down-right st-mini" style="${depth ? '' : 'visibility:hidden'}"></i>
-          <input class="st-judul" value="${(s.judul||'').replace(/"/g,'&quot;')}" onchange="updateSubtask('${id}', this.value)">
+          <input class="st-judul" value="${(s.judul||'').replace(/"/g,'&quot;')}" onchange="updateSubtask('${id}', this.value)" placeholder="Judul subtask...">
           <div class="st-assignees">${names}</div>
-          <button class="icon-btn" title="Assign" onclick="assignSubtask('${id}')"><i class="ti ti-user-plus"></i></button>
-          <button class="icon-btn" title="Tambah sub" onclick="addSubtask('${id}')"><i class="ti ti-plus"></i></button>
-          <button class="icon-btn" title="Hapus" onclick="deleteSubtask('${id}')"><i class="ti ti-trash"></i></button>
+          <button type="button" class="icon-btn${assignOpenId===id?' on':''}" title="Assign" onclick="toggleAssignPanel('${id}')"><i class="ti ti-user-plus"></i></button>
+          <button type="button" class="icon-btn" title="Tambah sub" onclick="startAddSubtask('${id}')"><i class="ti ti-plus"></i></button>
+          <button type="button" class="icon-btn" title="Hapus" onclick="deleteSubtask('${id}')"><i class="ti ti-trash"></i></button>
         </div>
+        ${assignPanel(s)}
         ${buildNodes(id, depth + 1)}`;
     }).join('');
+    // baris input tambah (inline, bukan prompt)
+    if (pendingAddParent === (parentId || null) || (parentId === null && pendingAddParent === null)) {
+      html += `
+        <div class="st-row" style="margin-left:${depth * 22}px">
+          <i class="ti ti-corner-down-right st-mini" style="${depth ? '' : 'visibility:hidden'}"></i>
+          <input class="st-judul" id="st-new-input" placeholder="Ketik judul lalu Enter..."
+            onkeydown="if(event.key==='Enter'){event.preventDefault();commitAddSubtask(this.value)} if(event.key==='Escape'){pendingAddParent=undefined;renderSubtaskTree()}">
+          <button type="button" class="icon-btn" title="Simpan" onclick="commitAddSubtask(document.getElementById('st-new-input').value)"><i class="ti ti-check"></i></button>
+          <button type="button" class="icon-btn" title="Batal" onclick="pendingAddParent=undefined;renderSubtaskTree()"><i class="ti ti-x"></i></button>
+        </div>`;
+    }
+    return html;
   }
   root.innerHTML = buildNodes(null, 0) || '<div style="color:var(--text-3);font-size:13px">Belum ada subtask.</div>';
+  const ni = document.getElementById('st-new-input'); if (ni) ni.focus();
 }
 
 function findSub(id) { return subtasks.find(s => sid(s) === id); }
 
-async function addSubtask(parentId) {
-  const judul = prompt('Judul subtask:');
-  if (!judul || !judul.trim()) return;
+// Tampilkan input tambah subtask (top-level dari tombol di bawah, child dari +)
+function startAddSubtask(parentId) { pendingAddParent = parentId || null; renderSubtaskTree(); }
+
+async function commitAddSubtask(judul) {
+  judul = (judul || '').trim();
+  const parentId = pendingAddParent === undefined ? null : pendingAddParent;
+  if (!judul) { pendingAddParent = undefined; renderSubtaskTree(); return; }
   if (isLive()) {
     try {
-      await Subtasks.create(editId, { judul: judul.trim(), parentId: parentId || null });
+      await Subtasks.create(editId, { judul, parentId: parentId || null });
       subtasks = await Subtasks.list(editId);
-      renderSubtaskTree();
     } catch (e) { showToast(e.message, 'error'); }
   } else {
-    subtasks.push({ _tmp: 't' + (tmpSeq++), parentId: parentId || null, judul: judul.trim(), assignees: [], urutan: subtasks.length });
-    renderSubtaskTree();
+    subtasks.push({ _tmp: 't' + (tmpSeq++), parentId: parentId || null, judul, assignees: [], urutan: subtasks.length });
   }
+  pendingAddParent = parentId; // tetap di mode tambah agar bisa nambah beruntun
+  renderSubtaskTree();
 }
 
 async function updateSubtask(id, judul) {
   const s = findSub(id); if (!s) return;
-  s.judul = judul.trim();
+  s.judul = (judul || '').trim();
   if (isLive()) { try { await Subtasks.update(id, { judul: s.judul }); } catch (e) { showToast(e.message, 'error'); } }
 }
 
 async function deleteSubtask(id) {
-  if (!confirm('Hapus subtask ini beserta turunannya?')) return;
   if (isLive()) {
-    try {
-      await Subtasks.delete(id);
-      subtasks = await Subtasks.list(editId);
-      renderSubtaskTree();
-    } catch (e) { showToast(e.message, 'error'); }
+    try { await Subtasks.delete(id); subtasks = await Subtasks.list(editId); }
+    catch (e) { showToast(e.message, 'error'); }
   } else {
-    // hapus rekursif lokal
-    const toRemove = new Set([id]);
-    let changed = true;
+    const toRemove = new Set([id]); let changed = true;
     while (changed) {
       changed = false;
       for (const s of subtasks) {
@@ -318,29 +403,23 @@ async function deleteSubtask(id) {
       }
     }
     subtasks = subtasks.filter(s => !toRemove.has(sid(s)));
-    renderSubtaskTree();
   }
+  renderSubtaskTree();
 }
 
-async function assignSubtask(id) {
+function toggleAssignPanel(id) { assignOpenId = (assignOpenId === id) ? null : id; renderSubtaskTree(); }
+
+async function toggleSubAssignee(id, userId, on) {
   const sub = findSub(id); if (!sub) return;
-  const current = new Set((sub.assignees || []).map(a => a._id || a));
-  const names = allUsers.map((u, i) => `${i+1}. ${u.namaLengkap}${current.has(u._id) ? ' ✓' : ''}`).join('\n');
-  const pick = prompt(`Masukkan nomor assignee (pisahkan koma) untuk subtask:\n${names}`,
-    allUsers.map((u,i) => current.has(u._id) ? i+1 : '').filter(Boolean).join(','));
-  if (pick === null) return;
-  const idxs = pick.split(',').map(x => parseInt(x.trim()) - 1).filter(i => i >= 0 && i < allUsers.length);
-  const assigneeIds = idxs.map(i => allUsers[i]._id);
+  let ids = (sub.assignees || []).map(a => a._id || a);
+  ids = on ? [...new Set([...ids, userId])] : ids.filter(x => x !== userId);
   if (isLive()) {
-    try {
-      await Subtasks.update(id, { assignees: assigneeIds });
-      subtasks = await Subtasks.list(editId);
-      renderSubtaskTree();
-    } catch (e) { showToast(e.message, 'error'); }
+    try { await Subtasks.update(id, { assignees: ids }); subtasks = await Subtasks.list(editId); }
+    catch (e) { showToast(e.message, 'error'); }
   } else {
-    sub.assignees = idxs.map(i => ({ _id: allUsers[i]._id, namaLengkap: allUsers[i].namaLengkap }));
-    renderSubtaskTree();
+    sub.assignees = ids.map(x => ({ _id: x, namaLengkap: nameOf(x) }));
   }
+  renderSubtaskTree();
 }
 
 // Bangun struktur pohon untuk dikirim saat create
@@ -372,7 +451,16 @@ async function initForm() {
     document.getElementById('f-prioritas').value = task.prioritas;
     document.getElementById('f-deadline').value  = task.deadline?.split('T')[0] || '';
     (task.assignees || []).forEach(a => selectedAssignees.add(a._id || a));
-    renderAssigneeGrid();
+    (task.creators  || []).forEach(a => selectedCreators.add(a._id || a));
+    (task.validators|| []).forEach(a => selectedValidators.add(a._id || a));
+    renderAssigneeGrid(); renderCreatorGrid(); renderValidatorGrid();
+
+    // creators/validators hanya boleh diatur creator utama
+    const mainCreatorId = task.dibuatOleh?._id || task.dibuatOleh;
+    if (mainCreatorId !== user._id && user.role !== 'superadmin') {
+      document.getElementById('creator-card').style.display = 'none';
+      document.getElementById('validator-card').style.display = 'none';
+    }
 
     // Muat subtask yang sudah ada
     subtasks = await Subtasks.list(editId);
@@ -397,7 +485,8 @@ async function submitForm() {
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> Menyimpan...';
 
   try {
-    const payload = { judul, deskripsi, prioritas, deadline, assignees };
+    const payload = { judul, deskripsi, prioritas, deadline, assignees,
+      creators: [...selectedCreators], validators: [...selectedValidators] };
     if (editId) {
       await Tasks.update(editId, payload);
       showToast('Task berhasil diupdate');
