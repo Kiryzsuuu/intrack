@@ -7,9 +7,13 @@ const subtaskSchema = new mongoose.Schema({
   judul:      { type: String, required: true, maxlength: 100, trim: true },
   // Subtask kini mirip task utama: punya deskripsi, deadline, assignee, validator
   deskripsi:  { type: String, default: '' },
-  // Status: To Do / On Progress / Review (dikirim ke approval) / Done (di-approve)
-  status:     { type: String, enum: ['to_do', 'on_progress', 'review', 'done'], default: 'to_do' },
+  // Status: To Do / On Progress / Review (dikirim ke approval) / Done (di-approve) / Rejected (ditolak — jadi log, digantikan subtask revisi)
+  status:     { type: String, enum: ['to_do', 'on_progress', 'review', 'done', 'rejected'], default: 'to_do' },
   isDone:     { type: Boolean, default: false }, // sinkron: true bila status === 'done'
+  // Riwayat revisi: subtask "Review Task (...)" menunjuk ke subtask asal yang ditolak
+  revisionOf: { type: mongoose.Schema.Types.ObjectId, ref: 'Subtask', default: null },
+  // Subtask asal yang ditolak menunjuk ke subtask revisi penggantinya
+  replacedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Subtask', default: null },
   // Menunggu approval validator setelah di-Send
   pendingApproval: { type: Boolean, default: false },
   // Penjelasan pekerjaan (free text) oleh assignee

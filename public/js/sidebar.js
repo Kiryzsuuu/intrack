@@ -77,13 +77,20 @@ function buildSidebar(user, activePage) {
     <div class="sb-scroll">
       ${navLinks}
     </div>
-    <div class="sb-user" onclick="window.location='/pages/profile.html'" style="cursor:pointer">
-      ${fotoHtml}
-      <div>
-        <div class="sb-uname">${user.namaLengkap}</div>
-        <div class="sb-urole">${roleLabel}</div>
+    <div class="sb-user" style="display:flex;align-items:center;gap:8px">
+      <div onclick="window.location='/pages/profile.html'" style="cursor:pointer;display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        ${fotoHtml}
+        <div style="min-width:0">
+          <div class="sb-uname">${user.namaLengkap}</div>
+          <div class="sb-urole">${roleLabel}</div>
+        </div>
       </div>
-      <i class="ti ti-chevron-right" style="font-size:12px;color:#52525B;margin-left:auto" aria-hidden="true"></i>
+      <button onclick="event.stopPropagation();sidebarLogout()" title="Keluar dari akun" aria-label="Logout"
+        style="background:none;border:none;cursor:pointer;color:#A1A1AA;padding:6px;border-radius:6px;display:flex;align-items:center;flex-shrink:0"
+        onmouseover="this.style.color='#EF4444';this.style.background='rgba(239,68,68,.1)'"
+        onmouseout="this.style.color='#A1A1AA';this.style.background='none'">
+        <i class="ti ti-logout" style="font-size:17px"></i>
+      </button>
     </div>`;
 }
 
@@ -121,6 +128,14 @@ function injectImpersonateBanner(targetName, adminName) {
 function exitImpersonate() {
   Auth.stopImpersonate();
   window.location.reload();
+}
+
+async function sidebarLogout() {
+  const ok = (typeof showConfirm === 'function')
+    ? await showConfirm('Keluar dari akun?', { title: 'Keluar', okLabel: 'Keluar', cancelLabel: 'Batal', type: 'warning' })
+    : window.confirm('Keluar dari akun?');
+  if (!ok) return;
+  try { await Auth.logout(); } catch { window.location.href = '/pages/login.html'; }
 }
 
 // Mobile overlay sidebar

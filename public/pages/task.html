@@ -169,18 +169,6 @@
             </div>
           </div>
 
-          <!-- Evidence -->
-          <div class="section-card">
-            <div class="section-head">
-              <span class="section-title">Lampiran File</span>
-              <label id="upload-ev-btn" class="btn" style="cursor:pointer;display:none">
-                <i class="ti ti-upload"></i> Upload
-                <input type="file" id="ev-file" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" onchange="uploadEvidence()">
-              </label>
-            </div>
-            <div id="evidence-list"><div style="color:var(--text-3);font-size:13px">Belum ada evidence</div></div>
-          </div>
-
           <!-- Direct Message / Task Chat -->
           <div class="section-card" id="task-chat-section" style="display:none">
             <div class="section-head">
@@ -322,7 +310,6 @@ async function loadTask() {
     taskData = task;
     renderTask(task);
     renderSubtasks(subtasks);
-    renderEvidence(evidences);
     renderLogs(logs);
     loadKomentar();
     loadTaskChat();
@@ -459,9 +446,6 @@ function renderStatusActions(t) {
 
   el.innerHTML = html;
 
-  if ((isSuper || isCreator || isAssignee) && t.status !== 'complete') {
-    document.getElementById('upload-ev-btn').style.display = '';
-  }
 }
 
 async function markMineDone(done) {
@@ -487,10 +471,11 @@ const SUB_STATUS = [
   { key: 'on_progress', label: 'On Progress' },
   { key: 'review',      label: 'Review' },
   { key: 'done',        label: 'Done' },
+  { key: 'rejected',    label: 'Ditolak' },
 ];
 function subStatusOf(s) { return s.status || (s.isDone ? 'done' : 'to_do'); }
 function subStatusLabel(k) { return (SUB_STATUS.find(o => o.key === k) || {}).label || k; }
-function subBadgeClass(k) { return statusBadgeClass(k === 'done' ? 'complete' : (k === 'review' ? 'partially_complete' : k)); }
+function subBadgeClass(k) { return statusBadgeClass(k === 'done' ? 'complete' : (k === 'review' ? 'partially_complete' : (k === 'rejected' ? 'ditolak' : k))); }
 
 let _subtasksCache = [];
 let openSubId = null;
@@ -498,8 +483,10 @@ let openSubId = null;
 function renderSubtasks(subtasks) {
   _subtasksCache = subtasks;
   const el    = document.getElementById('subtask-list');
-  const done  = subtasks.filter(s => subStatusOf(s) === 'done').length;
-  const total = subtasks.length;
+  // Subtask 'rejected' adalah log riwayat — tidak dihitung di progress.
+  const aktif = subtasks.filter(s => subStatusOf(s) !== 'rejected');
+  const done  = aktif.filter(s => subStatusOf(s) === 'done').length;
+  const total = aktif.length;
   const pct   = total > 0 ? Math.round(done / total * 100) : 0;
 
   document.getElementById('subtask-progress').textContent = total ? `${done}/${total} (${pct}%)` : '';
@@ -523,13 +510,15 @@ function renderSubtasks(subtasks) {
     const overdue   = s.dueDate && st !== 'done' && new Date(s.dueDate) < new Date();
     const prio      = s.priority || 'medium';
     const open      = openSubId === s._id;
+    const rejected  = st === 'rejected';
     return `
-    <div class="subtask-item" id="sub-${s._id}" style="margin-left:${depth*20}px">
+    <div class="subtask-item" id="sub-${s._id}" style="margin-left:${depth*20}px${rejected ? ';opacity:.55;background:var(--surface-2)' : ''}">
       <div class="subtask-row1" style="cursor:pointer" onclick="toggleSubExpand('${s._id}')">
         <i class="ti ti-chevron-${open?'down':'right'}" style="font-size:13px;color:var(--text-3)"></i>
-        <span class="subtask-txt ${st==='done' ? 'done' : ''}" style="flex:1">${depth ? '↳ ' : ''}${s.judul}</span>
+        <span class="subtask-txt ${st==='done'||rejected ? 'done' : ''}" style="flex:1">${depth ? '↳ ' : ''}${s.judul}</span>
         <span class="badge ${subBadgeClass(st)}" style="font-size:10px">${subStatusLabel(st)}</span>
       </div>
+      ${rejected ? `<div style="font-size:11px;color:var(--red-text);margin:2px 0 0 21px"><i class="ti ti-alert-circle" style="font-size:11px"></i> Kerjaan ditolak, harap direvisi — lihat subtask "Review Task (...)"</div>` : ''}
       <div class="subtask-row2">
         <span class="sub-priority ${prio}">${prioLabel[prio]}</span>
         ${names.length ? `<span class="sub-meta"><i class="ti ti-user" style="font-size:11px"></i>${names.join(', ')}</span>` : ''}
@@ -545,10 +534,13 @@ function renderSubtasks(subtasks) {
 }
 
 function subPanel(s, st, canWork, canApprove) {
-  const opts = SUB_STATUS.filter(o => o.key !== 'done') // Done hanya via approval
+  const rejected = st === 'rejected';
+  if (rejected) canWork = false; // log riwayat — read only
+  const opts = SUB_STATUS.filter(o => o.key !== 'done' && o.key !== 'rejected') // Done hanya via approval
     .map(o => `<option value="${o.key}" ${o.key===st?'selected':''}>${o.label}</option>`).join('');
   return `
   <div style="margin-top:8px;padding:12px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm)" onclick="event.stopPropagation()">
+    ${rejected ? `<div style="font-size:12px;color:var(--red-text);font-weight:600;margin-bottom:8px"><i class="ti ti-alert-circle"></i> Kerjaan ditolak, harap direvisi. Subtask ini disimpan sebagai riwayat; lanjutkan di subtask "Review Task (...)".</div>` : ''}
     ${s.deskripsi ? `<div style="font-size:12px;color:var(--text-2);margin-bottom:10px;white-space:pre-wrap">${escForAttr(s.deskripsi)}</div>` : ''}
     <label style="font-size:11px;font-weight:600;color:var(--text-3)">Penjelasan Pekerjaan</label>
     <textarea id="wn-${s._id}" class="input" rows="2" style="width:100%;resize:vertical;margin:4px 0 8px" placeholder="Jelaskan pekerjaan Anda..." ${canWork?'':'disabled'}>${escForAttr(s.workNote||'')}</textarea>
@@ -606,17 +598,18 @@ async function sendSubtask(id) {
 async function approveSubtask(id, approve) {
   const ok = approve
     ? await showConfirm('Setujui subtask ini jadi Done?', { title: 'Approve Subtask', okLabel: 'Setujui' })
-    : await showConfirm('Tolak & kembalikan ke On Progress?', { title: 'Reject Subtask', okLabel: 'Tolak', type: 'danger' });
+    : await showConfirm('Tolak pekerjaan ini? Subtask asal jadi riwayat & dibuat subtask baru "Review Task (...)" untuk revisi.', { title: 'Reject Subtask', okLabel: 'Tolak', type: 'danger' });
   if (!ok) return;
   try {
     await Subtasks.approve(id, approve);
-    showToast(approve ? 'Subtask disetujui' : 'Subtask dikembalikan');
+    showToast(approve ? 'Subtask disetujui' : 'Ditolak — subtask revisi dibuat');
     await loadTask();
   } catch (e) { showToast(e.message, 'error'); }
 }
 
 function renderEvidence(evidences) {
   const el = document.getElementById('evidence-list');
+  if (!el) return; // section lampiran global dihapus — lampiran kini per-subtask
   if (!evidences.length) { el.innerHTML = '<div style="color:var(--text-3);font-size:13px">Belum ada evidence</div>'; return; }
 
   const isDireksi = ['direksi','superadmin'].includes(user?.role);

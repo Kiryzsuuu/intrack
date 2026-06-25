@@ -1,9 +1,11 @@
-const router  = require('express').Router();
-const Subtask = require('../models/Subtask');
-const Task    = require('../models/Task');
-const User    = require('../models/User');
-const auth    = require('../middleware/auth');
-const push    = require('../services/push');
+const router   = require('express').Router();
+const Subtask  = require('../models/Subtask');
+const Task     = require('../models/Task');
+const User     = require('../models/User');
+const Evidence = require('../models/Evidence');
+const auth     = require('../middleware/auth');
+const push     = require('../services/push');
+const notifSvc = require('../services/notifikasi');
 
 function idStr(v) { return v?._id?.toString() || v?.toString() || ''; }
 function isCreator(user, task) {
@@ -100,12 +102,63 @@ router.post('/:id/approve', auth, async (req, res) => {
     return res.status(403).json({ message: 'Hanya Task Approval yang ditunjuk yang dapat approve' });
 
   if (approve === false) {
-    sub.status = 'on_progress';
+    // Subtask asal jadi log (gray/rejected), lalu buat subtask revisi "Review Task (...)".
+    const origJudul = sub.judul;
+
+    // Subtask revisi baru — mewarisi data subtask asal, di level yang sama.
+    const last = await Subtask.findOne({ taskId: sub.taskId, parentId: sub.parentId || null }).sort({ urutan: -1 });
+    const revisi = await Subtask.create({
+      taskId:     sub.taskId,
+      parentId:   sub.parentId || null,
+      judul:      `Review Task (${origJudul})`.slice(0, 100),
+      deskripsi:  sub.deskripsi || '',
+      status:     'on_progress',
+      workNote:   sub.workNote || '',
+      assignees:  sub.assignees || [],
+      validators: sub.validators || [],
+      dueDate:    sub.dueDate || null,
+      priority:   sub.priority || 'medium',
+      revisionOf: sub._id,
+      urutan:     last ? last.urutan + 1 : 0,
+    });
+
+    // Salin lampiran (evidence) subtask asal ke subtask revisi.
+    // File fisik DIGANDAKAN agar log (subtask asal) tetap utuh meski file revisi dihapus.
+    const fs   = require('fs');
+    const path = require('path');
+    const lampiran = await Evidence.find({ subtaskId: sub._id });
+    for (const ev of lampiran) {
+      let urlFileBaru = ev.urlFile;
+      try {
+        const srcAbs = path.join(__dirname, '../../', ev.urlFile);
+        const ext    = path.extname(ev.urlFile);
+        const namaBaru = `${path.basename(ev.urlFile, ext)}-rev${Date.now()}${ext}`;
+        const dstRel = path.posix.join(path.posix.dirname(ev.urlFile), namaBaru);
+        const dstAbs = path.join(__dirname, '../../', dstRel);
+        if (fs.existsSync(srcAbs)) { fs.copyFileSync(srcAbs, dstAbs); urlFileBaru = dstRel; }
+      } catch { /* fallback: pakai urlFile lama bila copy gagal */ }
+      await Evidence.create({
+        taskId: ev.taskId, subtaskId: revisi._id, uploaderId: ev.uploaderId,
+        namaFile: ev.namaFile, urlFile: urlFileBaru, ukuran: ev.ukuran, mimeType: ev.mimeType,
+      });
+    }
+
+    // Tandai subtask asal sebagai ditolak (jadi riwayat).
+    sub.status = 'rejected';
     sub.pendingApproval = false;
     sub.isDone = false;
+    sub.replacedBy = revisi._id;
     await sub.save();
+
+    // Pemberitahuan ke assignee: in-app notif + push.
     for (const uid of (sub.assignees || []).map(idStr)) {
-      push.sendPush(uid, { title: 'Subtask perlu revisi', body: sub.judul, url: `/pages/task.html?id=${sub.taskId}` }).catch(() => {});
+      notifSvc.buatNotifikasi({
+        userId: uid, jenis: 'subtask_revisi',
+        judul: 'Kerjaan ditolak, harap direvisi',
+        isi: `Subtask "${origJudul}" ditolak. Lanjutkan revisi di "Review Task (${origJudul})".`,
+        taskId: sub.taskId,
+      }).catch(() => {});
+      push.sendPush(uid, { title: 'Kerjaan ditolak, harap direvisi', body: origJudul, url: `/pages/task.html?id=${sub.taskId}` }).catch(() => {});
     }
   } else {
     sub.status = 'done';
