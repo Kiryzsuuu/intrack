@@ -178,7 +178,7 @@ async function initSidebar(activePage) {
   // Ambil user dari cache atau API
   let user = getUser();
   if (!user) {
-    try { user = await Auth.me(); localStorage.setItem('wt_user', JSON.stringify(user)); }
+    try { const r = await Auth.me(); user = r?.user || r; localStorage.setItem('wt_user', JSON.stringify(user)); }
     catch { window.location.href = '/pages/login.html'; return; }
   }
 
@@ -191,8 +191,9 @@ async function initSidebar(activePage) {
   }
 
   // Sinkron data user dari server (mis. role baru diubah admin) tanpa perlu login ulang.
-  Auth.me().then(fresh => {
-    if (!fresh) return;
+  Auth.me().then(resp => {
+    const fresh = resp?.user || resp;
+    if (!fresh || !fresh.role) return;
     const dirId  = id => id?._id || id || '';
     const changed = fresh.role !== user.role ||
                     dirId(fresh.direktoratId) !== dirId(user.direktoratId) ||
