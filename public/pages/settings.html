@@ -156,7 +156,7 @@
         <div class="section-card">
           <div class="section-head">
             <span class="section-title">Daftar Pengguna</span>
-            <input type="text" id="f-search" class="input" placeholder="Cari nama atau email..." style="width:220px" oninput="filterTable()" autocomplete="off">
+            <input type="search" id="f-search" name="user-filter-q" class="input" placeholder="Cari nama atau email..." style="width:220px" oninput="filterTable()" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')">
           </div>
           <div style="overflow-x:auto">
             <table>
