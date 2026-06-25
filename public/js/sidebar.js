@@ -5,6 +5,7 @@ function buildSidebar(user, activePage) {
 
   const isSuperadmin = user.role === 'superadmin';
   const isDireksi    = user.role === 'direksi';
+  const isKomisaris  = user.role === 'komisaris';
   const inits     = (user.namaLengkap || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   const avColors  = ['#5B4FE8','#16A34A','#EA580C','#0D9488','#DB2777'];
   const avColor   = avColors[inits.charCodeAt(0) % avColors.length];
@@ -17,7 +18,7 @@ function buildSidebar(user, activePage) {
     { id: 'dashboard',  href: '/pages/dashboard.html', icon: 'ti-layout-dashboard', label: 'Dashboard',  section: 'tasks' },
     { id: 'my-tasks',   href: '/pages/my-tasks.html',  icon: 'ti-checkbox',         label: 'My Tasks',   section: 'tasks' },
     { id: 'tasks',      href: '/pages/list.html',       icon: 'ti-clipboard-list',   label: 'Task List',  section: 'tasks', activeIds: taskListIds },
-    ...(isDireksi || isSuperadmin ? [
+    ...(isDireksi || isKomisaris || isSuperadmin ? [
       { id: 'approval', href: '/pages/approval.html', icon: 'ti-checks', label: 'Task Approval', section: 'tasks' },
     ] : []),
     { id: 'inbox',      href: '/pages/inbox.html',      icon: 'ti-bell',             label: 'Notifikasi', section: 'tasks', badge: true },
@@ -61,7 +62,7 @@ function buildSidebar(user, activePage) {
     ? `<img src="${user.fotoProfil}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
     : `<div class="sb-av" style="background:${avColor}">${inits}</div>`;
 
-  const roleLabel = isSuperadmin ? 'Superadmin' : isDireksi ? 'Direksi' : (user.direktoratId?.nama || 'Manager');
+  const roleLabel = isSuperadmin ? 'Superadmin' : isDireksi ? 'Direksi' : isKomisaris ? 'Komisaris' : (user.direktoratId?.nama || 'Manager');
 
   return `
     <div class="sb-logo">
@@ -188,6 +189,18 @@ async function initSidebar(activePage) {
     const by = JSON.parse(localStorage.getItem('wt_impersonated_by') || '{}');
     injectImpersonateBanner(user.namaLengkap, by.nama || 'Superadmin');
   }
+
+  // Sinkron data user dari server (mis. role baru diubah admin) tanpa perlu login ulang.
+  Auth.me().then(fresh => {
+    if (!fresh) return;
+    const dirId  = id => id?._id || id || '';
+    const changed = fresh.role !== user.role ||
+                    dirId(fresh.direktoratId) !== dirId(user.direktoratId) ||
+                    fresh.namaLengkap !== user.namaLengkap ||
+                    fresh.fotoProfil !== user.fotoProfil;
+    localStorage.setItem('wt_user', JSON.stringify(fresh));
+    if (changed) el.innerHTML = buildSidebar(fresh, activePage);
+  }).catch(() => {});
 
   // Load app name dari site settings
   fetch('/api/site-settings').then(r => r.json()).then(s => {

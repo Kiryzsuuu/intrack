@@ -417,7 +417,7 @@ router.post('/:id/approve', auth, async (req, res) => {
 
   const isSuper = req.user.role === 'superadmin';
   if (!isSuper && !isValidator(req.user, task))
-    return res.status(403).json({ message: 'Hanya validator (direktur) yang ditunjuk yang dapat approve' });
+    return res.status(403).json({ message: 'Hanya Task Approval (direktur/komisaris) yang ditunjuk yang dapat approve' });
 
   const statusLama = task.status;
   if (approve === false) {
