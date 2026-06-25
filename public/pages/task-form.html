@@ -39,23 +39,34 @@
     .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 
-    /* Assignees */
-    .assignee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; }
-    .assignee-item {
+    /* Assignees picker */
+    .assignee-picker { position: relative; }
+    .assignee-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .assignee-chip {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--accent-light); color: var(--accent);
+      border: 0.5px solid var(--accent); border-radius: 100px;
+      padding: 3px 10px; font-size: 12px; font-weight: 600;
+    }
+    .assignee-chip button {
+      background: none; border: none; cursor: pointer; color: var(--accent);
+      padding: 0; font-size: 13px; line-height: 1; display: flex; align-items: center;
+    }
+    .assignee-chip button:hover { color: var(--red); }
+    .assignee-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--r-sm); box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      max-height: 220px; overflow-y: auto; display: none;
+    }
+    .assignee-dropdown.open { display: block; }
+    .assignee-drop-item {
       display: flex; align-items: center; gap: 8px;
-      padding: 9px 12px; border: 0.5px solid var(--border);
-      border-radius: var(--r-sm); cursor: pointer; transition: var(--transition);
-      background: var(--surface-2); user-select: none;
+      padding: 9px 12px; cursor: pointer; font-size: 13px;
+      transition: background .1s;
     }
-    .assignee-item:hover { border-color: var(--accent); background: var(--accent-light); }
-    .assignee-item.selected { border-color: var(--accent); background: var(--accent-light); }
-    .assignee-check {
-      width: 16px; height: 16px; border-radius: 4px;
-      border: 1.5px solid var(--border); flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .assignee-item.selected .assignee-check { background: var(--accent); border-color: var(--accent); }
-    .assignee-item.selected .assignee-check::after { content: '✓'; font-size: 10px; color: white; font-weight: 700; }
+    .assignee-drop-item:hover { background: var(--surface-2); }
+    .assignee-drop-empty { padding: 12px; font-size: 13px; color: var(--text-3); text-align: center; }
 
     /* Subtasks */
     .st-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:0.5px dashed var(--border); }
@@ -149,24 +160,33 @@
         <!-- Assignees -->
         <div class="card">
           <div class="card-title">Assignee <span style="text-transform:none;font-weight:400;color:var(--text-3)">(bisa lebih dari satu)</span> <span style="color:var(--red)">*</span></div>
-          <input type="text" id="assignee-search" placeholder="Cari nama..." style="margin-bottom:12px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--text);outline:none;width:100%">
-          <div class="assignee-grid" id="assignee-grid">
-            <div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Memuat daftar pengguna...</div>
+          <div class="assignee-picker">
+            <div class="assignee-chips" id="assignee-chips"></div>
+            <input type="text" id="assignee-search" placeholder="Cari nama assignee..." autocomplete="off"
+              style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--text);outline:none;width:100%">
+            <div class="assignee-dropdown" id="assignee-dropdown"></div>
           </div>
         </div>
 
         <!-- Co-creator (hanya diatur creator utama) -->
         <div class="card" id="creator-card">
           <div class="card-title">Task Creator Tambahan <span style="text-transform:none;font-weight:400;color:var(--text-3)">(opsional, bisa banyak)</span></div>
-          <input type="text" id="creator-search" placeholder="Cari nama..." style="margin-bottom:12px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--text);outline:none;width:100%">
-          <div class="assignee-grid" id="creator-grid"></div>
+          <div class="assignee-picker">
+            <div class="assignee-chips" id="creator-chips"></div>
+            <input type="text" id="creator-search" placeholder="Cari nama creator..." autocomplete="off"
+              style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--text);outline:none;width:100%">
+            <div class="assignee-dropdown" id="creator-dropdown"></div>
+          </div>
         </div>
 
         <!-- Task Approval (direktur) -->
         <div class="card" id="validator-card">
           <div class="card-title">Task Approval <span style="text-transform:none;font-weight:400;color:var(--text-3)">(direktur — salah satu approve = complete)</span></div>
-          <div class="assignee-grid" id="validator-grid">
-            <div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Memuat direktur...</div>
+          <div class="assignee-picker">
+            <div class="assignee-chips" id="validator-chips"></div>
+            <input type="text" id="validator-search" placeholder="Cari nama direktur..." autocomplete="off"
+              style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--text);outline:none;width:100%">
+            <div class="assignee-dropdown" id="validator-dropdown"></div>
           </div>
         </div>
 
@@ -202,26 +222,49 @@ document.getElementById('f-judul').addEventListener('input', function () {
 });
 
 document.getElementById('assignee-search').addEventListener('input', function () {
-  renderAssigneeGrid(this.value.toLowerCase());
+  renderAssigneeDropdown(this.value.toLowerCase());
+});
+document.getElementById('assignee-search').addEventListener('focus', function () {
+  renderAssigneeDropdown(this.value.toLowerCase());
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.assignee-picker')) {
+    document.querySelectorAll('.assignee-dropdown').forEach(d => d.classList.remove('open'));
+  }
 });
 
-function renderAssigneeGrid(q = '') {
-  const grid = document.getElementById('assignee-grid');
-  const list = allUsers.filter(u => !q || u.namaLengkap.toLowerCase().includes(q));
-  if (!list.length) {
-    grid.innerHTML = '<div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Tidak ada pengguna</div>';
-    return;
-  }
-  grid.innerHTML = list.map(m => `
-    <div class="assignee-item${selectedAssignees.has(m._id) ? ' selected' : ''}" onclick="toggleAssignee('${m._id}')">
-      <div class="assignee-check"></div>
-      <span style="font-size:13px">${m.namaLengkap}</span>
+function renderAssigneeChips() {
+  const el = document.getElementById('assignee-chips');
+  const selected = allUsers.filter(u => selectedAssignees.has(u._id));
+  el.innerHTML = selected.map(u => `
+    <div class="assignee-chip">
+      <span>${u.namaLengkap}</span>
+      <button type="button" onclick="toggleAssignee('${u._id}')" title="Hapus"><i class="ti ti-x"></i></button>
     </div>`).join('');
 }
 
+function renderAssigneeDropdown(q = '') {
+  const dd = document.getElementById('assignee-dropdown');
+  const list = allUsers.filter(u => !selectedAssignees.has(u._id) && (!q || u.namaLengkap.toLowerCase().includes(q)));
+  if (!list.length) {
+    dd.innerHTML = `<div class="assignee-drop-empty">${q ? 'Tidak ada hasil' : 'Semua pengguna sudah dipilih'}</div>`;
+  } else {
+    dd.innerHTML = list.map(u => `
+      <div class="assignee-drop-item" onclick="toggleAssignee('${u._id}')">
+        <span>${u.namaLengkap}</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:auto">${u.role}</span>
+      </div>`).join('');
+  }
+  dd.classList.add('open');
+}
+
+function renderAssigneeGrid() { renderAssigneeChips(); }
+
 function toggleAssignee(id) {
   selectedAssignees.has(id) ? selectedAssignees.delete(id) : selectedAssignees.add(id);
-  renderAssigneeGrid(document.getElementById('assignee-search').value.toLowerCase());
+  renderAssigneeChips();
+  const inp = document.getElementById('assignee-search');
+  renderAssigneeDropdown(inp.value.toLowerCase());
 }
 
 let selectedCreators = new Set();
@@ -235,38 +278,69 @@ async function loadUsers() {
   renderValidatorGrid();
 }
 
-function renderCreatorGrid(q = '') {
-  const grid = document.getElementById('creator-grid');
-  if (!grid) return;
-  // co-creator tidak termasuk diri sendiri (otomatis jadi creator utama)
-  const list = allUsers.filter(u => u._id !== user._id && (!q || u.namaLengkap.toLowerCase().includes(q)));
-  grid.innerHTML = list.map(m => `
-    <div class="assignee-item${selectedCreators.has(m._id) ? ' selected' : ''}" onclick="toggleCreator('${m._id}')">
-      <div class="assignee-check"></div><span style="font-size:13px">${m.namaLengkap}</span>
-    </div>`).join('') || '<div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Tidak ada user</div>';
-}
-function toggleCreator(id) {
-  selectedCreators.has(id) ? selectedCreators.delete(id) : selectedCreators.add(id);
-  renderCreatorGrid(document.getElementById('creator-search').value.toLowerCase());
-}
-
-function renderValidatorGrid() {
-  const grid = document.getElementById('validator-grid');
-  if (!grid) return;
-  const directors = allUsers.filter(u => u.role === 'direksi');
-  if (!directors.length) { grid.innerHTML = '<div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Belum ada user direktur</div>'; return; }
-  grid.innerHTML = directors.map(m => `
-    <div class="assignee-item${selectedValidators.has(m._id) ? ' selected' : ''}" onclick="toggleValidator('${m._id}')">
-      <div class="assignee-check"></div><span style="font-size:13px">${m.namaLengkap}</span>
+function renderCreatorChips() {
+  const el = document.getElementById('creator-chips');
+  if (!el) return;
+  const selected = allUsers.filter(u => selectedCreators.has(u._id));
+  el.innerHTML = selected.map(u => `
+    <div class="assignee-chip">
+      <span>${u.namaLengkap}</span>
+      <button type="button" onclick="toggleCreator('${u._id}')" title="Hapus"><i class="ti ti-x"></i></button>
     </div>`).join('');
 }
+function renderCreatorDropdown(q = '') {
+  const dd = document.getElementById('creator-dropdown');
+  if (!dd) return;
+  const list = allUsers.filter(u => u._id !== user._id && !selectedCreators.has(u._id) && (!q || u.namaLengkap.toLowerCase().includes(q)));
+  dd.innerHTML = list.length
+    ? list.map(u => `<div class="assignee-drop-item" onclick="toggleCreator('${u._id}')"><span>${u.namaLengkap}</span><span style="font-size:11px;color:var(--text-3);margin-left:auto">${u.role}</span></div>`).join('')
+    : `<div class="assignee-drop-empty">${q ? 'Tidak ada hasil' : 'Semua pengguna sudah dipilih'}</div>`;
+  dd.classList.add('open');
+}
+function renderCreatorGrid() { renderCreatorChips(); }
+function toggleCreator(id) {
+  selectedCreators.has(id) ? selectedCreators.delete(id) : selectedCreators.add(id);
+  renderCreatorChips();
+  renderCreatorDropdown(document.getElementById('creator-search').value.toLowerCase());
+}
+
+function renderValidatorChips() {
+  const el = document.getElementById('validator-chips');
+  if (!el) return;
+  const selected = allUsers.filter(u => selectedValidators.has(u._id));
+  el.innerHTML = selected.map(u => `
+    <div class="assignee-chip">
+      <span>${u.namaLengkap}</span>
+      <button type="button" onclick="toggleValidator('${u._id}')" title="Hapus"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+}
+function renderValidatorDropdown(q = '') {
+  const dd = document.getElementById('validator-dropdown');
+  if (!dd) return;
+  const directors = allUsers.filter(u => u.role === 'direksi' && !selectedValidators.has(u._id) && (!q || u.namaLengkap.toLowerCase().includes(q)));
+  dd.innerHTML = directors.length
+    ? directors.map(u => `<div class="assignee-drop-item" onclick="toggleValidator('${u._id}')"><span>${u.namaLengkap}</span></div>`).join('')
+    : `<div class="assignee-drop-empty">${q ? 'Tidak ada hasil' : 'Semua direktur sudah dipilih'}</div>`;
+  dd.classList.add('open');
+}
+function renderValidatorGrid() { renderValidatorChips(); }
 function toggleValidator(id) {
   selectedValidators.has(id) ? selectedValidators.delete(id) : selectedValidators.add(id);
-  renderValidatorGrid();
+  renderValidatorChips();
+  renderValidatorDropdown(document.getElementById('validator-search').value.toLowerCase());
 }
 
 document.getElementById('creator-search').addEventListener('input', function () {
-  renderCreatorGrid(this.value.toLowerCase());
+  renderCreatorDropdown(this.value.toLowerCase());
+});
+document.getElementById('creator-search').addEventListener('focus', function () {
+  renderCreatorDropdown(this.value.toLowerCase());
+});
+document.getElementById('validator-search').addEventListener('input', function () {
+  renderValidatorDropdown(this.value.toLowerCase());
+});
+document.getElementById('validator-search').addEventListener('focus', function () {
+  renderValidatorDropdown(this.value.toLowerCase());
 });
 
 let allTemplates = [];
@@ -323,28 +397,43 @@ function renderSubtaskTree() {
   const directors = allUsers.filter(u => u.role === 'direksi');
   function detailPanel(s) {
     if (assignOpenId !== sid(s)) return '';
-    const curA = new Set((s.assignees || []).map(a => a._id || a));
-    const curV = new Set((s.validators || []).map(a => a._id || a));
-    const aItems = allUsers.map(u => `
-      <label class="st-assign-item">
-        <input type="checkbox" ${curA.has(u._id) ? 'checked' : ''} onchange="toggleSubAssignee('${sid(s)}','${u._id}',this.checked)">
-        <span>${u.namaLengkap}</span>
-      </label>`).join('');
-    const vItems = directors.map(u => `
-      <label class="st-assign-item">
-        <input type="checkbox" ${curV.has(u._id) ? 'checked' : ''} onchange="toggleSubValidator('${sid(s)}','${u._id}',this.checked)">
-        <span>${u.namaLengkap}</span>
-      </label>`).join('') || '<span style="font-size:12px;color:var(--text-3)">Belum ada direktur</span>';
+    const id = sid(s);
+    const curA = (s.assignees || []).map(a => a._id || a);
+    const curV = (s.validators || []).map(a => a._id || a);
+    const aChips = allUsers.filter(u => curA.includes(u._id)).map(u =>
+      `<div class="assignee-chip"><span>${u.namaLengkap}</span><button type="button" onclick="toggleSubAssignee('${id}','${u._id}',false)"><i class="ti ti-x"></i></button></div>`).join('');
+    const vChips = allUsers.filter(u => curV.includes(u._id)).map(u =>
+      `<div class="assignee-chip"><span>${u.namaLengkap}</span><button type="button" onclick="toggleSubValidator('${id}','${u._id}',false)"><i class="ti ti-x"></i></button></div>`).join('');
+    const aOpts = allUsers.filter(u => !curA.includes(u._id)).map(u =>
+      `<div class="assignee-drop-item" onclick="toggleSubAssignee('${id}','${u._id}',true)">${u.namaLengkap}<span style="font-size:11px;color:var(--text-3);margin-left:auto">${u.role}</span></div>`).join('') ||
+      `<div class="assignee-drop-empty">Semua sudah dipilih</div>`;
+    const vOpts = directors.filter(u => !curV.includes(u._id)).map(u =>
+      `<div class="assignee-drop-item" onclick="toggleSubValidator('${id}','${u._id}',true)">${u.namaLengkap}</div>`).join('') ||
+      `<div class="assignee-drop-empty">Semua direktur sudah dipilih</div>`;
     return `<div class="st-assign-panel" style="flex-direction:column;align-items:stretch">
       <label style="font-size:11px;font-weight:600;color:var(--text-2)">Deskripsi</label>
       <textarea class="st-judul" style="width:100%;resize:vertical" rows="2" placeholder="Deskripsi subtask..."
-        onchange="updateSubField('${sid(s)}','deskripsi',this.value)">${(s.deskripsi||'').replace(/</g,'&lt;')}</textarea>
+        onchange="updateSubField('${id}','deskripsi',this.value)">${(s.deskripsi||'').replace(/</g,'&lt;')}</textarea>
       <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-top:6px">Deadline</label>
-      <input type="date" class="st-judul" value="${s.dueDate ? String(s.dueDate).slice(0,10) : ''}" onchange="updateSubField('${sid(s)}','dueDate',this.value)">
+      <input type="date" class="st-judul" value="${s.dueDate ? String(s.dueDate).slice(0,10) : ''}" onchange="updateSubField('${id}','dueDate',this.value)">
       <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-top:6px">Assignee</label>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">${aItems || '<span style="font-size:12px;color:var(--text-3)">Tidak ada user</span>'}</div>
-      <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-top:6px">Task Approval (Direktur)</label>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">${vItems}</div>
+      <div style="position:relative">
+        <div class="assignee-chips" style="margin-bottom:6px">${aChips}</div>
+        <input type="text" class="st-judul" placeholder="Cari assignee..." autocomplete="off"
+          oninput="filterSubPanel(this,'sub-a-dd-${id}')"
+          onfocus="document.getElementById('sub-a-dd-${id}').classList.add('open')"
+          style="font-size:12px">
+        <div class="assignee-dropdown" id="sub-a-dd-${id}" style="font-size:12px">${aOpts}</div>
+      </div>
+      <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-top:8px">Task Approval (Direktur)</label>
+      <div style="position:relative">
+        <div class="assignee-chips" style="margin-bottom:6px">${vChips}</div>
+        <input type="text" class="st-judul" placeholder="Cari direktur..." autocomplete="off"
+          oninput="filterSubPanel(this,'sub-v-dd-${id}')"
+          onfocus="document.getElementById('sub-v-dd-${id}').classList.add('open')"
+          style="font-size:12px">
+        <div class="assignee-dropdown" id="sub-v-dd-${id}" style="font-size:12px">${vOpts}</div>
+      </div>
     </div>`;
   }
   function buildNodes(parentId, depth) {
@@ -381,6 +470,16 @@ function renderSubtaskTree() {
 }
 
 function findSub(id) { return subtasks.find(s => sid(s) === id); }
+
+function filterSubPanel(inp, ddId) {
+  const q = inp.value.toLowerCase();
+  const dd = document.getElementById(ddId);
+  if (!dd) return;
+  dd.classList.add('open');
+  dd.querySelectorAll('.assignee-drop-item').forEach(el => {
+    el.style.display = (!q || el.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
 
 // Tampilkan input tambah subtask (top-level dari tombol di bawah, child dari +)
 function startAddSubtask(parentId) { pendingAddParent = parentId || null; renderSubtaskTree(); }
