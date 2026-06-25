@@ -30,9 +30,14 @@
     </div>
     <div class="page-scroll">
       <div class="page-content">
-        <div style="font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:4px">Menunggu Persetujuan Anda</div>
-        <div style="font-size:13px;color:var(--text-3);margin-bottom:16px">Sebagai validator, satu approval dari Anda akan menyelesaikan task.</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:4px">Task Approval</div>
+        <div style="font-size:13px;color:var(--text-3);margin-bottom:16px">Pekerjaan yang menunggu persetujuan Anda. Satu approval menyelesaikan item.</div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:8px 0">Task</h3>
         <div id="ap-list"><div class="ap-empty">Memuat...</div></div>
+
+        <h3 style="font-size:14px;font-weight:700;margin:20px 0 8px">Subtask</h3>
+        <div id="ap-sub-list"><div class="ap-empty">Memuat...</div></div>
       </div>
     </div>
   </div>
@@ -51,10 +56,33 @@ if (!['direksi','superadmin'].includes(user?.role)) window.location.href = '/pag
 
 async function load() {
   const el = document.getElementById('ap-list');
+  const subEl = document.getElementById('ap-sub-list');
   try {
-    const { tasks } = await Tasks.pendingApproval();
+    const { tasks, subtasks } = await Tasks.pendingApproval();
+    // Subtask pending
+    subEl.innerHTML = (subtasks && subtasks.length) ? subtasks.map(s => {
+      const assignees = (s.assignees || []).map(a => a.namaLengkap).join(', ') || '-';
+      return `
+      <div class="ap-card">
+        <div class="ap-head">
+          <div style="flex:1;min-width:0">
+            <div class="ap-title"><a href="/pages/task.html?id=${s.taskId?._id || s.taskId}" style="color:inherit;text-decoration:none">${s.judul}</a></div>
+            <div class="ap-meta">
+              <span style="color:var(--text-3)">di task: ${s.taskId?.judul || '-'}</span>
+              <span><i class="ti ti-users" style="font-size:12px"></i> ${assignees}</span>
+            </div>
+            ${s.workNote ? `<div style="font-size:12px;color:var(--text-2);margin-top:6px;white-space:pre-wrap">${s.workNote.replace(/</g,'&lt;')}</div>` : ''}
+          </div>
+          <div class="ap-actions">
+            <button class="btn btn-primary" onclick="doApproveSub('${s._id}', true)"><i class="ti ti-check"></i> Complete</button>
+            <button class="btn" onclick="doApproveSub('${s._id}', false)"><i class="ti ti-rotate"></i> Reject</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('') : `<div class="ap-empty" style="padding:24px"><i class="ti ti-circle-check"></i>Tidak ada subtask menunggu approval.</div>`;
+
     if (!tasks.length) {
-      el.innerHTML = `<div class="ap-empty"><i class="ti ti-circle-check"></i>Tidak ada task yang menunggu approval.</div>`;
+      el.innerHTML = `<div class="ap-empty" style="padding:24px"><i class="ti ti-circle-check"></i>Tidak ada task yang menunggu approval.</div>`;
       return;
     }
     el.innerHTML = tasks.map(t => {
@@ -82,6 +110,15 @@ async function load() {
   } catch (e) {
     el.innerHTML = `<div class="ap-empty" style="color:var(--red-text)">${e.message}</div>`;
   }
+}
+
+async function doApproveSub(id, approve) {
+  const ok = approve
+    ? await showConfirm('Setujui subtask ini jadi Done?', { title: 'Approve Subtask', okLabel: 'Setujui' })
+    : await showConfirm('Tolak & kembalikan ke On Progress?', { title: 'Reject Subtask', okLabel: 'Tolak', type: 'danger' });
+  if (!ok) return;
+  try { await Subtasks.approve(id, approve); showToast(approve ? 'Subtask disetujui' : 'Subtask dikembalikan'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
 }
 
 async function doApprove(id, approve) {

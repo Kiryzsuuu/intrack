@@ -120,6 +120,9 @@ const Auth = {
   async me() {
     return apiFetch('/auth/me');
   },
+  async verifyIdentity(enik, password) {
+    return apiFetch('/auth/verify-identity', { method: 'POST', body: JSON.stringify({ enik, password }) });
+  },
   async changePassword({ passwordLama, passwordBaru }) {
     return apiFetch('/auth/change-password', {
       method: 'PUT',
@@ -199,9 +202,13 @@ const Tasks = {
   async approve(id, approve = true) {
     return apiFetch(`/tasks/${id}/approve`, { method: 'POST', body: JSON.stringify({ approve }) });
   },
-  // Antrian approval untuk validator (direktur)
+  // Antrian approval (Task Approval) — task & subtask menunggu approval
   async pendingApproval() {
     return apiFetch('/tasks/pending-approval');
+  },
+  // Clean Reset Data (superadmin) — butuh re-auth + kalimat konfirmasi
+  async resetData({ enik, password, confirm }) {
+    return apiFetch('/tasks/reset-data', { method: 'POST', body: JSON.stringify({ enik, password, confirm }) });
   },
   async delete(id) {
     return apiFetch(`/tasks/${id}`, { method: 'DELETE' });
@@ -243,6 +250,14 @@ const Subtasks = {
   async update(id, data) {
     return apiFetch(`/subtasks/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   },
+  // Assignee kirim pekerjaan subtask ke Task Approval
+  async submit(id, workNote) {
+    return apiFetch(`/subtasks/${id}/submit`, { method: 'POST', body: JSON.stringify({ workNote }) });
+  },
+  // Validator (Task Approval) menyetujui/menolak subtask
+  async approve(id, approve = true) {
+    return apiFetch(`/subtasks/${id}/approve`, { method: 'POST', body: JSON.stringify({ approve }) });
+  },
   async delete(id) { return apiFetch(`/subtasks/${id}`, { method: 'DELETE' }); },
   async reorder(items) {
     return apiFetch('/subtasks/reorder/batch', { method: 'PUT', body: JSON.stringify({ items }) });
@@ -251,10 +266,15 @@ const Subtasks = {
 
 // ── Evidence ──────────────────────────────────────────────────────────────────
 const Evidence = {
-  async list(taskId) { return apiFetch(`/evidence?taskId=${taskId}`); },
-  async upload(taskId, file) {
+  async list(taskId, subtaskId) {
+    let url = `/evidence?taskId=${taskId}`;
+    if (subtaskId !== undefined) url += `&subtaskId=${subtaskId}`;
+    return apiFetch(url);
+  },
+  async upload(taskId, file, subtaskId) {
     const fd = new FormData();
     fd.append('taskId', taskId);
+    if (subtaskId) fd.append('subtaskId', subtaskId);
     fd.append('file', file);
     return apiUpload('/evidence', fd);
   },

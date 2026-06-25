@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="/img/logo.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Disaster Settings</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .ds-card {
+      background:var(--surface); border:0.5px solid var(--border);
+      border-radius:var(--r-lg); padding:24px; max-width:520px;
+    }
+    .ds-danger { border-color:rgba(220,38,38,.4); }
+    .ds-title { font-size:16px; font-weight:800; display:flex; align-items:center; gap:8px; }
+    .ds-field { display:flex; flex-direction:column; gap:6px; margin-top:14px; }
+    .ds-field label { font-size:12px; font-weight:600; color:var(--text-2); }
+    .ds-field input {
+      background:var(--surface-2); border:0.5px solid var(--border); border-radius:var(--r-sm);
+      padding:10px 13px; font-size:14px; color:var(--text); outline:none; width:100%;
+    }
+    .ds-field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+    .ds-warn { background:var(--red-bg); color:var(--red-text); border:0.5px solid rgba(220,38,38,.25);
+      border-radius:var(--r-sm); padding:12px 14px; font-size:13px; margin-top:14px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="disaster"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Disaster Settings</span></div>
+    </div>
+    <div class="page-scroll">
+      <div class="page-content">
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:4px">Disaster Settings</div>
+        <div style="font-size:13px;color:var(--text-3);margin-bottom:20px">Area sensitif. Verifikasi identitas Anda untuk melanjutkan.</div>
+
+        <!-- GATE: verifikasi ENIK + password -->
+        <div class="ds-card" id="gate-card">
+          <div class="ds-title"><i class="ti ti-lock" style="color:var(--accent)"></i> Verifikasi Identitas</div>
+          <div class="ds-field"><label>ENIK</label><input type="text" id="g-enik" placeholder="ENIK / email Anda" autocomplete="off"></div>
+          <div class="ds-field"><label>Password</label><input type="password" id="g-pass" placeholder="Password akun" autocomplete="off"></div>
+          <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="verify()"><i class="ti ti-key"></i> Masuk</button>
+        </div>
+
+        <!-- PANEL: aksi disaster (tersembunyi sampai verifikasi) -->
+        <div class="ds-card ds-danger" id="action-card" style="display:none">
+          <div class="ds-title" style="color:var(--red-text)"><i class="ti ti-alert-triangle"></i> Clean Reset Data</div>
+          <div class="ds-warn">
+            Menghapus <strong>SEMUA</strong> data task, subtask, lampiran, notes, milestone, dan riwayat.
+            <strong>Akun user TIDAK dihapus.</strong> Tindakan ini permanen & tidak bisa dibatalkan.
+          </div>
+          <div class="ds-field">
+            <label>Ketik kalimat berikut persis untuk konfirmasi:</label>
+            <div style="font-size:12px;font-style:italic;color:var(--text-3);user-select:none">"Saya yang bertanggung jawab dalam menghapus data ini"</div>
+            <input type="text" id="d-confirm" placeholder="Ketik kalimat konfirmasi di sini...">
+          </div>
+          <button class="btn" style="margin-top:16px;width:100%;border-color:var(--red);color:var(--red-text)" onclick="doReset()">
+            <i class="ti ti-trash"></i> Hapus Semua Data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script src="/js/dialogs.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+if (user?.role !== 'superadmin') window.location.href = '/pages/dashboard.html';
+
+const PHRASE = 'Saya yang bertanggung jawab dalam menghapus data ini';
+let verifiedEnik = null, verifiedPass = null;
+
+async function verify() {
+  const enik = document.getElementById('g-enik').value.trim();
+  const password = document.getElementById('g-pass').value;
+  if (!enik || !password) { showToast('ENIK dan password wajib diisi', 'error'); return; }
+  try {
+    await Auth.verifyIdentity(enik, password);
+    verifiedEnik = enik; verifiedPass = password;
+    document.getElementById('gate-card').style.display = 'none';
+    document.getElementById('action-card').style.display = '';
+    showToast('Identitas terverifikasi');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function doReset() {
+  const confirmTxt = document.getElementById('d-confirm').value.trim();
+  if (confirmTxt !== PHRASE) { showToast('Kalimat konfirmasi tidak persis', 'error'); return; }
+  if (!await showConfirm('Hapus SEMUA data task secara permanen? Akun user tetap aman.', { title: 'Konfirmasi Akhir', okLabel: 'Hapus Permanen', type: 'danger' })) return;
+  try {
+    const r = await Tasks.resetData({ enik: verifiedEnik, password: verifiedPass, confirm: confirmTxt });
+    showToast(r.message);
+    document.getElementById('d-confirm').value = '';
+  } catch (e) { showToast(e.message, 'error'); }
+}
+</script>
+</body>
+</html>

@@ -261,7 +261,7 @@
             </div>
             <div id="m-validators-wrap" style="display:none">
               <div class="divider"></div>
-              <div class="section-lbl">Validator (Direktur)</div>
+              <div class="section-lbl">Task Approval (Direktur)</div>
               <div id="m-validators"></div>
             </div>
             <div id="m-collaborators-wrap" style="display:none">
@@ -485,11 +485,18 @@ async function approveTask(approve) {
 const SUB_STATUS = [
   { key: 'to_do',       label: 'To Do' },
   { key: 'on_progress', label: 'On Progress' },
+  { key: 'review',      label: 'Review' },
   { key: 'done',        label: 'Done' },
 ];
 function subStatusOf(s) { return s.status || (s.isDone ? 'done' : 'to_do'); }
+function subStatusLabel(k) { return (SUB_STATUS.find(o => o.key === k) || {}).label || k; }
+function subBadgeClass(k) { return statusBadgeClass(k === 'done' ? 'complete' : (k === 'review' ? 'partially_complete' : k)); }
+
+let _subtasksCache = [];
+let openSubId = null;
 
 function renderSubtasks(subtasks) {
+  _subtasksCache = subtasks;
   const el    = document.getElementById('subtask-list');
   const done  = subtasks.filter(s => subStatusOf(s) === 'done').length;
   const total = subtasks.length;
@@ -509,31 +516,103 @@ function renderSubtasks(subtasks) {
   function nodeHtml(s, depth) {
     const st        = subStatusOf(s);
     const names     = (s.assignees || []).map(a => a.namaLengkap || '').filter(Boolean);
+    const valNames  = (s.validators || []).map(a => a.namaLengkap || '').filter(Boolean);
     const meAssigned= (s.assignees || []).some(a => (a._id || a) === user?._id);
-    const canChange = meAssigned || isSuper; // hanya assignee subtask (req #4)
+    const meValidator=(s.validators || []).some(a => (a._id || a) === user?._id);
     const dueDateTx = s.dueDate ? new Date(s.dueDate).toLocaleDateString('id-ID', { day:'numeric', month:'short' }) : null;
     const overdue   = s.dueDate && st !== 'done' && new Date(s.dueDate) < new Date();
     const prio      = s.priority || 'medium';
-    const badgeCls  = statusBadgeClass(st === 'done' ? 'complete' : st);
+    const open      = openSubId === s._id;
     return `
     <div class="subtask-item" id="sub-${s._id}" style="margin-left:${depth*20}px">
-      <div class="subtask-row1">
+      <div class="subtask-row1" style="cursor:pointer" onclick="toggleSubExpand('${s._id}')">
+        <i class="ti ti-chevron-${open?'down':'right'}" style="font-size:13px;color:var(--text-3)"></i>
         <span class="subtask-txt ${st==='done' ? 'done' : ''}" style="flex:1">${depth ? '↳ ' : ''}${s.judul}</span>
-        ${canChange
-          ? `<select class="input" style="font-size:11px;padding:3px 6px;width:auto" onchange="setSubtaskStatus('${s._id}', this.value)">
-              ${SUB_STATUS.map(o => `<option value="${o.key}" ${o.key===st?'selected':''}>${o.label}</option>`).join('')}
-             </select>`
-          : `<span class="badge ${badgeCls}" style="font-size:10px">${SUB_STATUS.find(o=>o.key===st)?.label||st}</span>`}
+        <span class="badge ${subBadgeClass(st)}" style="font-size:10px">${subStatusLabel(st)}</span>
       </div>
       <div class="subtask-row2">
         <span class="sub-priority ${prio}">${prioLabel[prio]}</span>
         ${names.length ? `<span class="sub-meta"><i class="ti ti-user" style="font-size:11px"></i>${names.join(', ')}</span>` : ''}
+        ${valNames.length ? `<span class="sub-meta"><i class="ti ti-checks" style="font-size:11px"></i>${valNames.join(', ')}</span>` : ''}
         ${dueDateTx ? `<span class="sub-meta" style="${overdue ? 'color:var(--red-text)' : ''}"><i class="ti ti-calendar" style="font-size:11px"></i>${dueDateTx}${overdue ? ' ⚠️' : ''}</span>` : ''}
       </div>
+      ${open ? subPanel(s, st, meAssigned || isSuper, meValidator || isSuper) : ''}
     </div>
     ${children(s._id).map(c => nodeHtml(c, depth+1)).join('')}`;
   }
   el.innerHTML = children(null).map(s => nodeHtml(s, 0)).join('');
+  if (openSubId) loadSubAttachments(openSubId);
+}
+
+function subPanel(s, st, canWork, canApprove) {
+  const opts = SUB_STATUS.filter(o => o.key !== 'done') // Done hanya via approval
+    .map(o => `<option value="${o.key}" ${o.key===st?'selected':''}>${o.label}</option>`).join('');
+  return `
+  <div style="margin-top:8px;padding:12px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--r-sm)" onclick="event.stopPropagation()">
+    ${s.deskripsi ? `<div style="font-size:12px;color:var(--text-2);margin-bottom:10px;white-space:pre-wrap">${escForAttr(s.deskripsi)}</div>` : ''}
+    <label style="font-size:11px;font-weight:600;color:var(--text-3)">Penjelasan Pekerjaan</label>
+    <textarea id="wn-${s._id}" class="input" rows="2" style="width:100%;resize:vertical;margin:4px 0 8px" placeholder="Jelaskan pekerjaan Anda..." ${canWork?'':'disabled'}>${escForAttr(s.workNote||'')}</textarea>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:600;color:var(--text-3)">Lampiran:</span>
+      <div id="subev-${s._id}" style="display:flex;gap:6px;flex-wrap:wrap"><span style="font-size:11px;color:var(--text-3)">memuat...</span></div>
+      ${canWork && st!=='done' ? `<label class="btn" style="font-size:11px;padding:4px 10px;cursor:pointer"><i class="ti ti-upload"></i> File
+        <input type="file" style="display:none" onchange="uploadSubFile('${s._id}', this)"></label>` : ''}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      ${canWork && st!=='done' ? `
+        <select class="input" id="sst-${s._id}" style="font-size:12px;padding:5px 8px;width:auto">${opts}</select>
+        <button class="btn btn-primary" style="font-size:12px" onclick="sendSubtask('${s._id}')"><i class="ti ti-send"></i> Send</button>` : ''}
+      ${canApprove && st==='review' ? `
+        <button class="btn btn-primary" style="font-size:12px" onclick="approveSubtask('${s._id}', true)"><i class="ti ti-check"></i> Complete</button>
+        <button class="btn" style="font-size:12px" onclick="approveSubtask('${s._id}', false)"><i class="ti ti-rotate"></i> Reject</button>` : ''}
+      ${st==='review' && !canApprove ? `<span style="font-size:11px;color:var(--orange-text,#9A3412)">⏳ Menunggu Task Approval</span>` : ''}
+      ${st==='done' ? `<span style="font-size:11px;color:var(--green)">✓ Disetujui ${s.approvedBy?.namaLengkap ? 'oleh '+s.approvedBy.namaLengkap : ''}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function escForAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toggleSubExpand(id) { openSubId = (openSubId === id) ? null : id; renderSubtasks(_subtasksCache); }
+
+async function loadSubAttachments(id) {
+  const box = document.getElementById('subev-' + id);
+  if (!box) return;
+  try {
+    const list = await Evidence.list(taskId, id);
+    box.innerHTML = list.length ? list.map(ev =>
+      `<a href="${ev.urlFile}" target="_blank" class="st-chip" style="text-decoration:none"><i class="ti ti-paperclip" style="font-size:10px"></i> ${ev.namaFile}</a>`
+    ).join('') : '<span style="font-size:11px;color:var(--text-3)">—</span>';
+  } catch { box.innerHTML = ''; }
+}
+
+async function uploadSubFile(id, input) {
+  const file = input.files[0]; if (!file) return;
+  try { await Evidence.upload(taskId, file, id); showToast('File diunggah'); loadSubAttachments(id); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+async function sendSubtask(id) {
+  const wn = document.getElementById('wn-' + id)?.value || '';
+  const st = document.getElementById('sst-' + id)?.value;
+  try {
+    if (st) await Subtasks.update(id, { status: st });
+    await Subtasks.submit(id, wn);
+    showToast('Pekerjaan dikirim ke Task Approval');
+    await loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function approveSubtask(id, approve) {
+  const ok = approve
+    ? await showConfirm('Setujui subtask ini jadi Done?', { title: 'Approve Subtask', okLabel: 'Setujui' })
+    : await showConfirm('Tolak & kembalikan ke On Progress?', { title: 'Reject Subtask', okLabel: 'Tolak', type: 'danger' });
+  if (!ok) return;
+  try {
+    await Subtasks.approve(id, approve);
+    showToast(approve ? 'Subtask disetujui' : 'Subtask dikembalikan');
+    await loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
 function renderEvidence(evidences) {

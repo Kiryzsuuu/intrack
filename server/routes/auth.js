@@ -69,6 +69,22 @@ router.put('/change-password', auth, async (req, res) => {
   res.json({ message: 'Password berhasil diubah' });
 });
 
+// POST /api/auth/verify-identity — re-auth (ENIK + password) untuk fitur sensitif
+router.post('/verify-identity', auth, async (req, res) => {
+  const { enik, password } = req.body;
+  if (!enik || !password) return res.status(400).json({ message: 'ENIK dan password wajib diisi' });
+
+  const val = String(enik).trim();
+  const cocokEnik = (req.user.enik && req.user.enik === val) ||
+                    (req.user.email && req.user.email.toLowerCase() === val.toLowerCase());
+  if (!cocokEnik) return res.status(401).json({ message: 'ENIK tidak cocok dengan akun Anda' });
+
+  const ok = await req.user.comparePassword(password);
+  if (!ok) return res.status(401).json({ message: 'Password salah' });
+
+  res.json({ ok: true });
+});
+
 // POST /api/auth/forgot-password — kirim OTP ke email
 router.post('/forgot-password', async (req, res) => {
   const { identifier } = req.body; // bisa ENIK atau email

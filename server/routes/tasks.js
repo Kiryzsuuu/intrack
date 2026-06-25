@@ -42,33 +42,14 @@ function isDireksiRole(user) {
   return ['direksi', 'superadmin'].includes(user.role);
 }
 
-// Hitung ulang status task dari progres subtask (atau completedBy bila tanpa subtask).
-// Mengembalikan { status, pendingApproval }.
-async function deriveTaskState(task) {
-  const subs = await Subtask.find({ taskId: task._id });
-  if (subs.length) {
-    const total = subs.length;
-    const done  = subs.filter(s => s.status === 'done' || s.isDone).length;
-    const prog  = subs.filter(s => s.status === 'on_progress').length;
-    if (done >= total)              return { status: 'partially_complete', pendingApproval: true };
-    if (done > 0 || prog > 0)       return { status: 'on_progress',        pendingApproval: false };
-    return { status: 'to_do', pendingApproval: false };
-  }
-  // Tanpa subtask: pakai completedBy vs assignees
+// Status MAIN TASK independen dari subtask (req: subtask tidak memengaruhi main task).
+// Hanya berdasar completedBy vs assignees.
+function deriveMainTaskState(task) {
   const totalA = assigneeIds(task).length;
   const doneA  = (task.completedBy || []).length;
   if (totalA && doneA >= totalA) return { status: 'partially_complete', pendingApproval: true };
   if (doneA > 0)                 return { status: 'partially_complete', pendingApproval: false };
   return { status: task.status === 'on_progress' ? 'on_progress' : 'to_do', pendingApproval: false };
-}
-
-// Terapkan derive ke task (tidak menimpa bila sudah complete). Pakai object task ter-load.
-async function applyDerivedState(task) {
-  if (task.status === 'complete') return;
-  const d = await deriveTaskState(task);
-  task.status = d.status;
-  task.pendingApproval = d.pendingApproval;
-  await task.save();
 }
 
 // Req #3: semua user bisa MELIHAT semua task
@@ -81,7 +62,9 @@ async function createSubtasksRecursive(taskId, parentId, nodes) {
     if (!s || !s.judul) continue;
     const sub = await Subtask.create({
       taskId, parentId: parentId || null, judul: s.judul, urutan: urutan++,
-      assignees: s.assignees || [], dueDate: s.dueDate || null, priority: s.priority || 'medium',
+      deskripsi: s.deskripsi || '',
+      assignees: s.assignees || [], validators: s.validators || [],
+      dueDate: s.dueDate || null, priority: s.priority || 'medium',
     });
     if (Array.isArray(s.children) && s.children.length) {
       await createSubtasksRecursive(taskId, sub._id, s.children);
@@ -256,7 +239,17 @@ router.get('/pending-approval', auth, async (req, res) => {
     .populate('validators', 'namaLengkap')
     .populate('direktoratId', 'nama kode')
     .sort({ deadline: 1 });
-  res.json({ tasks });
+
+  // Subtask yang menunggu approval (Task Approval) untuk validator ini
+  const subFilter = { status: 'review', pendingApproval: true };
+  if (req.user.role !== 'superadmin') subFilter.validators = req.user._id;
+  const subtasks = await Subtask.find(subFilter)
+    .populate('assignees', 'namaLengkap fotoProfil')
+    .populate('validators', 'namaLengkap')
+    .populate('taskId', 'judul')
+    .sort({ dueDate: 1 });
+
+  res.json({ tasks, subtasks });
 });
 
 // ── GET /api/tasks/:id ────────────────────────────────────────────────────────
@@ -515,6 +508,46 @@ function nextRunDate(fromDate, tipe, interval) {
   if (tipe === 'monthly') d.setMonth(d.getMonth() + interval);
   return d;
 }
+
+// ── POST /api/tasks/reset-data — Clean Reset Data (Superadmin) ───────────────
+// Hapus SEMUA data task & turunannya, TANPA menyentuh user/akun.
+const RESET_PHRASE = 'Saya yang bertanggung jawab dalam menghapus data ini';
+router.post('/reset-data', auth, async (req, res) => {
+  if (req.user.role !== 'superadmin')
+    return res.status(403).json({ message: 'Hanya admin (superadmin) yang dapat reset data' });
+
+  const { enik, password, confirm } = req.body;
+  // Re-auth wajib
+  if (!enik || !password) return res.status(400).json({ message: 'ENIK dan password wajib diisi' });
+  const val = String(enik).trim();
+  const cocokEnik = (req.user.enik && req.user.enik === val) ||
+                    (req.user.email && req.user.email.toLowerCase() === val.toLowerCase());
+  if (!cocokEnik) return res.status(401).json({ message: 'ENIK tidak cocok dengan akun Anda' });
+  const okPw = await req.user.comparePassword(password);
+  if (!okPw) return res.status(401).json({ message: 'Password salah' });
+
+  // Kalimat konfirmasi harus persis
+  if ((confirm || '').trim() !== RESET_PHRASE)
+    return res.status(400).json({ message: `Ketik persis: "${RESET_PHRASE}"` });
+
+  const Komentar    = require('../models/Komentar');
+  const TaskMessage = require('../models/TaskMessage');
+  const Milestone   = require('../models/Milestone');
+  const KpiSnapshot = require('../models/KpiSnapshot');
+
+  const results = {};
+  results.subtasks    = (await Subtask.deleteMany({})).deletedCount;
+  results.evidences   = (await Evidence.deleteMany({})).deletedCount;
+  results.notes       = (await Komentar.deleteMany({})).deletedCount;
+  results.statusLogs  = (await StatusLog.deleteMany({})).deletedCount;
+  results.taskMessages= (await TaskMessage.deleteMany({})).deletedCount;
+  results.milestones  = (await Milestone.deleteMany({})).deletedCount;
+  results.kpiSnapshots= (await KpiSnapshot.deleteMany({})).deletedCount;
+  results.tasks       = (await Task.deleteMany({})).deletedCount;
+
+  audit.log(req, 'data.reset', { target: 'System', detail: results });
+  res.json({ message: 'Clean reset selesai. Data task dihapus, akun user tetap aman.', results });
+});
 
 // ── DELETE /api/tasks/:id (soft delete) ── Superadmin saja ───────────────────
 router.delete('/:id', auth, async (req, res) => {

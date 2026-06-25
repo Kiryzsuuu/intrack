@@ -162,9 +162,9 @@
           <div class="assignee-grid" id="creator-grid"></div>
         </div>
 
-        <!-- Validator (direktur) -->
+        <!-- Task Approval (direktur) -->
         <div class="card" id="validator-card">
-          <div class="card-title">Validator / Direktur <span style="text-transform:none;font-weight:400;color:var(--text-3)">(salah satu approve = task complete)</span></div>
+          <div class="card-title">Task Approval <span style="text-transform:none;font-weight:400;color:var(--text-3)">(direktur — salah satu approve = complete)</span></div>
           <div class="assignee-grid" id="validator-grid">
             <div style="color:var(--text-3);font-size:13px;grid-column:1/-1">Memuat direktur...</div>
           </div>
@@ -320,15 +320,32 @@ function nameOf(id) { const u = allUsers.find(x => x._id === id); return u ? u.n
 
 function renderSubtaskTree() {
   const root = document.getElementById('subtask-tree');
-  function assignPanel(s) {
+  const directors = allUsers.filter(u => u.role === 'direksi');
+  function detailPanel(s) {
     if (assignOpenId !== sid(s)) return '';
-    const cur = new Set((s.assignees || []).map(a => a._id || a));
-    const items = allUsers.map(u => `
+    const curA = new Set((s.assignees || []).map(a => a._id || a));
+    const curV = new Set((s.validators || []).map(a => a._id || a));
+    const aItems = allUsers.map(u => `
       <label class="st-assign-item">
-        <input type="checkbox" ${cur.has(u._id) ? 'checked' : ''} onchange="toggleSubAssignee('${sid(s)}','${u._id}',this.checked)">
+        <input type="checkbox" ${curA.has(u._id) ? 'checked' : ''} onchange="toggleSubAssignee('${sid(s)}','${u._id}',this.checked)">
         <span>${u.namaLengkap}</span>
       </label>`).join('');
-    return `<div class="st-assign-panel">${items || '<span style="font-size:12px;color:var(--text-3)">Tidak ada user</span>'}</div>`;
+    const vItems = directors.map(u => `
+      <label class="st-assign-item">
+        <input type="checkbox" ${curV.has(u._id) ? 'checked' : ''} onchange="toggleSubValidator('${sid(s)}','${u._id}',this.checked)">
+        <span>${u.namaLengkap}</span>
+      </label>`).join('') || '<span style="font-size:12px;color:var(--text-3)">Belum ada direktur</span>';
+    return `<div class="st-assign-panel" style="flex-direction:column;align-items:stretch">
+      <label style="font-size:11px;font-weight:600;color:var(--text-2)">Deskripsi</label>
+      <textarea class="st-judul" style="width:100%;resize:vertical" rows="2" placeholder="Deskripsi subtask..."
+        onchange="updateSubField('${sid(s)}','deskripsi',this.value)">${(s.deskripsi||'').replace(/</g,'&lt;')}</textarea>
+      <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-top:6px">Deadline</label>
+      <input type="date" class="st-judul" value="${s.dueDate ? String(s.dueDate).slice(0,10) : ''}" onchange="updateSubField('${sid(s)}','dueDate',this.value)">
+      <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-top:6px">Assignee</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${aItems || '<span style="font-size:12px;color:var(--text-3)">Tidak ada user</span>'}</div>
+      <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-top:6px">Task Approval (Direktur)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${vItems}</div>
+    </div>`;
   }
   function buildNodes(parentId, depth) {
     let html = childrenOf(parentId).map(s => {
@@ -339,11 +356,11 @@ function renderSubtaskTree() {
           <i class="ti ti-corner-down-right st-mini" style="${depth ? '' : 'visibility:hidden'}"></i>
           <input class="st-judul" value="${(s.judul||'').replace(/"/g,'&quot;')}" onchange="updateSubtask('${id}', this.value)" placeholder="Judul subtask...">
           <div class="st-assignees">${names}</div>
-          <button type="button" class="icon-btn${assignOpenId===id?' on':''}" title="Assign" onclick="toggleAssignPanel('${id}')"><i class="ti ti-user-plus"></i></button>
+          <button type="button" class="icon-btn${assignOpenId===id?' on':''}" title="Detail (assignee, approval, deadline)" onclick="toggleAssignPanel('${id}')"><i class="ti ti-adjustments"></i></button>
           <button type="button" class="icon-btn" title="Tambah sub" onclick="startAddSubtask('${id}')"><i class="ti ti-plus"></i></button>
           <button type="button" class="icon-btn" title="Hapus" onclick="deleteSubtask('${id}')"><i class="ti ti-trash"></i></button>
         </div>
-        ${assignPanel(s)}
+        ${detailPanel(s)}
         ${buildNodes(id, depth + 1)}`;
     }).join('');
     // baris input tambah (inline, bukan prompt)
@@ -422,11 +439,33 @@ async function toggleSubAssignee(id, userId, on) {
   renderSubtaskTree();
 }
 
+async function toggleSubValidator(id, userId, on) {
+  const sub = findSub(id); if (!sub) return;
+  let ids = (sub.validators || []).map(a => a._id || a);
+  ids = on ? [...new Set([...ids, userId])] : ids.filter(x => x !== userId);
+  if (isLive()) {
+    try { await Subtasks.update(id, { validators: ids }); subtasks = await Subtasks.list(editId); }
+    catch (e) { showToast(e.message, 'error'); }
+  } else {
+    sub.validators = ids.map(x => ({ _id: x, namaLengkap: nameOf(x) }));
+  }
+  renderSubtaskTree();
+}
+
+async function updateSubField(id, field, value) {
+  const sub = findSub(id); if (!sub) return;
+  sub[field] = value || null;
+  if (isLive()) { try { await Subtasks.update(id, { [field]: value || null }); } catch (e) { showToast(e.message, 'error'); } }
+}
+
 // Bangun struktur pohon untuk dikirim saat create
 function buildSubtaskPayload(parentId) {
   return childrenOf(parentId).map(s => ({
     judul: s.judul,
+    deskripsi: s.deskripsi || '',
+    dueDate: s.dueDate || null,
     assignees: (s.assignees || []).map(a => a._id || a),
+    validators: (s.validators || []).map(a => a._id || a),
     children: buildSubtaskPayload(sid(s)),
   }));
 }
