@@ -24,8 +24,15 @@ initSocket(server);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: process.env.APP_URL || '*', credentials: true }));
 
-// Rate limit pada auth endpoint
-app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
+// Rate limit UMUM untuk seluruh API. Respons JSON agar frontend menampilkan pesan jelas.
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json({ message: 'Terlalu banyak permintaan. Coba lagi dalam beberapa menit.' }),
+});
+app.use('/api', generalLimiter);
 
 // Body parsers
 app.use(express.json({ limit: '5mb' }));
