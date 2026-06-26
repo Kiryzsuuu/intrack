@@ -15,7 +15,12 @@ function isCreator(user, task) {
 function isDireksi(user) { return ['direksi', 'superadmin'].includes(user.role); }
 function canManage(user, task) { return isDireksi(user) || isCreator(user, task); }
 function isSubAssignee(user, sub) { return (sub.assignees || []).map(idStr).includes(user._id.toString()); }
-function isSubValidator(user, sub) { return (sub.validators || []).map(idStr).includes(user._id.toString()); }
+// Direktur/komisaris/superadmin = validator global, atau ditunjuk eksplisit pada subtask
+const APPROVER_ROLES = ['direksi', 'komisaris', 'superadmin'];
+function isSubValidator(user, sub) {
+  if (APPROVER_ROLES.includes(user.role)) return true;
+  return (sub.validators || []).map(idStr).includes(user._id.toString());
+}
 
 // GET /api/subtasks?taskId=xxx — semua subtask (termasuk nested) untuk task
 router.get('/', auth, async (req, res) => {
@@ -81,8 +86,19 @@ router.post('/:id/submit', auth, async (req, res) => {
   sub.pendingApproval = true;
   await sub.save();
 
-  // Notif ke validator subtask (Task Approval)
-  for (const vid of (sub.validators || []).map(idStr)) {
+  // Notif ke Task Approval — in-app + push. Direktur/komisaris = validator global.
+  const direktur = await User.find({ role: { $in: ['direksi','komisaris'] }, statusAktif: true }).select('_id');
+  const targetIds = new Set([
+    ...(sub.validators || []).map(idStr),
+    ...direktur.map(d => d._id.toString()),
+  ]);
+  for (const vid of targetIds) {
+    notifSvc.buatNotifikasi({
+      userId: vid, jenis: 'subtask_menunggu_approval',
+      judul: 'Subtask menunggu approval Anda',
+      isi: `Subtask "${sub.judul}" siap divalidasi.`,
+      taskId: sub.taskId,
+    }).catch(() => {});
     push.sendPush(vid, {
       title: 'Subtask menunggu approval', body: sub.judul,
       url: `/pages/approval.html`,

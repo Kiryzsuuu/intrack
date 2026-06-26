@@ -407,7 +407,9 @@ function renderStatusActions(t) {
                     (t.creators || []).some(c => (c._id || c) === user?._id);
   const assigneesArr = t.assignees || [];
   const isAssignee = assigneesArr.some(a => (a._id || a) === user?._id);
-  const isValidator = (t.validators || []).some(v => (v._id || v) === user?._id);
+  // Direktur/komisaris/superadmin = validator global, atau ditunjuk eksplisit
+  const isValidator = ['direksi','komisaris','superadmin'].includes(user?.role) ||
+                      (t.validators || []).some(v => (v._id || v) === user?._id);
   const completedIds = (t.completedBy || []).map(c => c._id || c);
   const meDone = completedIds.includes(user?._id);
 
@@ -434,6 +436,8 @@ function renderStatusActions(t) {
       ${statuses.map(s => `<option value="${s.key}" ${s.key === t.status ? 'selected' : ''}>${s.label}</option>`).join('')}
       ${['to_do','on_progress','partially_complete'].includes(t.status) ? '' : `<option selected>${statusLabel(t.status)}</option>`}
     </select>`;
+    // Override creator: tutup main task jadi Done kapan saja, terlepas dari progress subtask.
+    html += `<button class="btn btn-primary" style="font-size:13px" onclick="creatorMarkDone()" title="Tutup task sebagai selesai (hak creator)"><i class="ti ti-circle-check"></i> Tandai Task Selesai</button>`;
   }
 
   // Assignee: tandai bagiannya selesai
@@ -446,6 +450,14 @@ function renderStatusActions(t) {
 
   el.innerHTML = html;
 
+}
+
+async function creatorMarkDone() {
+  const ok = await showConfirm('Tandai main task ini sebagai Selesai (Done)? Ini menutup task meski subtask belum semua selesai.', {
+    title: 'Tandai Task Selesai', okLabel: 'Ya, Selesaikan', type: 'warning'
+  });
+  if (!ok) return;
+  await changeStatus('complete');
 }
 
 async function markMineDone(done) {
@@ -505,7 +517,9 @@ function renderSubtasks(subtasks) {
     const names     = (s.assignees || []).map(a => a.namaLengkap || '').filter(Boolean);
     const valNames  = (s.validators || []).map(a => a.namaLengkap || '').filter(Boolean);
     const meAssigned= (s.assignees || []).some(a => (a._id || a) === user?._id);
-    const meValidator=(s.validators || []).some(a => (a._id || a) === user?._id);
+    // Direktur/komisaris/superadmin = validator global, atau ditunjuk eksplisit
+    const meValidator= ['direksi','komisaris','superadmin'].includes(user?.role) ||
+                       (s.validators || []).some(a => (a._id || a) === user?._id);
     const dueDateTx = s.dueDate ? new Date(s.dueDate).toLocaleDateString('id-ID', { day:'numeric', month:'short' }) : null;
     const overdue   = s.dueDate && st !== 'done' && new Date(s.dueDate) < new Date();
     const prio      = s.priority || 'medium';

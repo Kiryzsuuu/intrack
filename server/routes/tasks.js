@@ -33,8 +33,11 @@ function isCreator(user, task) {
   if (isMainCreator(user, task)) return true;
   return (task.creators || []).map(idStr).includes(user._id.toString());
 }
-// Validator (direktur yang ditunjuk)
+// Role yang otomatis jadi approver/validator (direktur & komisaris selalu validator)
+const APPROVER_ROLES = ['direksi', 'komisaris', 'superadmin'];
+// Validator: semua direktur/komisaris otomatis validator, ATAU ditunjuk eksplisit
 function isValidator(user, task) {
+  if (APPROVER_ROLES.includes(user.role)) return true;
   return (task.validators || []).map(idStr).includes(user._id.toString());
 }
 
@@ -114,7 +117,7 @@ router.get('/', auth, async (req, res) => {
     .populate('validators', 'namaLengkap')
     .populate('direktoratId', 'nama kode')
     .populate('milestoneId', 'judul warna')
-    .sort({ deadline: 1, createdAt: -1 })
+    .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
     .lean();
@@ -231,8 +234,10 @@ router.post('/', auth, async (req, res) => {
 // ── GET /api/tasks/pending-approval — antrian approval untuk validator ────────
 // (Harus sebelum '/:id' agar tidak dianggap id)
 router.get('/pending-approval', auth, async (req, res) => {
+  // Direktur/komisaris/superadmin = validator global → lihat SEMUA antrian approval.
+  const isApprover = APPROVER_ROLES.includes(req.user.role);
   const filter = { isDeleted: false, status: { $ne: 'complete' }, pendingApproval: true };
-  if (req.user.role !== 'superadmin') filter.validators = req.user._id;
+  if (!isApprover) filter.validators = req.user._id;
   const tasks = await Task.find(filter)
     .populate('assignees', 'namaLengkap fotoProfil')
     .populate('dibuatOleh', 'namaLengkap')
@@ -240,9 +245,9 @@ router.get('/pending-approval', auth, async (req, res) => {
     .populate('direktoratId', 'nama kode')
     .sort({ deadline: 1 });
 
-  // Subtask yang menunggu approval (Task Approval) untuk validator ini
+  // Subtask yang menunggu approval (Task Approval)
   const subFilter = { status: 'review', pendingApproval: true };
-  if (req.user.role !== 'superadmin') subFilter.validators = req.user._id;
+  if (!isApprover) subFilter.validators = req.user._id;
   const subtasks = await Subtask.find(subFilter)
     .populate('assignees', 'namaLengkap fotoProfil')
     .populate('validators', 'namaLengkap')
@@ -344,9 +349,10 @@ router.put('/:id/status', auth, async (req, res) => {
   if (!isSuper && !creator && !assignee && !validator)
     return res.status(403).json({ message: 'Akses ditolak' });
 
-  // 'complete' hanya lewat approval validator (atau superadmin). Tidak bisa via status biasa.
-  if (statusBaru === 'complete' && !isSuper)
-    return res.status(403).json({ message: 'Task hanya bisa di-Complete lewat approval validator' });
+  // 'complete' lewat approval validator, ATAU override manual oleh creator/superadmin
+  // (creator boleh menutup main task kapan saja, terlepas dari progress subtask).
+  if (statusBaru === 'complete' && !isSuper && !creator)
+    return res.status(403).json({ message: 'Task hanya bisa di-Complete lewat approval validator atau oleh creator' });
 
   const statusLama = task.status;
   task.status = statusBaru;
@@ -396,9 +402,21 @@ router.post('/:id/complete-mine', auth, async (req, res) => {
   await task.save();
   await task.populate('completedBy', 'namaLengkap fotoProfil');
 
-  // Notif validator saat semua assignee selesai → minta approval
+  // Notif saat semua assignee selesai → minta approval (in-app + push).
+  // Direktur/komisaris adalah validator global, jadi semua dapat notif (plus validator eksplisit).
   if (task.pendingApproval) {
-    for (const vid of (task.validators || []).map(idStr)) {
+    const direktur = await User.find({ role: { $in: ['direksi','komisaris'] }, statusAktif: true }).select('_id');
+    const targetIds = new Set([
+      ...(task.validators || []).map(idStr),
+      ...direktur.map(d => d._id.toString()),
+    ]);
+    for (const vid of targetIds) {
+      notifSvc.buatNotifikasi({
+        userId: vid, jenis: 'task_menunggu_approval',
+        judul: 'Task menunggu approval Anda',
+        isi: `Task "${task.judul}" siap divalidasi.`,
+        taskId: task._id,
+      }).catch(() => {});
       push.sendPush(vid, {
         title: 'Menunggu Approval Anda', body: `Task siap divalidasi: ${task.judul}`,
         url: `/pages/approval.html`,

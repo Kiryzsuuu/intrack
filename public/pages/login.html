@@ -183,6 +183,22 @@
         </div>
       </div>
 
+      <div class="field">
+        <label for="inp-captcha">Verifikasi Keamanan</label>
+        <div style="display:flex;gap:10px;align-items:stretch">
+          <div id="captcha-box"
+            style="flex-shrink:0;display:flex;align-items:center;justify-content:center;min-width:96px;padding:0 14px;
+                   background:var(--surface-2);border:0.5px solid var(--border);border-radius:8px;
+                   font-size:17px;font-weight:800;letter-spacing:2px;font-style:italic;user-select:none;color:var(--text)">…</div>
+          <button type="button" onclick="newCaptcha()" title="Ganti soal" aria-label="Ganti captcha"
+            style="flex-shrink:0;background:var(--surface-2);border:0.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-3);padding:0 12px;font-size:17px">
+            <i class="ti ti-refresh"></i>
+          </button>
+          <input type="text" id="inp-captcha" placeholder="Jawaban" inputmode="numeric"
+            autocomplete="off" onkeydown="onEnter(event)" style="flex:1">
+        </div>
+      </div>
+
       <button class="btn-login" id="btn-login" onclick="doLogin()">
         Masuk
       </button>
@@ -267,6 +283,19 @@ function onEnter(e) {
   if (e.key === 'Enter') doLogin();
 }
 
+// Captcha matematika sederhana (anti-bot/brute force)
+var captchaAnswer = null;
+function newCaptcha() {
+  var a = Math.floor(Math.random() * 9) + 1;
+  var b = Math.floor(Math.random() * 9) + 1;
+  captchaAnswer = a + b;
+  var box = document.getElementById('captcha-box');
+  if (box) box.textContent = a + ' + ' + b + ' = ?';
+  var inp = document.getElementById('inp-captcha');
+  if (inp) inp.value = '';
+}
+newCaptcha();
+
 function togglePass() {
   var inp = document.getElementById('inp-password');
   var ico = document.getElementById('eye-icon');
@@ -284,6 +313,10 @@ async function doLogin() {
   if (!email)    { showError('ENIK wajib diisi.');    return; }
   if (!password) { showError('Password wajib diisi.'); return; }
 
+  var captcha = (document.getElementById('inp-captcha').value || '').trim();
+  if (!captcha)                                 { showError('Jawaban verifikasi wajib diisi.'); return; }
+  if (parseInt(captcha, 10) !== captchaAnswer)  { showError('Jawaban verifikasi salah.'); newCaptcha(); return; }
+
   btn.disabled    = true;
   btn.textContent = 'Masuk...';
 
@@ -297,6 +330,7 @@ async function doLogin() {
     }
   } catch (err) {
     showError(err && err.message ? err.message : 'Gagal login. Periksa email dan password.');
+    newCaptcha();
     btn.disabled    = false;
     btn.textContent = 'Masuk';
   }

@@ -488,15 +488,20 @@ async function commitAddSubtask(judul) {
   judul = (judul || '').trim();
   const parentId = pendingAddParent === undefined ? null : pendingAddParent;
   if (!judul) { pendingAddParent = undefined; renderSubtaskTree(); return; }
+  let newId = null;
   if (isLive()) {
     try {
-      await Subtasks.create(editId, { judul, parentId: parentId || null });
+      const created = await Subtasks.create(editId, { judul, parentId: parentId || null });
+      newId = created?._id || null;
       subtasks = await Subtasks.list(editId);
     } catch (e) { showToast(e.message, 'error'); }
   } else {
-    subtasks.push({ _tmp: 't' + (tmpSeq++), parentId: parentId || null, judul, assignees: [], urutan: subtasks.length });
+    const tmp = 't' + (tmpSeq++);
+    subtasks.push({ _tmp: tmp, parentId: parentId || null, judul, assignees: [], validators: [], urutan: subtasks.length });
+    newId = tmp;
   }
-  pendingAddParent = parentId; // tetap di mode tambah agar bisa nambah beruntun
+  pendingAddParent = undefined;     // (c) jangan munculkan baris subtask kosong otomatis
+  if (newId) assignOpenId = newId;  // (b) langsung buka panel detail subtask baru
   renderSubtaskTree();
 }
 
