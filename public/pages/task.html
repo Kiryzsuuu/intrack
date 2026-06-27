@@ -390,11 +390,11 @@ function renderTask(t) {
     rn.style.display = 'block';
   }
 
-  // Edit: creator (utama/co) atau direksi. Hapus: superadmin saja.
+  // Edit: creator (utama/co) atau direksi. Hapus: superadmin/direksi atau creator task ini (req batch 4b).
   if (isDireksi || (isCreator && t.status !== 'complete')) {
     document.getElementById('btn-edit').style.display = '';
   }
-  if (isSuper) document.getElementById('btn-delete').style.display = '';
+  if (isSuper || isDireksi || isCreator) document.getElementById('btn-delete').style.display = '';
 
   // Status action buttons
   renderStatusActions(t);
@@ -508,6 +508,11 @@ function renderSubtasks(subtasks) {
 
   const prioLabel = { low: '🟢 Low', medium: '🟡 Medium', high: '🔴 High' };
   const isSuper = user?.role === 'superadmin';
+  const isDireksi = ['direksi','superadmin'].includes(user?.role);
+  const isCreatorTask = taskData?.dibuatOleh?._id === user?._id || taskData?.dibuatOleh === user?._id
+    || (taskData?.creators || []).some(c => (c._id || c) === user?._id);
+  // Superadmin/direksi/creator boleh hapus subtask & sub-subtask langsung dari sini (req batch 4d)
+  const canDeleteSub = isSuper || isDireksi || isCreatorTask;
 
   function children(parentId) {
     return subtasks.filter(s => (s.parentId || null) === (parentId || null)).sort((a,b)=>a.urutan-b.urutan);
@@ -531,6 +536,7 @@ function renderSubtasks(subtasks) {
         <i class="ti ti-chevron-${open?'down':'right'}" style="font-size:13px;color:var(--text-3)"></i>
         <span class="subtask-txt ${st==='done'||rejected ? 'done' : ''}" style="flex:1">${depth ? '↳ ' : ''}${s.judul}</span>
         <span class="badge ${subBadgeClass(st)}" style="font-size:10px">${subStatusLabel(st)}</span>
+        ${canDeleteSub ? `<button class="btn" style="font-size:11px;padding:3px 7px;border-color:transparent;color:var(--red-text)" title="Hapus subtask & turunannya" onclick="event.stopPropagation();deleteSubtaskInline('${s._id}','${(s.judul||'').replace(/'/g,"\\'").replace(/"/g,'')}')"><i class="ti ti-trash"></i></button>` : ''}
       </div>
       ${rejected ? `<div style="font-size:11px;color:var(--red-text);margin:2px 0 0 21px"><i class="ti ti-alert-circle" style="font-size:11px"></i> Kerjaan ditolak, harap direvisi — lihat subtask "Review Task (...)"</div>` : ''}
       <div class="subtask-row2">
@@ -539,7 +545,7 @@ function renderSubtasks(subtasks) {
         ${valNames.length ? `<span class="sub-meta"><i class="ti ti-checks" style="font-size:11px"></i>${valNames.join(', ')}</span>` : ''}
         ${dueDateTx ? `<span class="sub-meta" style="${overdue ? 'color:var(--red-text)' : ''}"><i class="ti ti-calendar" style="font-size:11px"></i>${dueDateTx}${overdue ? ' ⚠️' : ''}</span>` : ''}
       </div>
-      ${open ? subPanel(s, st, meAssigned || isSuper, meValidator || isSuper) : ''}
+      ${open ? subPanel(s, st, meAssigned, meValidator || isSuper) : ''}
     </div>
     ${children(s._id).map(c => nodeHtml(c, depth+1)).join('')}`;
   }
@@ -580,6 +586,19 @@ function subPanel(s, st, canWork, canApprove) {
 function escForAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function toggleSubExpand(id) { openSubId = (openSubId === id) ? null : id; renderSubtasks(_subtasksCache); }
+
+async function deleteSubtaskInline(id, judul) {
+  const ok = (typeof showConfirm === 'function')
+    ? await showConfirm(`Hapus subtask "${judul}" beserta seluruh sub-subtask di bawahnya? Tindakan ini tidak bisa dibatalkan.`,
+        { title: 'Hapus Subtask', okLabel: 'Hapus', cancelLabel: 'Batal', type: 'warning' })
+    : window.confirm(`Hapus subtask "${judul}" beserta turunannya?`);
+  if (!ok) return;
+  try {
+    await Subtasks.delete(id);
+    showToast('Subtask dihapus');
+    await loadTask();
+  } catch (e) { showToast(e.message, 'error'); }
+}
 
 async function loadSubAttachments(id) {
   const box = document.getElementById('subev-' + id);

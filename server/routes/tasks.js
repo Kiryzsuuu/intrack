@@ -569,10 +569,13 @@ router.post('/reset-data', auth, async (req, res) => {
 
 // ── DELETE /api/tasks/:id (soft delete) ── Superadmin saja ───────────────────
 router.delete('/:id', auth, async (req, res) => {
-  if (req.user.role !== 'superadmin')
-    return res.status(403).json({ message: 'Hanya admin (superadmin) yang dapat menghapus task' });
   const task = await Task.findById(req.params.id);
   if (!task) return res.status(404).json({ message: 'Task tidak ditemukan' });
+
+  // Superadmin/direksi atau creator task itu sendiri (req batch 4b)
+  const boleh = req.user.role === 'superadmin' || isDireksiRole(req.user) || isCreator(req.user, task);
+  if (!boleh)
+    return res.status(403).json({ message: 'Hanya pembuat task atau admin yang dapat menghapus task' });
 
   task.isDeleted = true;
   task.deletedAt = new Date();
