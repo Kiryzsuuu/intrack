@@ -200,6 +200,7 @@
     <div class="field">
       <label>Peran <span style="color:var(--red)">*</span></label>
       <select id="m-role" onchange="toggleDirField()">
+        <option value="superadmin" id="m-role-superadmin" style="display:none">Superadmin</option>
         <option value="komisaris">Komisaris</option>
         <option value="direksi">Direksi</option>
         <option value="manager">Manager</option>
@@ -339,7 +340,7 @@ function filterTable() {
 function toggleDirField() {
   const role = document.getElementById('m-role').value;
   // Komisaris dan Direksi tidak perlu direktorat (level atas), manager & staff perlu
-  document.getElementById('m-dir-field').style.display = ['komisaris','direksi'].includes(role) ? 'none' : '';
+  document.getElementById('m-dir-field').style.display = ['superadmin','komisaris','direksi'].includes(role) ? 'none' : '';
 }
 
 function roleLabel(role) {
@@ -349,6 +350,8 @@ function roleLabel(role) {
 
 function openModal(id) {
   editId = id || null;
+  // Opsi Superadmin hanya tersedia bagi superadmin yang sedang login
+  document.getElementById('m-role-superadmin').style.display = isSuperadmin ? '' : 'none';
   document.getElementById('modal-title').textContent = id ? 'Edit Pengguna' : 'Tambah Pengguna';
   document.getElementById('m-password-wrap').style.display = id ? 'none' : '';
   document.getElementById('m-btn').innerHTML = id ? '<i class="ti ti-check"></i> Simpan' : '<i class="ti ti-user-plus"></i> Tambah';

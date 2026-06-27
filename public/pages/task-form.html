@@ -443,7 +443,7 @@ function renderSubtaskTree() {
       return `
         <div class="st-row" style="margin-left:${depth * 22}px">
           <i class="ti ti-corner-down-right st-mini" style="${depth ? '' : 'visibility:hidden'}"></i>
-          <input class="st-judul" value="${(s.judul||'').replace(/"/g,'&quot;')}" onchange="updateSubtask('${id}', this.value)" placeholder="Judul subtask...">
+          <input class="st-judul" maxlength="100" value="${(s.judul||'').replace(/"/g,'&quot;')}" onchange="updateSubtask('${id}', this.value)" placeholder="Judul subtask...">
           <div class="st-assignees">${names}</div>
           <button type="button" class="icon-btn${assignOpenId===id?' on':''}" title="Detail (assignee, approval, deadline)" onclick="toggleAssignPanel('${id}')"><i class="ti ti-adjustments"></i></button>
           <button type="button" class="icon-btn" title="Tambah sub" onclick="startAddSubtask('${id}')"><i class="ti ti-plus"></i></button>
@@ -457,8 +457,10 @@ function renderSubtaskTree() {
       html += `
         <div class="st-row" style="margin-left:${depth * 22}px">
           <i class="ti ti-corner-down-right st-mini" style="${depth ? '' : 'visibility:hidden'}"></i>
-          <input class="st-judul" id="st-new-input" placeholder="Ketik judul lalu Enter..."
+          <input class="st-judul" id="st-new-input" maxlength="100" placeholder="Ketik judul lalu Enter... (maks 100 karakter)"
+            oninput="const c=document.getElementById('st-new-count'); if(c) c.textContent=this.value.length+'/100';"
             onkeydown="if(event.key==='Enter'){event.preventDefault();commitAddSubtask(this.value)} if(event.key==='Escape'){pendingAddParent=undefined;renderSubtaskTree()}">
+          <span id="st-new-count" style="font-size:11px;color:var(--text-3);flex-shrink:0">0/100</span>
           <button type="button" class="icon-btn" title="Simpan" onclick="commitAddSubtask(document.getElementById('st-new-input').value)"><i class="ti ti-check"></i></button>
           <button type="button" class="icon-btn" title="Batal" onclick="pendingAddParent=undefined;renderSubtaskTree()"><i class="ti ti-x"></i></button>
         </div>`;
@@ -488,13 +490,19 @@ async function commitAddSubtask(judul) {
   judul = (judul || '').trim();
   const parentId = pendingAddParent === undefined ? null : pendingAddParent;
   if (!judul) { pendingAddParent = undefined; renderSubtaskTree(); return; }
+  // Validasi sesuai requirement teknis (judul maksimal 100 karakter di server).
+  // Jangan biarkan gagal diam-diam → beri tahu user agar tidak input ulang (double).
+  if (judul.length > 100) {
+    showToast(`Judul subtask terlalu panjang (${judul.length}/100). Persingkat dulu.`, 'error');
+    return; // biarkan input tetap ada agar user bisa memperbaiki, tidak hilang/duplikat
+  }
   let newId = null;
   if (isLive()) {
     try {
       const created = await Subtasks.create(editId, { judul, parentId: parentId || null });
       newId = created?._id || null;
       subtasks = await Subtasks.list(editId);
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { showToast('Subtask gagal disimpan: ' + e.message, 'error'); return; }
   } else {
     const tmp = 't' + (tmpSeq++);
     subtasks.push({ _tmp: tmp, parentId: parentId || null, judul, assignees: [], validators: [], urutan: subtasks.length });

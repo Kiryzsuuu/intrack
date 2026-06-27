@@ -18,9 +18,14 @@
     .sel:focus { border-color:var(--accent); }
     .tbl-wrap {
       background:var(--surface); border:0.5px solid var(--border);
-      border-radius:var(--r-lg); overflow:hidden;
+      border-radius:var(--r-lg); overflow-x:auto; overflow-y:hidden;
     }
-    table { width:100%; border-collapse:collapse; }
+    table { width:100%; border-collapse:collapse; min-width:980px; }
+    /* Sel assignee ringkas: maksimal 2 baris, sisanya jadi "+N lainnya" */
+    .assignee-cell { display:flex; align-items:center; gap:8px; max-width:240px; }
+    .assignee-cell .nm { color:var(--text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .assignee-more { font-size:11px; color:var(--text-3); background:var(--surface-2);
+      border:0.5px solid var(--border); border-radius:99px; padding:1px 7px; flex-shrink:0; cursor:default; }
     th {
       font-size:11px; font-weight:600; color:var(--text-3);
       text-transform:uppercase; letter-spacing:.5px;
@@ -218,12 +223,22 @@ function renderTable(tasks) {
         </div>
       </td>
       <td class="hide-mobile">
-        <div style="display:flex;align-items:center;gap:8px">
-          ${(() => { const p = firstAssignee(t); return p?.fotoProfil
-            ? `<img src="${p.fotoProfil}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`
-            : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${initials(p?.namaLengkap||'?')}</div>`; })()}
-          <span style="color:var(--text-2)">${assigneeNames(t)}</span>
-        </div>
+        ${(() => {
+          const a = t.assignees || [];
+          if (!a.length) return '<span style="color:var(--text-3)">-</span>';
+          const p = a[0];
+          const ava = p?.fotoProfil
+            ? `<img src="${p.fotoProfil}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+            : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${initials(p?.namaLengkap||'?')}</div>`;
+          const shown = a.slice(0, 2).map(x => x.namaLengkap || '').filter(Boolean).join(', ');
+          const sisa  = a.length - 2;
+          const allNames = a.map(x => x.namaLengkap || '').filter(Boolean).join(', ');
+          return `<div class="assignee-cell" title="${allNames}">
+            ${ava}
+            <span class="nm">${shown}</span>
+            ${sisa > 0 ? `<span class="assignee-more" title="${allNames}">+${sisa} lainnya</span>` : ''}
+          </div>`;
+        })()}
       </td>
       <td class="hide-mobile" style="color:var(--text-2)">${(t.subtaskTotal||0) ? `${t.subtaskDone||0}/${t.subtaskTotal}` : '—'}</td>
       <td class="hide-mobile" style="color:var(--text-2)">${creatorNames(t)}</td>
