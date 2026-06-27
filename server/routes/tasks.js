@@ -109,6 +109,19 @@ router.get('/', auth, async (req, res) => {
   if (mine === 'true')         filter.assignees    = req.user._id; // task yang di-assign ke saya
   if (search)                  filter.judul        = { $regex: search, $options: 'i' };
 
+  // Req #11e: user biasa (manager/staff) hanya melihat task yang terkait dirinya.
+  // Superadmin/direksi/komisaris = pemantau global → lihat semua task.
+  const GLOBAL_VIEW_ROLES = ['superadmin', 'direksi', 'komisaris'];
+  if (!GLOBAL_VIEW_ROLES.includes(req.user.role) && mine !== 'true') {
+    const uid = req.user._id;
+    filter.$or = [
+      { assignees: uid },   // di-assign ke saya
+      { dibuatOleh: uid },  // saya pembuat utama
+      { creators: uid },    // saya co-creator
+      { validators: uid },  // saya validator/task approval
+    ];
+  }
+
   const total = await Task.countDocuments(filter);
   const tasks = await Task.find(filter)
     .populate('assignees', 'namaLengkap email fotoProfil')

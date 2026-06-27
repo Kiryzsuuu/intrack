@@ -31,6 +31,7 @@ function buildSidebar(user, activePage) {
       { id: 'audit',  href: '/pages/audit.html',    icon: 'ti-shield-check', label: 'Audit Trail',    section: 'admin' },
     ] : []),
     ...(isSuperadmin ? [
+      { id: 'admin-tasks',   href: '/pages/admin-tasks.html',   icon: 'ti-subtask',  label: 'Manajemen Task', section: 'admin' },
       { id: 'site-settings', href: '/pages/site-settings.html', icon: 'ti-settings', label: 'Site Settings', section: 'admin' },
       { id: 'disaster',      href: '/pages/disaster.html',      icon: 'ti-alert-triangle', label: 'Disaster Settings', section: 'admin' },
     ] : []),

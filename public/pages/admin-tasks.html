@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intrack — Manajemen Task</title>
+  <link rel="icon" href="/img/logo.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <style>
+    .input { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:7px 11px;font-size:13px;color:var(--text);outline:none }
+    .input:focus { border-color:var(--accent) }
+    .tk-card { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-lg);margin-bottom:10px;overflow:hidden }
+    .tk-head { display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer }
+    .tk-head:hover { background:var(--surface-2) }
+    .tk-title { flex:1;min-width:0;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+    .tk-meta { font-size:11px;color:var(--text-3);display:flex;gap:10px;flex-wrap:wrap;align-items:center }
+    .tk-body { border-top:0.5px solid var(--border);padding:8px 14px 12px;display:none }
+    .tk-body.open { display:block }
+    .sub-row { display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px dashed var(--border) }
+    .sub-row:last-child { border-bottom:none }
+    .sub-title { flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+    .sub-title.rejected { text-decoration:line-through;color:var(--text-3) }
+    .del-btn { background:none;border:0.5px solid transparent;color:var(--red-text,#b91c1c);cursor:pointer;border-radius:6px;padding:4px 9px;font-size:12px;display:flex;align-items:center;gap:4px;flex-shrink:0 }
+    .del-btn:hover { background:rgba(239,68,68,.1) }
+    .badge-sm { font-size:10px;padding:1px 7px;border-radius:99px;background:var(--surface-2);border:0.5px solid var(--border);color:var(--text-3);flex-shrink:0 }
+    .chip { font-size:11px;color:var(--text-3) }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar" data-page="admin-tasks"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="bc"><span class="cur">Manajemen Task</span></div>
+      <div class="topbar-right">
+        <input type="text" id="f-search" class="input" placeholder="Cari judul task..." style="width:220px" oninput="debounce()">
+      </div>
+    </div>
+
+    <div class="page-scroll">
+      <div class="page-content">
+        <div style="font-size:13px;color:var(--text-3);margin-bottom:12px">
+          <i class="ti ti-info-circle"></i> Kelola seluruh task & subtask (bersarang). Klik task untuk melihat subtask, sub-subtask, dst. Tombol hapus menghapus item beserta seluruh turunannya.
+        </div>
+        <div id="total-row" style="font-size:13px;color:var(--text-3);margin-bottom:10px"></div>
+        <div id="list">
+          <div style="text-align:center;color:var(--text-3);padding:40px">Memuat...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/dialogs.js"></script>
+<script src="/js/search.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/webpush.js"></script>
+<script>
+if (!requireAuth()) throw 'redirect';
+const user = getUser();
+if (user.role !== 'superadmin') { window.location.href='/pages/dashboard.html'; throw 'no access'; }
+
+let allTasks = [];
+let subCache = {};   // taskId -> array subtask
+let openTasks = new Set();
+let debTimer;
+
+function debounce() { clearTimeout(debTimer); debTimer = setTimeout(render, 250); }
+
+const STAT_LABEL = { to_do:'To Do', on_progress:'On Progress', partially_complete:'Sebagian', complete:'Selesai' };
+const SUBSTAT_LABEL = { to_do:'To Do', on_progress:'On Progress', review:'Review', done:'Done', rejected:'Ditolak' };
+
+async function load() {
+  try {
+    const { tasks } = await Tasks.list({ limit: 500 });
+    allTasks = tasks || [];
+    render();
+  } catch (e) {
+    document.getElementById('list').innerHTML = `<div style="color:var(--red-text);padding:20px">${e.message}</div>`;
+  }
+}
+
+function render() {
+  const q = (document.getElementById('f-search').value || '').toLowerCase().trim();
+  const list = allTasks.filter(t => !q || (t.judul || '').toLowerCase().includes(q));
+  document.getElementById('total-row').textContent = `${list.length} task`;
+  const el = document.getElementById('list');
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:40px">Tidak ada task</div>'; return; }
+
+  el.innerHTML = list.map(t => {
+    const open = openTasks.has(t._id);
+    const creator = t.dibuatOleh?.namaLengkap || '—';
+    const subInfo = (t.subtaskTotal || 0) ? `${t.subtaskDone||0}/${t.subtaskTotal} subtask` : 'tanpa subtask';
+    return `
+    <div class="tk-card">
+      <div class="tk-head" onclick="toggleTask('${t._id}')">
+        <i class="ti ti-chevron-${open?'down':'right'}" style="color:var(--text-3)"></i>
+        <div style="flex:1;min-width:0">
+          <div class="tk-title">${escapeHtml(t.judul)}</div>
+          <div class="tk-meta">
+            <span class="badge-sm">${STAT_LABEL[t.status]||t.status}</span>
+            <span class="chip"><i class="ti ti-user" style="font-size:11px"></i> ${escapeHtml(creator)}</span>
+            <span class="chip"><i class="ti ti-list-check" style="font-size:11px"></i> ${subInfo}</span>
+          </div>
+        </div>
+        <a href="/pages/task.html?id=${t._id}" class="badge-sm" style="text-decoration:none;cursor:pointer" onclick="event.stopPropagation()" title="Buka task"><i class="ti ti-external-link"></i></a>
+        <button class="del-btn" onclick="event.stopPropagation();delTask('${t._id}','${escapeAttr(t.judul)}')"><i class="ti ti-trash"></i> Hapus Task</button>
+      </div>
+      <div class="tk-body${open?' open':''}" id="body-${t._id}">
+        ${open ? renderSubBody(t._id) : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSubBody(taskId) {
+  const subs = subCache[taskId];
+  if (subs === undefined) return '<div style="color:var(--text-3);font-size:12px;padding:6px 0">Memuat subtask...</div>';
+  if (!subs.length) return '<div style="color:var(--text-3);font-size:12px;padding:6px 0">Tidak ada subtask.</div>';
+
+  function children(parentId) {
+    return subs.filter(s => (s.parentId || null) === (parentId || null)).sort((a,b)=>(a.urutan||0)-(b.urutan||0));
+  }
+  function node(s, depth) {
+    const st = s.status || (s.isDone ? 'done' : 'to_do');
+    const names = (s.assignees || []).map(a => a.namaLengkap).filter(Boolean).join(', ');
+    return `
+      <div class="sub-row" style="margin-left:${depth*20}px">
+        <i class="ti ti-corner-down-right" style="color:var(--text-3);font-size:13px;${depth?'':'visibility:hidden'}"></i>
+        <span class="sub-title ${st==='rejected'?'rejected':''}">${escapeHtml(s.judul)}</span>
+        <span class="badge-sm">${SUBSTAT_LABEL[st]||st}</span>
+        ${names ? `<span class="chip" title="${escapeAttr(names)}" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-user" style="font-size:11px"></i> ${escapeHtml(names)}</span>` : ''}
+        <button class="del-btn" onclick="delSub('${s._id}','${escapeAttr(s.judul)}','${taskId}')"><i class="ti ti-trash"></i></button>
+      </div>
+      ${children(s._id).map(c => node(c, depth+1)).join('')}`;
+  }
+  return children(null).map(s => node(s, 0)).join('');
+}
+
+async function toggleTask(id) {
+  if (openTasks.has(id)) { openTasks.delete(id); render(); return; }
+  openTasks.add(id);
+  render();
+  if (subCache[id] === undefined) {
+    try { subCache[id] = await Subtasks.list(id); }
+    catch { subCache[id] = []; }
+    const body = document.getElementById('body-' + id);
+    if (body && openTasks.has(id)) body.innerHTML = renderSubBody(id);
+  }
+}
+
+async function delTask(id, judul) {
+  const ok = await showConfirm(`Hapus task "${judul}" beserta seluruh subtask-nya?`,
+    { title: 'Hapus Task', okLabel: 'Hapus', cancelLabel: 'Batal', type: 'danger' });
+  if (!ok) return;
+  try {
+    await Tasks.delete(id);
+    showToast('Task dihapus');
+    allTasks = allTasks.filter(t => t._id !== id);
+    openTasks.delete(id); delete subCache[id];
+    render();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function delSub(id, judul, taskId) {
+  const ok = await showConfirm(`Hapus subtask "${judul}" beserta seluruh sub-subtask di bawahnya?`,
+    { title: 'Hapus Subtask', okLabel: 'Hapus', cancelLabel: 'Batal', type: 'danger' });
+  if (!ok) return;
+  try {
+    await Subtasks.delete(id);
+    showToast('Subtask dihapus');
+    subCache[taskId] = await Subtasks.list(taskId);
+    const body = document.getElementById('body-' + taskId);
+    if (body) body.innerHTML = renderSubBody(taskId);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s){ return String(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+load();
+</script>
+</body>
+</html>
