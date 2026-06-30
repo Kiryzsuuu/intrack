@@ -5,10 +5,11 @@ async function getSmtpConfig() {
     const SiteSettings = require('../models/SiteSettings');
     const s = await SiteSettings.findOne().lean();
     console.log('[Mailer] DB smtp check — host:', s?.smtpHost, '| user:', s?.smtpUser, '| pass set:', !!s?.smtpPass);
-    if (s && s.smtpHost && s.smtpUser && s.smtpPass) {
-      console.log('[Mailer] Using DB SMTP config, host:', s.smtpHost);
+    if (s && s.smtpUser && s.smtpPass) {
+      const host = s.smtpHost || 'smtp.gmail.com';
+      console.log('[Mailer] Using DB SMTP config, host:', host);
       return {
-        host:   s.smtpHost,
+        host,
         port:   s.smtpPort || 587,
         secure: s.smtpSecure || false,
         user:   s.smtpUser,

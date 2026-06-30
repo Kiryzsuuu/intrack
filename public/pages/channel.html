@@ -1555,7 +1555,9 @@ function leaveVoice() {
   peerConns = {};
 
   stopVAD();
+  stopBgProcessing();
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (bgRawTrack)  { bgRawTrack.stop(); bgRawTrack = null; }
   if (isScreenSharing) stopScreenShare();
 
   inVoice = false; isMuted = false; isDeafened = false; isVideoOn = false;
@@ -1867,6 +1869,7 @@ let micGainCtx = null; let micGainNode = null;
 // Background processing (canvas stream)
 let bgCanvas = null; let bgCtx2d = null; let bgSegmentation = null;
 let bgProcessedStream = null; let bgAnimFrame = null; let bgVideoEl = null;
+let bgRawTrack = null; // original camera track kept alive as canvas source
 
 function switchVsmTab(tab, btn) {
   document.querySelectorAll('.vsm-tab').forEach(t => t.classList.remove('active'));
@@ -1999,6 +2002,98 @@ function selectBg(mode, card) {
   startBgPreview();
 }
 
+// ── Background processing on live stream ──────────────────────────────────────
+function stopBgProcessing() {
+  if (bgAnimFrame) { cancelAnimationFrame(bgAnimFrame); bgAnimFrame = null; }
+  if (bgProcessedStream) { bgProcessedStream.getTracks().forEach(t => t.stop()); bgProcessedStream = null; }
+  bgCanvas = null; bgCtx2d = null; bgVideoEl = null;
+}
+
+async function applyBgToStream() {
+  stopBgProcessing();
+
+  const mode = vsm.bgMode;
+  if (!isVideoOn || !localStream) return;
+
+  // Get current video track (raw camera or previous processed)
+  const existingVidTrack = bgRawTrack || localStream.getVideoTracks()[0];
+  if (!existingVidTrack) return;
+  bgRawTrack = existingVidTrack;
+
+  if (mode === 'none') {
+    // Restore raw camera track to peers
+    for (const pc of Object.values(peerConns)) {
+      const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+      if (sender && bgRawTrack) await sender.replaceTrack(bgRawTrack).catch(() => {});
+    }
+    // Ensure localStream has raw track
+    localStream.getVideoTracks().forEach(t => { if (t !== bgRawTrack) { t.stop(); localStream.removeTrack(t); } });
+    if (!localStream.getVideoTracks().includes(bgRawTrack)) localStream.addTrack(bgRawTrack);
+    updateMyVideoTile(true);
+    return;
+  }
+
+  // Build video element for canvas source
+  bgVideoEl = document.createElement('video');
+  bgVideoEl.srcObject = new MediaStream([bgRawTrack]);
+  bgVideoEl.autoplay = bgVideoEl.muted = bgVideoEl.playsInline = true;
+  await new Promise(r => { bgVideoEl.onloadedmetadata = r; });
+
+  bgCanvas = document.createElement('canvas');
+  bgCanvas.width  = bgVideoEl.videoWidth  || 640;
+  bgCanvas.height = bgVideoEl.videoHeight || 480;
+  bgCtx2d = bgCanvas.getContext('2d');
+
+  let bgImg = null;
+  if (mode === 'upload' && vsm.bgImageSrc) {
+    bgImg = new Image();
+    bgImg.src = vsm.bgImageSrc;
+    await new Promise(r => { bgImg.onload = r; bgImg.onerror = r; });
+  }
+
+  const draw = () => {
+    if (!bgCtx2d) return;
+    bgAnimFrame = requestAnimationFrame(draw);
+    const w = bgCanvas.width, h = bgCanvas.height;
+
+    if (mode === 'blur') {
+      bgCtx2d.filter = 'blur(12px)';
+      bgCtx2d.drawImage(bgVideoEl, 0, 0, w, h);
+      bgCtx2d.filter = 'none';
+    } else if (mode.startsWith('color:')) {
+      bgCtx2d.fillStyle = mode.slice(6);
+      bgCtx2d.fillRect(0, 0, w, h);
+      bgCtx2d.globalAlpha = 0.82;
+      bgCtx2d.drawImage(bgVideoEl, 0, 0, w, h);
+      bgCtx2d.globalAlpha = 1;
+    } else if (mode === 'upload' && bgImg) {
+      bgCtx2d.drawImage(bgImg, 0, 0, w, h);
+      bgCtx2d.globalAlpha = 0.82;
+      bgCtx2d.drawImage(bgVideoEl, 0, 0, w, h);
+      bgCtx2d.globalAlpha = 1;
+    } else {
+      bgCtx2d.drawImage(bgVideoEl, 0, 0, w, h);
+    }
+  };
+  draw();
+
+  bgProcessedStream = bgCanvas.captureStream(30);
+  const processedTrack = bgProcessedStream.getVideoTracks()[0];
+
+  // Replace video track in localStream with processed track
+  localStream.getVideoTracks().forEach(t => { if (t !== bgRawTrack) { t.stop(); localStream.removeTrack(t); } });
+  localStream.getVideoTracks().forEach(t => { if (t === bgRawTrack) localStream.removeTrack(t); }); // raw track stays in bgVideoEl only
+  localStream.addTrack(processedTrack);
+
+  // Replace in all peers
+  for (const pc of Object.values(peerConns)) {
+    const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+    if (sender) await sender.replaceTrack(processedTrack).catch(() => {});
+  }
+
+  updateMyVideoTile(true);
+}
+
 function loadBgUpload(input) {
   const file = input.files[0]; if (!file) return;
   const reader = new FileReader();
@@ -2069,6 +2164,9 @@ async function applyVoiceSettings() {
       stopVAD(); startVAD();
     } catch(e) { showToast('Gagal menerapkan pengaturan mic: ' + e.message, 'error'); }
   }
+
+  // Apply background to live stream
+  if (inVoice) await applyBgToStream().catch(() => {});
 
   closeVoiceSettings();
   showToast('Pengaturan diterapkan');
@@ -2463,13 +2561,24 @@ function renderVoiceParticipants() {
   }
 }
 
+// Stop semua stream aktif saat halaman ditutup/navigasi (cegah kamera tetap nyala)
+window.addEventListener('beforeunload', () => {
+  try { socket?.emit('voice:leave'); } catch(e) {}
+  try { localStream?.getTracks().forEach(t => t.stop()); } catch(e) {}
+  try { lobbyStream?.getTracks().forEach(t => t.stop()); } catch(e) {}
+  try { vsmStream?.getTracks().forEach(t => t.stop()); } catch(e) {}
+  try { vsmBgStream?.getTracks().forEach(t => t.stop()); } catch(e) {}
+  try { bgRawTrack?.stop(); } catch(e) {}
+  try { bgProcessedStream?.getTracks().forEach(t => t.stop()); } catch(e) {}
+  try { screenStream?.getTracks().forEach(t => t.stop()); } catch(e) {}
+});
+
 // ── Mode popup: jendela khusus voice (hanya call-view + lobby) ─────────────────
 if (VOICE_POPUP) {
   document.body.classList.add('voice-popup-mode');
   document.title = 'Voice — General Voice';
   getSocket();   // pastikan socket terbuka
   showLobby();   // tampilkan lobby preview di dalam popup
-  window.addEventListener('beforeunload', () => { try { socket?.emit('voice:leave'); } catch(e) {} });
 }
 </script>
 </body>
