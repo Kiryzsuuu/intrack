@@ -86,6 +86,27 @@ router.post('/smtp-test', auth, requireSuperadmin, async (req, res) => {
   }
 });
 
+// GET /api/site-settings/smtp-debug — superadmin only, cek config aktif
+router.get('/smtp-debug', auth, requireSuperadmin, async (req, res) => {
+  const s = await getSettings();
+  res.json({
+    db: {
+      smtpHost:   s.smtpHost   || '(kosong)',
+      smtpPort:   s.smtpPort,
+      smtpUser:   s.smtpUser   || '(kosong)',
+      smtpPassSet: !!s.smtpPass,
+      smtpFrom:   s.smtpFrom   || '(kosong)',
+      smtpSecure: s.smtpSecure,
+    },
+    env: {
+      MAIL_HOST: process.env.MAIL_HOST || '(tidak di-set)',
+      MAIL_USER: process.env.MAIL_USER || '(tidak di-set)',
+      MAIL_PASS_SET: !!process.env.MAIL_PASS,
+    },
+    activeSource: (s.smtpHost && s.smtpUser && s.smtpPass) ? 'DATABASE' : 'ENV (.env)',
+  });
+});
+
 // POST /api/site-settings/logo — upload logo
 router.post('/logo', auth, requireSuperadmin, uploadLogo.single('logo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'File tidak ditemukan' });

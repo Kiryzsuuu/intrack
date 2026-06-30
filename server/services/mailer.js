@@ -4,7 +4,9 @@ async function getSmtpConfig() {
   try {
     const SiteSettings = require('../models/SiteSettings');
     const s = await SiteSettings.findOne().lean();
+    console.log('[Mailer] DB smtp check — host:', s?.smtpHost, '| user:', s?.smtpUser, '| pass set:', !!s?.smtpPass);
     if (s && s.smtpHost && s.smtpUser && s.smtpPass) {
+      console.log('[Mailer] Using DB SMTP config, host:', s.smtpHost);
       return {
         host:   s.smtpHost,
         port:   s.smtpPort || 587,
@@ -14,9 +16,12 @@ async function getSmtpConfig() {
         from:   s.smtpFrom || `"Intrack" <${s.smtpUser}>`,
       };
     }
-  } catch {}
+  } catch (err) {
+    console.error('[Mailer] Gagal baca SiteSettings dari DB:', err.message);
+  }
   // Fallback ke .env
   if (process.env.MAIL_USER && process.env.MAIL_PASS) {
+    console.log('[Mailer] Using .env SMTP fallback, user:', process.env.MAIL_USER);
     return {
       host:   process.env.MAIL_HOST || 'smtp.gmail.com',
       port:   parseInt(process.env.MAIL_PORT) || 587,
