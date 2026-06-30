@@ -1,11 +1,5 @@
 const nodemailer = require('nodemailer');
 
-let transporter = null;
-
-function resetTransporter() {
-  transporter = null;
-}
-
 async function getSmtpConfig() {
   try {
     const SiteSettings = require('../models/SiteSettings');
@@ -42,16 +36,12 @@ async function sendMail({ to, subject, html, text }) {
     return;
   }
   try {
-    // Buat transporter baru jika belum ada (di-cache hingga resetTransporter dipanggil)
-    if (!transporter) {
-      transporter = nodemailer.createTransport({
-        host: cfg.host, port: cfg.port, secure: cfg.secure,
-        auth: { user: cfg.user, pass: cfg.pass },
-      });
-    }
+    const transporter = nodemailer.createTransport({
+      host: cfg.host, port: cfg.port, secure: cfg.secure,
+      auth: { user: cfg.user, pass: cfg.pass },
+    });
     await transporter.sendMail({ from: cfg.from, to, subject, html, text });
   } catch (err) {
-    transporter = null; // reset supaya next call buat ulang
     console.error('[Mailer] Gagal kirim email:', err.message);
     throw err;
   }
@@ -196,7 +186,7 @@ async function mailDailyDigest(user, stats) {
 
 module.exports = {
   sendMail,
-  resetTransporter,
+  resetTransporter: () => {}, // no-op, kept for backward compatibility
   mailTaskApproved,
   mailTaskRejected,
   mailTaskRevisi,

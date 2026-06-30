@@ -60,14 +60,10 @@ router.put('/', auth, requireSuperadmin, async (req, res) => {
   if (smtpPort   !== undefined) s.smtpPort   = Number(smtpPort) || 587;
   if (smtpSecure !== undefined) s.smtpSecure = Boolean(smtpSecure);
   if (smtpUser   !== undefined) s.smtpUser   = smtpUser;
-  if (smtpPass   !== undefined) s.smtpPass   = smtpPass;
+  if (smtpPass)                 s.smtpPass   = smtpPass; // skip empty string — preserve existing password
   if (smtpFrom   !== undefined) s.smtpFrom   = smtpFrom;
 
   await s.save();
-
-  // Reset cached transporter agar config baru langsung berlaku
-  const mailer = require('../services/mailer');
-  if (mailer.resetTransporter) mailer.resetTransporter();
 
   res.json({ message: 'Pengaturan disimpan', settings: s });
 });
